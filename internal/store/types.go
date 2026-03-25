@@ -100,3 +100,18 @@ type SessionSummary struct {
 	RetryCount     int
 	HardWords      []Word
 }
+
+type ExportReviewStats struct {
+	TotalReviews   int
+	CorrectReviews int
+	WrongReviews   int
+	LastAnsweredAt *time.Time
+	LastWrongAt    *time.Time
+	LastCorrectAt  *time.Time
+}
+
+type ExportWordSnapshot struct {
+	Word        Word
+	Progress    Progress
+	ReviewStats ExportReviewStats
+}

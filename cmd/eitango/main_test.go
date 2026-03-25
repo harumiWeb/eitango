@@ -48,6 +48,31 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 		t.Fatal("doctor command not found")
 	}
 
+	export := findSubcommand(cmd, "export")
+	if export == nil {
+		t.Fatal("export command not found")
+	}
+	wrongWords := findSubcommand(export, "wrong-words")
+	if wrongWords == nil {
+		t.Fatal("export wrong-words command not found")
+	}
+	if wrongWords.Flags().Lookup("format") == nil {
+		t.Fatal("export wrong-words format flag not found")
+	}
+	if wrongWords.Flags().Lookup("output") == nil {
+		t.Fatal("export wrong-words output flag not found")
+	}
+	progress := findSubcommand(export, "progress")
+	if progress == nil {
+		t.Fatal("export progress command not found")
+	}
+	if progress.Flags().Lookup("format") == nil {
+		t.Fatal("export progress format flag not found")
+	}
+	if progress.Flags().Lookup("output") == nil {
+		t.Fatal("export progress output flag not found")
+	}
+
 	reset := findSubcommand(cmd, "reset")
 	if reset == nil {
 		t.Fatal("reset command not found")

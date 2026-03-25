@@ -89,12 +89,16 @@
     - 既存の `store` を再利用し、編集機能は後回しにする
   - 完了条件: 学習前に語彙と進捗を一覧できる
 
-- [ ] `eitango export` を追加する
+- [x] `eitango export` を追加する
   - 種別: 未着手
   - 実装方針:
     - 先に `wrong-words` CSV と `progress` JSON の 2 経路だけ実装する
     - 出力契約を先に固定し、Anki 取り込みやバックアップ用途を優先する
     - `reviews`, `progress`, `words` を join する read model を store 側に追加する
+  - 実装メモ:
+    - `cmd/eitango/export.go` に `export wrong-words` / `export progress` を追加し、現段階ではそれぞれ `--format csv` / `--format json` のみを許可する
+    - export は `config.Resolve()` + `store.OpenReadOnly()` で DB を開き、migrate / seed / DB 作成を行わない
+    - `internal/store/export.go` に `words` + `progress` + 集計済み `reviews` を束ねた export snapshot を追加し、CSV/JSON の両方が同じ read model を使うようにした
   - 完了条件: 苦手語 CSV と進捗 JSON を外部へ持ち出せる
 
 - [ ] `eitango import` を追加する
@@ -163,7 +167,7 @@
 - 完了済み: `eitango doctor`
 - 完了済み: Phase 1 辞書パック拡張
 - 完了済み: `eitango reset`
-1. `eitango export`
-2. `words.source` migration + `eitango import`
-3. `eitango browse`
-4. help 画面 / 例文表示 / waiting metrics
+- 完了済み: `eitango export`
+1. `words.source` migration + `eitango import`
+2. `eitango browse`
+3. help 画面 / 例文表示 / waiting metrics
