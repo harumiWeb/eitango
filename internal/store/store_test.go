@@ -65,6 +65,55 @@ func TestMigrateSeedWordsAndHomeSnapshot(t *testing.T) {
 	}
 }
 
+func TestListDistractorCandidatesPrioritizeGroupAndLevel(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	entries := []dict.Entry{
+		{Lemma: "accept", Pos: "verb", MeaningJA: "受け入れる", Level: "toeic600", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "avoid", Pos: "verb", MeaningJA: "避ける", Level: "toeic600", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
+		{Lemma: "collect", Pos: "verb", MeaningJA: "収集する", Level: "toeic600", FrequencyRank: 140, DistractorGroup: "basic-verb-action"},
+		{Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "toeic600", FrequencyRank: 160, DistractorGroup: "basic-verb-action"},
+		{Lemma: "approve", Pos: "verb", MeaningJA: "承認する", Level: "toeic800", FrequencyRank: 5000, DistractorGroup: "business-verb"},
+		{Lemma: "assign", Pos: "verb", MeaningJA: "割り当てる", Level: "toeic800", FrequencyRank: 5010, DistractorGroup: "business-verb"},
+		{Lemma: "budget", Pos: "verb", MeaningJA: "予算計上する", Level: "toeic800", FrequencyRank: 5020, DistractorGroup: "business-verb"},
+		{Lemma: "delegate", Pos: "verb", MeaningJA: "委任する", Level: "toeic800", FrequencyRank: 5030, DistractorGroup: "business-verb"},
+		{Lemma: "expand", Pos: "verb", MeaningJA: "拡大する", Level: "toeic800", FrequencyRank: 6500, DistractorGroup: "change-verb"},
+	}
+
+	if err := st.SeedWords(ctx, entries, "test-distractors-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 20, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+
+	var correct Word
+	for _, word := range words {
+		if word.Lemma == "approve" {
+			correct = word
+			break
+		}
+	}
+	if correct.ID == 0 {
+		t.Fatal("approve word not found")
+	}
+
+	pool, err := st.ListDistractorCandidates(ctx, correct, 4, []int64{correct.ID})
+	if err != nil {
+		t.Fatalf("ListDistractorCandidates() error = %v", err)
+	}
+	if len(pool) != 4 {
+		t.Fatalf("len(pool) = %d, want 4", len(pool))
+	}
+	if pool[0].Lemma != "assign" || pool[1].Lemma != "budget" || pool[2].Lemma != "delegate" {
+		t.Fatalf("unexpected prioritized distractors: %+v", []string{pool[0].Lemma, pool[1].Lemma, pool[2].Lemma, pool[3].Lemma})
+	}
+}
+
 func TestSaveAnswerCreatesRetryCompletesSessionAndUpdatesStats(t *testing.T) {
 	t.Parallel()
 

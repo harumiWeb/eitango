@@ -180,6 +180,58 @@ WHERE pos = ?
 	return scanWords(rows)
 }
 
+func (s *Store) ListDistractorCandidates(ctx context.Context, correct Word, limit int, excludeIDs []int64) ([]Word, error) {
+	query := `
+SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
+       distractor_group, example_en, example_ja, created_at
+FROM words
+WHERE pos = ?
+  AND meaning_ja != ?
+`
+	args := make([]any, 0, len(excludeIDs)+8)
+	args = append(args, correct.Pos, correct.MeaningJA)
+	if len(excludeIDs) > 0 {
+		query += " AND id NOT IN (" + placeholders(len(excludeIDs)) + ")"
+		for _, id := range excludeIDs {
+			args = append(args, id)
+		}
+	}
+	query += `
+ORDER BY
+  CASE
+    WHEN ? <> '' AND COALESCE(distractor_group, '') = ? THEN 0
+    ELSE 1
+  END,
+  CASE
+    WHEN ? <> '' AND COALESCE(level, '') = ? THEN 0
+    ELSE 1
+  END,
+  ABS(COALESCE(frequency_rank, 999999) - ?) ASC,
+  COALESCE(frequency_rank, 999999) ASC,
+  id ASC
+LIMIT ?
+`
+	args = append(
+		args,
+		correct.DistractorGroup,
+		correct.DistractorGroup,
+		correct.Level,
+		correct.Level,
+		correct.FrequencyRank,
+		limit,
+	)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query distractor candidates for %q: %w", correct.Lemma, err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	return scanWords(rows)
+}
+
 func (s *Store) AbandonActiveSession(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `
 UPDATE sessions

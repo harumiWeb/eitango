@@ -46,13 +46,16 @@
   - 依存: `config.toml` 読み込み（任意）
   - 完了条件: `eitango learn --focus-mode` で 5 問固定になる
 
-- [ ] Phase 1 の辞書パックを 1000〜3000 語へ拡張する
+- [x] Phase 1 の辞書パックを 1000〜3000 語へ拡張する
   - 種別: 一部着手
-  - 現状: `assets/words_core.jsonl` は存在するが、現行データ量は smoke test 向けの小規模パックに留まる
+  - 現状: `assets/words_core.jsonl` は `1051` 語の Phase 1 コアパックになり、`lemma`, `pos`, `meaning_ja`, `level`, `frequency_rank`, `distractor_group` を全件で保持する
   - 実装方針:
     - `lemma`, `pos`, `meaning_ja`, `level`, `frequency_rank`, `distractor_group` を優先し、まずは例文より出題品質を優先する
     - 同一 `pos` / 近い `level` / 同一 `distractor_group` で 4 択が成立するよう、グループ単位でデータを増やす
     - データ拡張とセットで loader / doctor 用の検証を追加する
+  - 実装メモ:
+    - `ListDistractorCandidates` を追加し、quiz / doctor が `distractor_group`, `level`, `frequency_rank` を踏まえた runtime 候補集合を使うようにした
+    - `internal/dict/embed_test.go` で件数・必須項目・重複・distractor group 最小件数を固定し、`internal/store/embedded_core_words_test.go` で seed + doctor 健全性を固定した
   - 完了条件: 設計書 Phase 1 相当の語彙量と distractor の最低品質を満たす
 
 ## P1: まだ入口が無い運用コマンド群
@@ -154,9 +157,9 @@
 
 - 完了済み: `eitango review`, `config.toml` 読み込み, `--focus-mode`
 - 完了済み: `eitango doctor`
-1. Phase 1 辞書パック拡張
-2. `eitango reset`
-3. `eitango export`
-4. `words.source` migration + `eitango import`
-5. `eitango browse`
-6. help 画面 / 例文表示 / waiting metrics
+- 完了済み: Phase 1 辞書パック拡張
+1. `eitango reset`
+2. `eitango export`
+3. `words.source` migration + `eitango import`
+4. `eitango browse`
+5. help 画面 / 例文表示 / waiting metrics

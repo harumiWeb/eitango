@@ -14,6 +14,7 @@ import (
 type WordStore interface {
 	GetWord(ctx context.Context, wordID int64) (store.Word, error)
 	ListWordsByPOS(ctx context.Context, pos string, limit int, excludeIDs []int64) ([]store.Word, error)
+	ListDistractorCandidates(ctx context.Context, correct store.Word, limit int, excludeIDs []int64) ([]store.Word, error)
 }
 
 type Service struct {
@@ -35,12 +36,12 @@ func (s *Service) BuildQuestion(ctx context.Context, item store.SessionItem, tot
 	}
 
 	exclude := uniqueIDs(append([]int64{correct.ID}, recentDistractors...))
-	pool, err := s.store.ListWordsByPOS(ctx, correct.Pos, 64, exclude)
+	pool, err := s.store.ListDistractorCandidates(ctx, correct, 64, exclude)
 	if err != nil {
 		return Question{}, err
 	}
 	if len(pool) < 3 {
-		fallbackPool, err := s.store.ListWordsByPOS(ctx, correct.Pos, 64, []int64{correct.ID})
+		fallbackPool, err := s.store.ListDistractorCandidates(ctx, correct, 64, []int64{correct.ID})
 		if err != nil {
 			return Question{}, err
 		}

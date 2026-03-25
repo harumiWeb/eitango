@@ -465,7 +465,7 @@ func (s *Store) checkQuizability(ctx context.Context) DiagnosticCheck {
 
 	failures := make([]string, 0)
 	for _, word := range words {
-		pool, err := s.ListWordsByPOS(ctx, word.Pos, doctorQuizPoolLimit, []int64{word.ID})
+		pool, err := s.ListDistractorCandidates(ctx, word, doctorQuizPoolLimit, []int64{word.ID})
 		if err != nil {
 			return diagnosticCheckError("quizability", fmt.Sprintf("distractor pool for %s could not be loaded", word.Lemma), err.Error())
 		}
