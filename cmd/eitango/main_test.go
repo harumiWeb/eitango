@@ -1,11 +1,18 @@
 package main
 
 import (
+	"bytes"
+	"context"
+	"errors"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/yourname/eitango/internal/config"
+	"github.com/yourname/eitango/internal/dict"
 	"github.com/yourname/eitango/internal/session"
+	"github.com/yourname/eitango/internal/store"
 )
 
 func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
@@ -29,6 +36,11 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 	}
 	if review.Flags().Lookup("restart") == nil {
 		t.Fatal("review restart flag not found")
+	}
+
+	doctor := findSubcommand(cmd, "doctor")
+	if doctor == nil {
+		t.Fatal("doctor command not found")
 	}
 }
 
@@ -70,4 +82,97 @@ func findSubcommand(root *cobra.Command, name string) *cobra.Command {
 		}
 	}
 	return nil
+}
+
+func TestDoctorCommandRunsDiagnostics(t *testing.T) {
+	dataDir := t.TempDir()
+	dbPath := filepath.Join(dataDir, "user.db")
+
+	ctx := context.Background()
+	st, err := store.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+	if err := st.SeedWords(ctx, []dict.Entry{
+		{Lemma: "adopt", Pos: "verb", MeaningJA: "採用する", Level: "toeic600", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "apply", Pos: "verb", MeaningJA: "応募する", Level: "toeic600", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
+		{Lemma: "cancel", Pos: "verb", MeaningJA: "取り消す", Level: "toeic600", FrequencyRank: 140, DistractorGroup: "basic-verb-action"},
+		{Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "toeic600", FrequencyRank: 160, DistractorGroup: "basic-verb-action"},
+	}, dict.CoreWordsVersion); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	t.Setenv("EITANGO_DATA_DIR", dataDir)
+
+	var out bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"doctor"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "eitango doctor") {
+		t.Fatalf("doctor output = %q, want header", output)
+	}
+	if !strings.Contains(output, "Summary: OK") {
+		t.Fatalf("doctor output = %q, want OK summary", output)
+	}
+}
+
+func TestDoctorCommandReturnsExitCodeForIssues(t *testing.T) {
+	dataDir := t.TempDir()
+	dbPath := filepath.Join(dataDir, "user.db")
+
+	ctx := context.Background()
+	st, err := store.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+	if err := st.SeedWords(ctx, []dict.Entry{
+		{Lemma: "abandon", Pos: "verb", MeaningJA: "捨てる", Level: "toeic600", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "apply", Pos: "verb", MeaningJA: "応募する", Level: "toeic600", FrequencyRank: 200, DistractorGroup: "basic-verb-action"},
+		{Lemma: "benefit", Pos: "noun", MeaningJA: "利益", Level: "toeic600", FrequencyRank: 300, DistractorGroup: "basic-noun-business"},
+	}, dict.CoreWordsVersion); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	t.Setenv("EITANGO_DATA_DIR", dataDir)
+
+	var out bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"doctor"})
+
+	err = cmd.Execute()
+	if err == nil {
+		t.Fatal("Execute() error = nil, want exit code error")
+	}
+
+	var withExitCode interface{ ExitCode() int }
+	if !errors.As(err, &withExitCode) {
+		t.Fatalf("Execute() error = %T, want exit code error", err)
+	}
+	if withExitCode.ExitCode() != 1 {
+		t.Fatalf("ExitCode() = %d, want 1", withExitCode.ExitCode())
+	}
+	if !strings.Contains(out.String(), "quizability") {
+		t.Fatalf("doctor output = %q, want quizability failure", out.String())
+	}
 }

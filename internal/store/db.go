@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,7 +18,18 @@ type Store struct {
 }
 
 func Open(ctx context.Context, dbPath string) (*Store, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	return open(ctx, dbPath, false)
+}
+
+func OpenReadOnly(ctx context.Context, dbPath string) (*Store, error) {
+	if _, err := os.Stat(dbPath); err != nil {
+		return nil, fmt.Errorf("stat sqlite %s: %w", dbPath, err)
+	}
+	return open(ctx, sqliteURI(dbPath, "ro"), true)
+}
+
+func open(ctx context.Context, dsn string, readOnly bool) (*Store, error) {
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
@@ -25,7 +39,7 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 	db.SetConnMaxLifetime(0)
 
 	store := &Store{db: db}
-	if err := store.configure(ctx); err != nil {
+	if err := store.configure(ctx, readOnly); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -37,16 +51,20 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-func (s *Store) configure(ctx context.Context) error {
+func (s *Store) configure(ctx context.Context, readOnly bool) error {
 	if err := s.db.PingContext(ctx); err != nil {
 		return fmt.Errorf("ping sqlite: %w", err)
 	}
 
 	pragmas := []string{
 		"PRAGMA foreign_keys = ON;",
-		"PRAGMA journal_mode = WAL;",
-		"PRAGMA synchronous = NORMAL;",
 		"PRAGMA busy_timeout = 5000;",
+	}
+	if !readOnly {
+		pragmas = append(pragmas,
+			"PRAGMA journal_mode = WAL;",
+			"PRAGMA synchronous = NORMAL;",
+		)
 	}
 	for _, pragma := range pragmas {
 		if _, err := s.db.ExecContext(ctx, pragma); err != nil {
@@ -87,4 +105,15 @@ func placeholders(n int) string {
 		return ""
 	}
 	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
+}
+
+func sqliteURI(dbPath, mode string) string {
+	parts := strings.Split(filepath.ToSlash(dbPath), "/")
+	for i, part := range parts {
+		if i == 0 && strings.HasSuffix(part, ":") {
+			continue
+		}
+		parts[i] = url.PathEscape(part)
+	}
+	return "file:" + strings.Join(parts, "/") + "?mode=" + url.QueryEscape(mode)
 }

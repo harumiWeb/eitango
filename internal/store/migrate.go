@@ -20,21 +20,13 @@ applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 		return fmt.Errorf("create schema_migrations: %w", err)
 	}
 
-	entries, err := projectassets.Embedded.ReadDir("migrations")
+	migrations, err := embeddedMigrationNames()
 	if err != nil {
-		return fmt.Errorf("read embedded migrations: %w", err)
+		return err
 	}
 
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Name() < entries[j].Name()
-	})
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		applied, err := s.hasMigration(ctx, entry.Name())
+	for _, migration := range migrations {
+		applied, err := s.hasMigration(ctx, migration)
 		if err != nil {
 			return err
 		}
@@ -42,27 +34,27 @@ applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 			continue
 		}
 
-		sqlBytes, err := projectassets.Embedded.ReadFile("migrations/" + entry.Name())
+		sqlBytes, err := projectassets.Embedded.ReadFile("migrations/" + migration)
 		if err != nil {
-			return fmt.Errorf("read migration %s: %w", entry.Name(), err)
+			return fmt.Errorf("read migration %s: %w", migration, err)
 		}
 
 		tx, err := s.db.BeginTx(ctx, nil)
 		if err != nil {
-			return fmt.Errorf("begin migration %s: %w", entry.Name(), err)
+			return fmt.Errorf("begin migration %s: %w", migration, err)
 		}
 
 		if _, err := tx.ExecContext(ctx, string(sqlBytes)); err != nil {
 			_ = tx.Rollback()
-			return fmt.Errorf("apply migration %s: %w", entry.Name(), err)
+			return fmt.Errorf("apply migration %s: %w", migration, err)
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version) VALUES (?)`, entry.Name()); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version) VALUES (?)`, migration); err != nil {
 			_ = tx.Rollback()
-			return fmt.Errorf("record migration %s: %w", entry.Name(), err)
+			return fmt.Errorf("record migration %s: %w", migration, err)
 		}
 
 		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("commit migration %s: %w", entry.Name(), err)
+			return fmt.Errorf("commit migration %s: %w", migration, err)
 		}
 	}
 
@@ -210,4 +202,24 @@ func nullableString(value string) any {
 		return nil
 	}
 	return value
+}
+
+func embeddedMigrationNames() ([]string, error) {
+	entries, err := projectassets.Embedded.ReadDir("migrations")
+	if err != nil {
+		return nil, fmt.Errorf("read embedded migrations: %w", err)
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
+	})
+
+	migrations := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		migrations = append(migrations, entry.Name())
+	}
+	return migrations, nil
 }

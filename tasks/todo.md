@@ -57,7 +57,7 @@
 
 ## P1: まだ入口が無い運用コマンド群
 
-- [ ] `eitango doctor` を追加する
+- [x] `eitango doctor` を追加する
   - 種別: 未着手
   - 実装方針:
     - 最初は read-only 診断に限定する
@@ -153,10 +153,10 @@
 ## 推奨着手順
 
 - 完了済み: `eitango review`, `config.toml` 読み込み, `--focus-mode`
-1. `eitango doctor`
-2. Phase 1 辞書パック拡張
-3. `eitango reset`
-4. `eitango export`
-5. `words.source` migration + `eitango import`
-6. `eitango browse`
-7. help 画面 / 例文表示 / waiting metrics
+- 完了済み: `eitango doctor`
+1. Phase 1 辞書パック拡張
+2. `eitango reset`
+3. `eitango export`
+4. `words.source` migration + `eitango import`
+5. `eitango browse`
+6. help 画面 / 例文表示 / waiting metrics

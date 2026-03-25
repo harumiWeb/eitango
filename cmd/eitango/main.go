@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
@@ -17,18 +19,26 @@ import (
 
 func main() {
 	if err := newRootCommand().Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		exitCode := 1
+		var withExitCode interface{ ExitCode() int }
+		if errors.As(err, &withExitCode) {
+			exitCode = withExitCode.ExitCode()
+		}
+		if message := err.Error(); message != "" {
+			fmt.Fprintln(os.Stderr, message)
+		}
+		os.Exit(exitCode)
 	}
 }
 
 func newRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "eitango",
-		Short:        "Offline TUI English vocabulary trainer",
-		SilenceUsage: true,
+		Use:           "eitango",
+		Short:         "Offline TUI English vocabulary trainer",
+		SilenceErrors: true,
+		SilenceUsage:  true,
 	}
-	cmd.AddCommand(newLearnCommand(), newReviewCommand(), newStatsCommand())
+	cmd.AddCommand(newLearnCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand())
 	return cmd
 }
 
@@ -128,6 +138,38 @@ func newStatsCommand() *cobra.Command {
 	}
 }
 
+func newDoctorCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "doctor",
+		Short: "Run read-only database diagnostics",
+		RunE:  runDoctor,
+	}
+}
+
+func runDoctor(cmd *cobra.Command, args []string) error {
+	paths, err := config.Resolve()
+	if err != nil {
+		return fmt.Errorf("resolve data dir: %w", err)
+	}
+
+	st, err := store.OpenReadOnly(commandContext(cmd), paths.DBPath)
+	if err != nil {
+		return fmt.Errorf("open db read-only: %w", err)
+	}
+	defer func() {
+		_ = st.Close()
+	}()
+
+	report := st.RunDiagnostics(commandContext(cmd))
+	if _, err := fmt.Fprint(cmd.OutOrStdout(), formatDoctorReport(report)); err != nil {
+		return err
+	}
+	if report.HasIssues() {
+		return commandExitError{code: 1}
+	}
+	return nil
+}
+
 func addFocusModeFlag(cmd *cobra.Command) {
 	cmd.Flags().Bool("focus-mode", false, "Use a 5-question session")
 }
@@ -203,4 +245,55 @@ func commandContext(cmd *cobra.Command) context.Context {
 		return context.Background()
 	}
 	return ctx
+}
+
+type commandExitError struct {
+	code int
+}
+
+func (e commandExitError) Error() string {
+	return ""
+}
+
+func (e commandExitError) ExitCode() int {
+	return e.code
+}
+
+func formatDoctorReport(report store.DiagnosticReport) string {
+	var b strings.Builder
+	fmt.Fprintln(&b, "eitango doctor")
+	fmt.Fprintln(&b, "==============")
+	fmt.Fprintln(&b)
+
+	for _, check := range report.Checks {
+		fmt.Fprintf(&b, "[%s] %-20s %s\n", doctorStatusText(check.Status), check.Name, check.Summary)
+		for _, detail := range check.Details {
+			fmt.Fprintf(&b, "      - %s\n", detail)
+		}
+	}
+
+	fmt.Fprintln(&b)
+	switch warnings, errors := report.WarningCount(), report.ErrorCount(); {
+	case warnings == 0 && errors == 0:
+		fmt.Fprintln(&b, "Summary: OK")
+	case warnings == 0:
+		fmt.Fprintf(&b, "Summary: %d error(s)\n", errors)
+	case errors == 0:
+		fmt.Fprintf(&b, "Summary: %d warning(s)\n", warnings)
+	default:
+		fmt.Fprintf(&b, "Summary: %d warning(s), %d error(s)\n", warnings, errors)
+	}
+
+	return b.String()
+}
+
+func doctorStatusText(status store.DiagnosticStatus) string {
+	switch status {
+	case store.DiagnosticStatusOK:
+		return "OK"
+	case store.DiagnosticStatusWarning:
+		return "WARN"
+	default:
+		return "ERR"
+	}
 }
