@@ -3,16 +3,21 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/yourname/eitango/internal/config"
 	"github.com/yourname/eitango/internal/dict"
 	"github.com/yourname/eitango/internal/session"
+	"github.com/yourname/eitango/internal/srs"
 	"github.com/yourname/eitango/internal/store"
+	_ "modernc.org/sqlite"
 )
 
 func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
@@ -41,6 +46,17 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 	doctor := findSubcommand(cmd, "doctor")
 	if doctor == nil {
 		t.Fatal("doctor command not found")
+	}
+
+	reset := findSubcommand(cmd, "reset")
+	if reset == nil {
+		t.Fatal("reset command not found")
+	}
+	if reset.Flags().Lookup("progress") == nil {
+		t.Fatal("reset progress flag not found")
+	}
+	if reset.Flags().Lookup("reseed") == nil {
+		t.Fatal("reset reseed flag not found")
 	}
 }
 
@@ -175,4 +191,198 @@ func TestDoctorCommandReturnsExitCodeForIssues(t *testing.T) {
 	if !strings.Contains(out.String(), "quizability") {
 		t.Fatalf("doctor output = %q, want quizability failure", out.String())
 	}
+}
+
+func TestResetCommandRequiresScopeFlag(t *testing.T) {
+	dataDir := t.TempDir()
+	dbPath := filepath.Join(dataDir, "user.db")
+
+	t.Setenv("EITANGO_DATA_DIR", dataDir)
+
+	var out bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"reset"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("Execute() error = nil, want validation error")
+	}
+	if !strings.Contains(err.Error(), "--progress or --reseed") {
+		t.Fatalf("Execute() error = %v, want scope guidance", err)
+	}
+	if _, statErr := os.Stat(dbPath); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("user.db should not be created, stat error = %v", statErr)
+	}
+}
+
+func TestResetCommandProgressClearsLearningHistory(t *testing.T) {
+	dataDir := t.TempDir()
+	dbPath := filepath.Join(dataDir, "user.db")
+	entries := resetTestEntries()
+
+	seedResetFixture(t, dataDir, entries, dict.CoreWordsVersion)
+	t.Setenv("EITANGO_DATA_DIR", dataDir)
+
+	var out bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"reset", "--progress"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if !strings.Contains(out.String(), "eitango reset") {
+		t.Fatalf("reset output = %q, want header", out.String())
+	}
+	if got := mustCountSQLiteTable(t, dbPath, "words"); got != len(entries) {
+		t.Fatalf("words after progress reset = %d, want %d", got, len(entries))
+	}
+	if got := mustCountSQLiteTable(t, dbPath, "sessions"); got != 0 {
+		t.Fatalf("sessions after progress reset = %d, want 0", got)
+	}
+	if got := mustCountSQLiteTable(t, dbPath, "session_items"); got != 0 {
+		t.Fatalf("session_items after progress reset = %d, want 0", got)
+	}
+	if got := mustCountSQLiteTable(t, dbPath, "reviews"); got != 0 {
+		t.Fatalf("reviews after progress reset = %d, want 0", got)
+	}
+	if got := mustCountSQLiteTable(t, dbPath, "progress"); got != 0 {
+		t.Fatalf("progress after progress reset = %d, want 0", got)
+	}
+	if version := mustMetaValue(t, dbPath, "dict_version"); version != dict.CoreWordsVersion {
+		t.Fatalf("dict_version after progress reset = %q, want %q", version, dict.CoreWordsVersion)
+	}
+}
+
+func TestResetCommandReseedReloadsEmbeddedCoreWords(t *testing.T) {
+	dataDir := t.TempDir()
+	dbPath := filepath.Join(dataDir, "user.db")
+
+	seedResetFixture(t, dataDir, resetTestEntries(), dict.CoreWordsVersion)
+	t.Setenv("EITANGO_DATA_DIR", dataDir)
+
+	var out bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"reset", "--reseed"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if !strings.Contains(out.String(), "reseeded embedded core words") {
+		t.Fatalf("reset output = %q, want reseed summary", out.String())
+	}
+
+	coreWords, err := dict.LoadCoreWords()
+	if err != nil {
+		t.Fatalf("LoadCoreWords() error = %v", err)
+	}
+	if got := mustCountSQLiteTable(t, dbPath, "words"); got != len(coreWords) {
+		t.Fatalf("words after reseed = %d, want %d", got, len(coreWords))
+	}
+	if got := mustCountSQLiteTable(t, dbPath, "sessions"); got != 0 {
+		t.Fatalf("sessions after reseed = %d, want 0", got)
+	}
+	if got := mustCountSQLiteTable(t, dbPath, "reviews"); got != 0 {
+		t.Fatalf("reviews after reseed = %d, want 0", got)
+	}
+	if got := mustCountSQLiteTable(t, dbPath, "progress"); got != 0 {
+		t.Fatalf("progress after reseed = %d, want 0", got)
+	}
+	if version := mustMetaValue(t, dbPath, "dict_version"); version != dict.CoreWordsVersion {
+		t.Fatalf("dict_version after reseed = %q, want %q", version, dict.CoreWordsVersion)
+	}
+}
+
+func seedResetFixture(t *testing.T, dataDir string, entries []dict.Entry, version string) {
+	t.Helper()
+
+	ctx := context.Background()
+	st, err := store.Open(ctx, filepath.Join(dataDir, "user.db"))
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer func() {
+		_ = st.Close()
+	}()
+
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+	if err := st.SeedWords(ctx, entries, version); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+	record, _, err := st.CreateSession(ctx, store.ModeLearn, []store.SessionItemPlan{
+		{WordID: words[0].ID, Kind: store.ItemKindNew},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if _, _, err := st.SaveAnswer(ctx, store.ReviewEvent{
+		SessionID:      record.ID,
+		ItemOrdinal:    1,
+		WordID:         words[0].ID,
+		Kind:           store.ItemKindNew,
+		SelectedChoice: 1,
+		CorrectChoice:  1,
+		IsCorrect:      true,
+		Rating:         srs.Good,
+		AnsweredAt:     time.Now().UTC(),
+		ResponseMS:     750,
+	}); err != nil {
+		t.Fatalf("SaveAnswer() error = %v", err)
+	}
+}
+
+func resetTestEntries() []dict.Entry {
+	return []dict.Entry{
+		{Lemma: "accept", Pos: "verb", MeaningJA: "受け入れる", Level: "toeic600", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "avoid", Pos: "verb", MeaningJA: "避ける", Level: "toeic600", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
+		{Lemma: "budget", Pos: "noun", MeaningJA: "予算", Level: "toeic600", FrequencyRank: 140, DistractorGroup: "basic-noun-business"},
+	}
+}
+
+func mustCountSQLiteTable(t *testing.T, dbPath, table string) int {
+	t.Helper()
+
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("sql.Open() error = %v", err)
+	}
+	defer func() {
+		_ = db.Close()
+	}()
+
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil {
+		t.Fatalf("count %s: %v", table, err)
+	}
+	return count
+}
+
+func mustMetaValue(t *testing.T, dbPath, key string) string {
+	t.Helper()
+
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("sql.Open() error = %v", err)
+	}
+	defer func() {
+		_ = db.Close()
+	}()
+
+	var value string
+	if err := db.QueryRow("SELECT value FROM app_meta WHERE key = ?", key).Scan(&value); err != nil {
+		t.Fatalf("load app_meta %s: %v", key, err)
+	}
+	return value
 }

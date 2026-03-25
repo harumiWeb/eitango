@@ -68,12 +68,16 @@
     - テキスト出力と終了コードで CI / 手元調査の両方に使える形にする
   - 完了条件: DB/辞書の壊れ方を CLI から切り分けられる
 
-- [ ] `eitango reset` を追加する
+- [x] `eitango reset` を追加する
   - 種別: 未着手
   - 実装方針:
     - 破壊的操作をデフォルトにしない
     - まずは `--progress`（学習履歴だけ初期化）と `--reseed`（組み込み辞書の再投入）に分ける
     - 将来の import 実装に備えて、core 辞書と user 辞書を分離できるデータモデルを前提にする
+  - 実装メモ:
+    - `cmd/eitango/main.go` に `reset` サブコマンドを追加し、フラグ未指定時は DB を触らず拒否する
+    - 破壊操作は `store.Reset` に集約し、`--progress` は `sessions` / `session_items` / `reviews` / `progress` のみを消す
+    - `--reseed` は同一 `dict_version` でも組み込み core words を再投入し、結果サマリを CLI へ返す
   - 依存: import 用の source 管理が入ると拡張しやすい
   - 完了条件: 学習履歴のリセットと辞書再投入を安全に実行できる
 
@@ -158,8 +162,8 @@
 - 完了済み: `eitango review`, `config.toml` 読み込み, `--focus-mode`
 - 完了済み: `eitango doctor`
 - 完了済み: Phase 1 辞書パック拡張
-1. `eitango reset`
-2. `eitango export`
-3. `words.source` migration + `eitango import`
-4. `eitango browse`
-5. help 画面 / 例文表示 / waiting metrics
+- 完了済み: `eitango reset`
+1. `eitango export`
+2. `words.source` migration + `eitango import`
+3. `eitango browse`
+4. help 画面 / 例文表示 / waiting metrics

@@ -398,6 +398,179 @@ func TestSeedWordsVersionChangeResetsUserData(t *testing.T) {
 	}
 }
 
+func TestResetProgressClearsLearningHistoryOnly(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+
+	if err := st.SeedWords(ctx, testEntries(), "test-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+	record, _, err := st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+		{WordID: words[0].ID, Kind: ItemKindNew},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if _, _, err := st.SaveAnswer(ctx, ReviewEvent{
+		SessionID:      record.ID,
+		ItemOrdinal:    1,
+		WordID:         words[0].ID,
+		Kind:           ItemKindNew,
+		SelectedChoice: 1,
+		CorrectChoice:  1,
+		IsCorrect:      true,
+		Rating:         srs.Good,
+		AnsweredAt:     time.Now().UTC(),
+		ResponseMS:     700,
+	}); err != nil {
+		t.Fatalf("SaveAnswer() error = %v", err)
+	}
+
+	result, err := st.Reset(ctx, ResetOptions{Progress: true}, nil, "")
+	if err != nil {
+		t.Fatalf("Reset() error = %v", err)
+	}
+	if result.ClearedSessionItems != 1 || result.ClearedReviews != 1 || result.ClearedProgress != 1 || result.ClearedSessions != 1 {
+		t.Fatalf("unexpected reset counts: %+v", result)
+	}
+	if result.ClearedWords != 0 || result.SeededWords != 0 {
+		t.Fatalf("unexpected word reset counts: %+v", result)
+	}
+
+	if got := mustCountRows(t, st, "words"); got != len(testEntries()) {
+		t.Fatalf("words after progress reset = %d, want %d", got, len(testEntries()))
+	}
+	if got := mustCountRows(t, st, "sessions"); got != 0 {
+		t.Fatalf("sessions after progress reset = %d, want 0", got)
+	}
+	if got := mustCountRows(t, st, "session_items"); got != 0 {
+		t.Fatalf("session_items after progress reset = %d, want 0", got)
+	}
+	if got := mustCountRows(t, st, "reviews"); got != 0 {
+		t.Fatalf("reviews after progress reset = %d, want 0", got)
+	}
+	if got := mustCountRows(t, st, "progress"); got != 0 {
+		t.Fatalf("progress after progress reset = %d, want 0", got)
+	}
+
+	version, err := st.metaValue(ctx, "dict_version")
+	if err != nil {
+		t.Fatalf("metaValue(dict_version) error = %v", err)
+	}
+	if version != "test-v1" {
+		t.Fatalf("dict_version after progress reset = %q, want test-v1", version)
+	}
+}
+
+func TestResetReseedForcesReplaceSameVersion(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+
+	if err := st.SeedWords(ctx, testEntries(), "test-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+	record, _, err := st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+		{WordID: words[0].ID, Kind: ItemKindNew},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if _, _, err := st.SaveAnswer(ctx, ReviewEvent{
+		SessionID:      record.ID,
+		ItemOrdinal:    1,
+		WordID:         words[0].ID,
+		Kind:           ItemKindNew,
+		SelectedChoice: 1,
+		CorrectChoice:  1,
+		IsCorrect:      true,
+		Rating:         srs.Good,
+		AnsweredAt:     time.Now().UTC(),
+		ResponseMS:     650,
+	}); err != nil {
+		t.Fatalf("SaveAnswer() error = %v", err)
+	}
+
+	replacementEntries := []dict.Entry{
+		{
+			Lemma:           "coach",
+			Pos:             "verb",
+			MeaningJA:       "指導する",
+			Level:           "toeic600",
+			FrequencyRank:   400,
+			DistractorGroup: "basic-verb-action",
+			ExampleEN:       "They coach the team every weekend.",
+			ExampleJA:       "彼らは毎週末チームを指導する。",
+		},
+		{
+			Lemma:           "demand",
+			Pos:             "verb",
+			MeaningJA:       "要求する",
+			Level:           "toeic600",
+			FrequencyRank:   500,
+			DistractorGroup: "basic-verb-action",
+			ExampleEN:       "Customers demand faster delivery.",
+			ExampleJA:       "顧客はより速い配送を求める。",
+		},
+	}
+
+	result, err := st.Reset(ctx, ResetOptions{Reseed: true}, replacementEntries, "test-v1")
+	if err != nil {
+		t.Fatalf("Reset() error = %v", err)
+	}
+	if result.ClearedWords != len(testEntries()) {
+		t.Fatalf("ClearedWords = %d, want %d", result.ClearedWords, len(testEntries()))
+	}
+	if result.SeededWords != len(replacementEntries) {
+		t.Fatalf("SeededWords = %d, want %d", result.SeededWords, len(replacementEntries))
+	}
+
+	if got := mustCountRows(t, st, "words"); got != len(replacementEntries) {
+		t.Fatalf("words after reseed = %d, want %d", got, len(replacementEntries))
+	}
+	if got := mustCountRows(t, st, "sessions"); got != 0 {
+		t.Fatalf("sessions after reseed = %d, want 0", got)
+	}
+	if got := mustCountRows(t, st, "session_items"); got != 0 {
+		t.Fatalf("session_items after reseed = %d, want 0", got)
+	}
+	if got := mustCountRows(t, st, "reviews"); got != 0 {
+		t.Fatalf("reviews after reseed = %d, want 0", got)
+	}
+	if got := mustCountRows(t, st, "progress"); got != 0 {
+		t.Fatalf("progress after reseed = %d, want 0", got)
+	}
+
+	newWords, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() after reseed error = %v", err)
+	}
+	if len(newWords) != len(replacementEntries) || newWords[0].Lemma != "coach" || newWords[1].Lemma != "demand" {
+		t.Fatalf("unexpected words after reseed: %+v", newWords)
+	}
+
+	version, err := st.metaValue(ctx, "dict_version")
+	if err != nil {
+		t.Fatalf("metaValue(dict_version) error = %v", err)
+	}
+	if version != "test-v1" {
+		t.Fatalf("dict_version after reseed = %q, want test-v1", version)
+	}
+}
+
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 

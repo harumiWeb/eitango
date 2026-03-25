@@ -38,7 +38,7 @@ func newRootCommand() *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}
-	cmd.AddCommand(newLearnCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand())
+	cmd.AddCommand(newLearnCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand(), newResetCommand())
 	return cmd
 }
 
@@ -146,6 +146,17 @@ func newDoctorCommand() *cobra.Command {
 	}
 }
 
+func newResetCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "reset",
+		Short: "Reset progress and/or reload embedded core words",
+		RunE:  runReset,
+	}
+	cmd.Flags().Bool("progress", false, "Reset learning history (sessions, reviews, progress)")
+	cmd.Flags().Bool("reseed", false, "Reload embedded core words and clear learning history")
+	return cmd
+}
+
 func runDoctor(cmd *cobra.Command, args []string) error {
 	paths, err := config.Resolve()
 	if err != nil {
@@ -170,8 +181,58 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func runReset(cmd *cobra.Command, args []string) error {
+	options, err := resetOptionsFromFlags(cmd)
+	if err != nil {
+		return err
+	}
+	if err := options.Validate(); err != nil {
+		return err
+	}
+
+	ctx := commandContext(cmd)
+	st, _, err := openStore(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = st.Close()
+	}()
+
+	var entries []dict.Entry
+	if options.Reseed {
+		entries, err = dict.LoadCoreWords()
+		if err != nil {
+			return fmt.Errorf("load core words: %w", err)
+		}
+	}
+
+	result, err := st.Reset(ctx, options, entries, dict.CoreWordsVersion)
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprint(cmd.OutOrStdout(), formatResetReport(result))
+	return err
+}
+
 func addFocusModeFlag(cmd *cobra.Command) {
 	cmd.Flags().Bool("focus-mode", false, "Use a 5-question session")
+}
+
+func resetOptionsFromFlags(cmd *cobra.Command) (store.ResetOptions, error) {
+	progress, err := cmd.Flags().GetBool("progress")
+	if err != nil {
+		return store.ResetOptions{}, fmt.Errorf("get progress flag: %w", err)
+	}
+	reseed, err := cmd.Flags().GetBool("reseed")
+	if err != nil {
+		return store.ResetOptions{}, fmt.Errorf("get reseed flag: %w", err)
+	}
+	return store.ResetOptions{
+		Progress: progress,
+		Reseed:   reseed,
+	}, nil
 }
 
 func resolveFocusModeOverride(cmd *cobra.Command) (*bool, error) {
@@ -284,6 +345,27 @@ func formatDoctorReport(report store.DiagnosticReport) string {
 		fmt.Fprintf(&b, "Summary: %d warning(s), %d error(s)\n", warnings, errors)
 	}
 
+	return b.String()
+}
+
+func formatResetReport(result store.ResetResult) string {
+	var b strings.Builder
+	fmt.Fprintln(&b, "eitango reset")
+	fmt.Fprintln(&b, "=============")
+	fmt.Fprintln(&b)
+	fmt.Fprintf(&b, "- cleared learning history: sessions=%d, session_items=%d, reviews=%d, progress=%d\n",
+		result.ClearedSessions,
+		result.ClearedSessionItems,
+		result.ClearedReviews,
+		result.ClearedProgress,
+	)
+	if result.Options.Reseed {
+		fmt.Fprintf(&b, "- reseeded embedded core words: removed=%d, inserted=%d, dict_version=%s\n",
+			result.ClearedWords,
+			result.SeededWords,
+			result.DictVersion,
+		)
+	}
 	return b.String()
 }
 

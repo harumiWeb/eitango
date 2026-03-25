@@ -99,45 +99,9 @@ func (s *Store) SeedWords(ctx context.Context, entries []dict.Entry, version str
 		}
 	}
 
-	stmt, err := tx.PrepareContext(ctx, `
-INSERT INTO words (
-lemma,
-pos,
-meaning_ja,
-level,
-frequency_rank,
-distractor_group,
-example_en,
-example_ja
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-`)
-	if err != nil {
+	if err := insertSeedWordsTx(ctx, tx, entries); err != nil {
 		_ = tx.Rollback()
-		return fmt.Errorf("prepare seed words: %w", err)
-	}
-	defer func() {
-		_ = stmt.Close()
-	}()
-
-	for _, entry := range entries {
-		var rank any
-		if entry.FrequencyRank > 0 {
-			rank = entry.FrequencyRank
-		}
-		if _, err := stmt.ExecContext(
-			ctx,
-			nullableString(entry.Lemma),
-			nullableString(entry.Pos),
-			nullableString(entry.MeaningJA),
-			nullableString(entry.Level),
-			rank,
-			nullableString(entry.DistractorGroup),
-			nullableString(entry.ExampleEN),
-			nullableString(entry.ExampleJA),
-		); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("insert seed word %s: %w", entry.Lemma, err)
-		}
+		return err
 	}
 
 	if err := s.setMetaTx(ctx, tx, "dict_version", version); err != nil {
