@@ -167,6 +167,7 @@ func formatWrongWordsCSV(snapshots []store.ExportWordSnapshot) ([]byte, error) {
 		"level",
 		"frequency_rank",
 		"distractor_group",
+		"source",
 		"state",
 		"wrong_reviews",
 		"correct_reviews",
@@ -188,6 +189,7 @@ func formatWrongWordsCSV(snapshots []store.ExportWordSnapshot) ([]byte, error) {
 			snapshot.Word.Level,
 			strconv.Itoa(snapshot.Word.FrequencyRank),
 			snapshot.Word.DistractorGroup,
+			snapshot.Word.Source,
 			snapshot.Progress.State,
 			strconv.Itoa(snapshot.ReviewStats.WrongReviews),
 			strconv.Itoa(snapshot.ReviewStats.CorrectReviews),
@@ -258,6 +260,7 @@ func buildProgressExportDocument(dictVersion string, snapshots []store.ExportWor
 				DistractorGroup: snapshot.Word.DistractorGroup,
 				ExampleEN:       snapshot.Word.ExampleEN,
 				ExampleJA:       snapshot.Word.ExampleJA,
+				Source:          snapshot.Word.Source,
 			},
 			Progress: progressExportProgress{
 				State:         snapshot.Progress.State,
@@ -336,6 +339,7 @@ type progressExportWordInfo struct {
 	DistractorGroup string `json:"distractor_group"`
 	ExampleEN       string `json:"example_en"`
 	ExampleJA       string `json:"example_ja"`
+	Source          string `json:"source"`
 }
 
 type progressExportProgress struct {

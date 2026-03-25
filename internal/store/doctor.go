@@ -74,6 +74,7 @@ func (s *Store) RunDiagnostics(ctx context.Context) DiagnosticReport {
 			s.checkDatabase(ctx),
 			s.checkMigrations(ctx),
 			s.checkDictionary(ctx),
+			s.checkWordSources(ctx),
 			s.checkOrphanProgress(ctx),
 			s.checkOrphanReviews(ctx),
 			s.checkOrphanSessionItems(ctx),
@@ -158,22 +159,181 @@ func (s *Store) checkDictionary(ctx context.Context) DiagnosticCheck {
 	if err != nil {
 		return diagnosticCheckError("dictionary", "word count could not be read", err.Error())
 	}
+	coreWordCount, err := s.countWordsBySource(ctx, WordSourceCore)
+	if err != nil {
+		return diagnosticCheckError("dictionary", "core word count could not be read", err.Error())
+	}
+	importWordCount := wordCount - coreWordCount
 
 	switch {
-	case version == "" && wordCount == 0:
+	case version == "" && coreWordCount == 0:
 		return diagnosticCheckError("dictionary", "core words are not seeded", fmt.Sprintf("expected dict_version %q", dict.CoreWordsVersion))
 	case version == "":
-		return diagnosticCheckError("dictionary", "dict_version is missing", fmt.Sprintf("words: %d", wordCount))
-	case wordCount == 0:
-		return diagnosticCheckError("dictionary", "dict_version exists but words table is empty", fmt.Sprintf("dict_version: %s", version))
+		return diagnosticCheckError("dictionary", "dict_version is missing", fmt.Sprintf("core words: %d", coreWordCount), fmt.Sprintf("imported words: %d", importWordCount))
+	case coreWordCount == 0:
+		return diagnosticCheckError("dictionary", "dict_version exists but core words are missing", fmt.Sprintf("dict_version: %s", version), fmt.Sprintf("imported words: %d", importWordCount))
 	case version != dict.CoreWordsVersion:
+		details := []string{fmt.Sprintf("core words: %d", coreWordCount)}
+		if importWordCount > 0 {
+			details = append(details, fmt.Sprintf("imported words: %d", importWordCount))
+		}
 		return diagnosticCheckWarning(
 			"dictionary",
 			fmt.Sprintf("dict_version is %q but embedded core words are %q", version, dict.CoreWordsVersion),
-			fmt.Sprintf("words: %d", wordCount),
+			details...,
 		)
 	default:
-		return diagnosticCheckOK("dictionary", fmt.Sprintf("%d words seeded at %s", wordCount, version))
+		summary := fmt.Sprintf("%d core words seeded at %s", coreWordCount, version)
+		if importWordCount > 0 {
+			summary += fmt.Sprintf(" (+%d imported)", importWordCount)
+		}
+		return diagnosticCheckOK("dictionary", summary)
+	}
+}
+
+func (s *Store) checkWordSources(ctx context.Context) DiagnosticCheck {
+	missingSourceCount, err := s.countRows(ctx, `
+SELECT COUNT(*)
+FROM words
+WHERE TRIM(COALESCE(source, '')) = ''
+`)
+	if err != nil {
+		return diagnosticCheckError("word sources", "word sources could not be checked", err.Error())
+	}
+
+	duplicateCount, err := s.countRows(ctx, `
+SELECT COUNT(*)
+FROM (
+  SELECT lemma, IFNULL(pos, '') AS pos_key
+  FROM words
+  GROUP BY lemma, pos_key
+  HAVING COUNT(DISTINCT source) > 1
+)
+`)
+	if err != nil {
+		return diagnosticCheckError("word sources", "cross-source duplicates could not be counted", err.Error())
+	}
+	sameSourceDuplicateCount, err := s.countRows(ctx, `
+SELECT COUNT(*)
+FROM (
+  SELECT source, lemma, IFNULL(pos, '') AS pos_key
+  FROM words
+  GROUP BY source, lemma, pos_key
+  HAVING COUNT(*) > 1
+)
+`)
+	if err != nil {
+		return diagnosticCheckError("word sources", "same-source duplicates could not be counted", err.Error())
+	}
+
+	details := make([]string, 0, 3)
+	if missingSourceCount > 0 {
+		rows, err := s.db.QueryContext(ctx, `
+SELECT id, lemma
+FROM words
+WHERE TRIM(COALESCE(source, '')) = ''
+ORDER BY id ASC
+LIMIT ?
+`, doctorSampleLimit)
+		if err != nil {
+			return diagnosticCheckError("word sources", "missing word sources were found but samples could not be loaded", err.Error())
+		}
+		samples := make([]string, 0, doctorSampleLimit)
+		for rows.Next() {
+			var id int64
+			var lemma string
+			if err := rows.Scan(&id, &lemma); err != nil {
+				_ = rows.Close()
+				return diagnosticCheckError("word sources", "missing word source samples could not be scanned", err.Error())
+			}
+			samples = append(samples, fmt.Sprintf("%d:%s", id, lemma))
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return diagnosticCheckError("word sources", "missing word source samples could not be iterated", err.Error())
+		}
+		_ = rows.Close()
+		details = append(details, formatStringSamples("missing source rows", missingSourceCount, samples))
+	}
+
+	if sameSourceDuplicateCount > 0 {
+		rows, err := s.db.QueryContext(ctx, `
+SELECT source, lemma, IFNULL(pos, ''), COUNT(*)
+FROM words
+GROUP BY source, lemma, IFNULL(pos, '')
+HAVING COUNT(*) > 1
+ORDER BY source ASC, lemma ASC, IFNULL(pos, '') ASC
+LIMIT ?
+`, doctorSampleLimit)
+		if err != nil {
+			return diagnosticCheckError("word sources", "same-source duplicate samples could not be loaded", err.Error())
+		}
+		samples := make([]string, 0, doctorSampleLimit)
+		for rows.Next() {
+			var source string
+			var lemma string
+			var pos string
+			var count int
+			if err := rows.Scan(&source, &lemma, &pos, &count); err != nil {
+				_ = rows.Close()
+				return diagnosticCheckError("word sources", "same-source duplicate samples could not be scanned", err.Error())
+			}
+			if pos == "" {
+				pos = "no-pos"
+			}
+			samples = append(samples, fmt.Sprintf("%s -> %s [%s] x%d", source, lemma, pos, count))
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return diagnosticCheckError("word sources", "same-source duplicate samples could not be iterated", err.Error())
+		}
+		_ = rows.Close()
+		details = append(details, formatStringSamples("same-source duplicates", sameSourceDuplicateCount, samples))
+	}
+
+	if duplicateCount > 0 {
+		rows, err := s.db.QueryContext(ctx, `
+SELECT lemma, IFNULL(pos, ''), GROUP_CONCAT(DISTINCT source)
+FROM words
+GROUP BY lemma, IFNULL(pos, '')
+HAVING COUNT(DISTINCT source) > 1
+ORDER BY lemma ASC, IFNULL(pos, '') ASC
+LIMIT ?
+`, doctorSampleLimit)
+		if err != nil {
+			return diagnosticCheckError("word sources", "cross-source duplicate samples could not be loaded", err.Error())
+		}
+		samples := make([]string, 0, doctorSampleLimit)
+		for rows.Next() {
+			var lemma string
+			var pos string
+			var sources string
+			if err := rows.Scan(&lemma, &pos, &sources); err != nil {
+				_ = rows.Close()
+				return diagnosticCheckError("word sources", "cross-source duplicate samples could not be scanned", err.Error())
+			}
+			if pos == "" {
+				pos = "no-pos"
+			}
+			samples = append(samples, fmt.Sprintf("%s [%s] -> %s", lemma, pos, sources))
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return diagnosticCheckError("word sources", "cross-source duplicate samples could not be iterated", err.Error())
+		}
+		_ = rows.Close()
+		details = append(details, formatStringSamples("cross-source duplicates", duplicateCount, samples))
+	}
+
+	switch {
+	case missingSourceCount > 0:
+		return diagnosticCheckError("word sources", fmt.Sprintf("%d word row(s) are missing a source", missingSourceCount), details...)
+	case sameSourceDuplicateCount > 0:
+		return diagnosticCheckError("word sources", fmt.Sprintf("%d lemma/pos pair(s) are duplicated within a source", sameSourceDuplicateCount), details...)
+	case duplicateCount > 0:
+		return diagnosticCheckWarning("word sources", fmt.Sprintf("%d lemma/pos pair(s) appear in multiple sources", duplicateCount), details...)
+	default:
+		return diagnosticCheckOK("word sources", "all words have sources and no duplicate lemma/pos pairs were found")
 	}
 }
 
@@ -542,7 +702,7 @@ func (s *Store) sampleStringRows(ctx context.Context, query string, args ...any)
 func (s *Store) listAllWords(ctx context.Context) ([]Word, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
-       distractor_group, example_en, example_ja, created_at
+       distractor_group, example_en, example_ja, source, created_at
 FROM words
 ORDER BY COALESCE(frequency_rank, 999999) ASC, id ASC
 `)

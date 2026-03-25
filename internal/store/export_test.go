@@ -24,6 +24,9 @@ func TestListExportWordSnapshotsIncludesProgressAndReviewStats(t *testing.T) {
 	}
 
 	abandon := mustFindExportSnapshot(t, snapshots, "abandon")
+	if abandon.Word.Source != WordSourceCore {
+		t.Fatalf("abandon source = %q, want %q", abandon.Word.Source, WordSourceCore)
+	}
 	if abandon.Progress.State != "review" {
 		t.Fatalf("abandon progress state = %q, want review", abandon.Progress.State)
 	}

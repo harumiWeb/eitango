@@ -101,12 +101,17 @@
     - `internal/store/export.go` に `words` + `progress` + 集計済み `reviews` を束ねた export snapshot を追加し、CSV/JSON の両方が同じ read model を使うようにした
   - 完了条件: 苦手語 CSV と進捗 JSON を外部へ持ち出せる
 
-- [ ] `eitango import` を追加する
+- [x] `eitango import` を追加する
   - 種別: 未着手
   - 実装方針:
     - CSV から始め、必須列は `lemma`, `meaning_ja` に限定する
     - import と reset / doctor を安全にするため、`words` に `source`（`core` / `import:<name>`）相当の識別子を持たせる migration を先に入れる
     - duplicate policy は「同じ source 内は upsert、source を跨ぐ重複は許可して doctor で警告」に寄せる
+  - 実装メモ:
+    - `assets/migrations/004_words_source.sql` で `words.source` を追加し、既存 core rows をそのまま `source = core` として扱えるようにした
+    - core seed / `reset --reseed` は `source = core` だけを置き換えるように変え、imported words 自体は保持したまま学習履歴だけをリセットするようにした
+    - `internal/dict.ParseCSV`, `Store.ImportWords`, `cmd/eitango/import.go` を追加し、`eitango import --file ... --format csv [--source ...]` を実装した
+    - import source のデフォルトはファイル名由来で、同一 source 内は `(source, lemma, pos)` キー相当で upsert、source を跨ぐ重複は `doctor` の `word sources` check が warning として報告する
   - 依存: `words.source` 追加 migration, `doctor`, `reset`
   - 完了条件: CSV から追加辞書を取り込める
 
@@ -168,6 +173,7 @@
 - 完了済み: Phase 1 辞書パック拡張
 - 完了済み: `eitango reset`
 - 完了済み: `eitango export`
-1. `words.source` migration + `eitango import`
-2. `eitango browse`
-3. help 画面 / 例文表示 / waiting metrics
+- 完了済み: `words.source` migration + `eitango import`
+1. `eitango browse`
+2. help 画面 / 例文表示 / waiting metrics
+3. `.goreleaser.yaml` / `--idle-hook` の整理

@@ -90,7 +90,7 @@ func (s *Store) LoadStatsSnapshot(ctx context.Context) (stats.Snapshot, error) {
 func (s *Store) ListDueWords(ctx context.Context, limit int) ([]Word, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT w.id, w.lemma, w.pos, w.meaning_ja, w.level, w.frequency_rank,
-       w.distractor_group, w.example_en, w.example_ja, w.created_at
+       w.distractor_group, w.example_en, w.example_ja, w.source, w.created_at
 FROM words w
 JOIN progress p ON p.word_id = w.id
 WHERE p.due_at IS NOT NULL AND p.due_at <= ?
@@ -110,7 +110,7 @@ LIMIT ?
 func (s *Store) ListNewWords(ctx context.Context, limit int, excludeIDs []int64) ([]Word, error) {
 	query := `
 SELECT w.id, w.lemma, w.pos, w.meaning_ja, w.level, w.frequency_rank,
-       w.distractor_group, w.example_en, w.example_ja, w.created_at
+       w.distractor_group, w.example_en, w.example_ja, w.source, w.created_at
 FROM words w
 LEFT JOIN progress p ON p.word_id = w.id
 WHERE (p.word_id IS NULL OR p.state = 'new')
@@ -139,7 +139,7 @@ WHERE (p.word_id IS NULL OR p.state = 'new')
 func (s *Store) GetWord(ctx context.Context, wordID int64) (Word, error) {
 	row := s.db.QueryRowContext(ctx, `
 SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
-       distractor_group, example_en, example_ja, created_at
+       distractor_group, example_en, example_ja, source, created_at
 FROM words
 WHERE id = ?
 `, wordID)
@@ -154,7 +154,7 @@ WHERE id = ?
 func (s *Store) ListWordsByPOS(ctx context.Context, pos string, limit int, excludeIDs []int64) ([]Word, error) {
 	query := `
 SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
-       distractor_group, example_en, example_ja, created_at
+       distractor_group, example_en, example_ja, source, created_at
 FROM words
 WHERE pos = ?
 `
@@ -183,7 +183,7 @@ WHERE pos = ?
 func (s *Store) ListDistractorCandidates(ctx context.Context, correct Word, limit int, excludeIDs []int64) ([]Word, error) {
 	query := `
 SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
-       distractor_group, example_en, example_ja, created_at
+       distractor_group, example_en, example_ja, source, created_at
 FROM words
 WHERE pos = ?
   AND meaning_ja != ?
@@ -559,7 +559,7 @@ GROUP BY kind
 
 	hardRows, err := s.db.QueryContext(ctx, `
 SELECT w.id, w.lemma, w.pos, w.meaning_ja, w.level, w.frequency_rank,
-       w.distractor_group, w.example_en, w.example_ja, w.created_at
+       w.distractor_group, w.example_en, w.example_ja, w.source, w.created_at
 FROM reviews r
 JOIN words w ON w.id = r.word_id
 WHERE r.session_id = ? AND r.is_correct = 0
@@ -838,6 +838,7 @@ func scanWord(scanner rowScanner) (Word, error) {
 	var distractorGroup sql.NullString
 	var exampleEN sql.NullString
 	var exampleJA sql.NullString
+	var source string
 	var createdAt string
 
 	if err := scanner.Scan(
@@ -850,6 +851,7 @@ func scanWord(scanner rowScanner) (Word, error) {
 		&distractorGroup,
 		&exampleEN,
 		&exampleJA,
+		&source,
 		&createdAt,
 	); err != nil {
 		return Word{}, err
@@ -861,6 +863,7 @@ func scanWord(scanner rowScanner) (Word, error) {
 	word.DistractorGroup = distractorGroup.String
 	word.ExampleEN = exampleEN.String
 	word.ExampleJA = exampleJA.String
+	word.Source = source
 	parsedCreatedAt, err := parseTime(createdAt)
 	if err != nil {
 		return Word{}, fmt.Errorf("parse word created_at: %w", err)

@@ -48,6 +48,20 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 		t.Fatal("doctor command not found")
 	}
 
+	importCommand := findSubcommand(cmd, "import")
+	if importCommand == nil {
+		t.Fatal("import command not found")
+	}
+	if importCommand.Flags().Lookup("file") == nil {
+		t.Fatal("import file flag not found")
+	}
+	if importCommand.Flags().Lookup("format") == nil {
+		t.Fatal("import format flag not found")
+	}
+	if importCommand.Flags().Lookup("source") == nil {
+		t.Fatal("import source flag not found")
+	}
+
 	export := findSubcommand(cmd, "export")
 	if export == nil {
 		t.Fatal("export command not found")

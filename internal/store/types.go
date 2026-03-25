@@ -40,6 +40,7 @@ type Word struct {
 	DistractorGroup string
 	ExampleEN       string
 	ExampleJA       string
+	Source          string
 	CreatedAt       time.Time
 }
 
@@ -114,4 +115,10 @@ type ExportWordSnapshot struct {
 	Word        Word
 	Progress    Progress
 	ReviewStats ExportReviewStats
+}
+
+type ImportResult struct {
+	Source        string
+	InsertedWords int
+	UpdatedWords  int
 }

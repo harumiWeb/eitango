@@ -45,6 +45,7 @@ func TestExportWrongWordsCommandWritesCSV(t *testing.T) {
 		"level",
 		"frequency_rank",
 		"distractor_group",
+		"source",
 		"state",
 		"wrong_reviews",
 		"correct_reviews",
@@ -69,16 +70,19 @@ func TestExportWrongWordsCommandWritesCSV(t *testing.T) {
 	if row[0] != "accept" || row[2] != "受け入れる" {
 		t.Fatalf("wrong-words first row = %+v, want accept", row)
 	}
-	if row[6] != "review" || row[7] != "1" || row[8] != "1" || row[9] != "2" {
+	if row[6] != store.WordSourceCore {
+		t.Fatalf("wrong-words source = %q, want %q", row[6], store.WordSourceCore)
+	}
+	if row[7] != "review" || row[8] != "1" || row[9] != "1" || row[10] != "2" {
 		t.Fatalf("unexpected wrong-words counters row = %+v", row)
 	}
-	if row[10] != fixture.firstWrongAt.UTC().Format(time.RFC3339Nano) {
-		t.Fatalf("last_wrong_at = %q, want %q", row[10], fixture.firstWrongAt.UTC().Format(time.RFC3339Nano))
+	if row[11] != fixture.firstWrongAt.UTC().Format(time.RFC3339Nano) {
+		t.Fatalf("last_wrong_at = %q, want %q", row[11], fixture.firstWrongAt.UTC().Format(time.RFC3339Nano))
 	}
-	if row[11] != fixture.retryCorrectAt.UTC().Format(time.RFC3339Nano) {
-		t.Fatalf("last_correct_at = %q, want %q", row[11], fixture.retryCorrectAt.UTC().Format(time.RFC3339Nano))
+	if row[12] != fixture.retryCorrectAt.UTC().Format(time.RFC3339Nano) {
+		t.Fatalf("last_correct_at = %q, want %q", row[12], fixture.retryCorrectAt.UTC().Format(time.RFC3339Nano))
 	}
-	if row[12] == "" {
+	if row[13] == "" {
 		t.Fatal("due_at should not be empty for reviewed wrong word")
 	}
 }
@@ -119,6 +123,9 @@ func TestExportProgressCommandWritesJSON(t *testing.T) {
 	}
 
 	accept := mustFindProgressExportWord(t, document.Words, "accept")
+	if accept.Word.Source != store.WordSourceCore {
+		t.Fatalf("accept source = %q, want %q", accept.Word.Source, store.WordSourceCore)
+	}
 	if accept.Progress.State != "review" || accept.ReviewStats.WrongReviews != 1 || accept.ReviewStats.TotalReviews != 2 {
 		t.Fatalf("unexpected accept export record: %+v", accept)
 	}

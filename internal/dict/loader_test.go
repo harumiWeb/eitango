@@ -5,20 +5,63 @@ import (
 	"testing"
 )
 
-func TestParseJSONL(t *testing.T) {
-	input := strings.NewReader(`
-{"lemma":"abandon","pos":"verb","meaning_ja":"捨てる","level":"toeic600","frequency_rank":3400,"distractor_group":"basic-verb-action"}
-{"lemma":"budget","pos":"noun","meaning_ja":"予算","level":"toeic600","frequency_rank":3500,"distractor_group":"business-noun"}
-`)
+func TestParseCSVParsesRequiredAndOptionalColumns(t *testing.T) {
+	t.Parallel()
 
-	entries, err := ParseJSONL(input)
+	entries, err := ParseCSV(strings.NewReader(strings.Join([]string{
+		"lemma,meaning_ja,pos,level,distractor_group,example_en,example_ja",
+		" apply , 応募する , verb , toeic600 , basic-verb-action , She will apply. , 彼女は応募する。 ",
+	}, "\n")))
 	if err != nil {
-		t.Fatalf("ParseJSONL() error = %v", err)
+		t.Fatalf("ParseCSV() error = %v", err)
 	}
-	if len(entries) != 2 {
-		t.Fatalf("len(entries) = %d, want 2", len(entries))
+	if len(entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1", len(entries))
 	}
-	if entries[0].Lemma != "abandon" {
-		t.Fatalf("entries[0].Lemma = %q, want abandon", entries[0].Lemma)
+	entry := entries[0]
+	if entry.Lemma != "apply" || entry.MeaningJA != "応募する" {
+		t.Fatalf("unexpected parsed entry: %+v", entry)
+	}
+	if entry.Pos != "verb" || entry.Level != "toeic600" || entry.DistractorGroup != "basic-verb-action" {
+		t.Fatalf("unexpected optional fields: %+v", entry)
+	}
+	if entry.ExampleEN != "She will apply." || entry.ExampleJA != "彼女は応募する。" {
+		t.Fatalf("unexpected examples: %+v", entry)
+	}
+}
+
+func TestParseCSVRejectsMissingRequiredHeader(t *testing.T) {
+	t.Parallel()
+
+	_, err := ParseCSV(strings.NewReader("lemma,pos\napply,verb\n"))
+	if err == nil {
+		t.Fatal("ParseCSV() error = nil, want header validation error")
+	}
+	if got := err.Error(); got != "parse csv header: meaning_ja column is required" {
+		t.Fatalf("ParseCSV() error = %q, want meaning_ja guidance", got)
+	}
+}
+
+func TestParseCSVHandlesUTF8BOMHeader(t *testing.T) {
+	t.Parallel()
+
+	entries, err := ParseCSV(strings.NewReader("\ufefflemma,meaning_ja\napply,応募する\n"))
+	if err != nil {
+		t.Fatalf("ParseCSV() error = %v", err)
+	}
+	if len(entries) != 1 || entries[0].Lemma != "apply" {
+		t.Fatalf("unexpected BOM-parsed entries: %+v", entries)
+	}
+}
+
+func TestParseCSVRejectsDuplicateHeader(t *testing.T) {
+	t.Parallel()
+
+	_, err := ParseCSV(strings.NewReader("lemma,meaning_ja,lemma\napply,応募する,ignored\n"))
+	if err == nil {
+		t.Fatal("ParseCSV() error = nil, want duplicate-header error")
+	}
+	if got := err.Error(); got != `parse csv header: duplicate column "lemma"` {
+		t.Fatalf("ParseCSV() error = %q, want duplicate header guidance", got)
 	}
 }

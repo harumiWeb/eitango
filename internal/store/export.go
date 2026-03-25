@@ -13,7 +13,7 @@ import (
 func (s *Store) ListExportWordSnapshots(ctx context.Context) ([]ExportWordSnapshot, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT w.id, w.lemma, w.pos, w.meaning_ja, w.level, w.frequency_rank,
-       w.distractor_group, w.example_en, w.example_ja, w.created_at,
+       w.distractor_group, w.example_en, w.example_ja, w.source, w.created_at,
        p.state, p.due_at, p.interval_days, p.ease_factor, p.last_seen_at,
        p.streak_correct, p.total_correct, p.total_wrong, p.lapses,
        COALESCE(review_stats.total_reviews, 0),
@@ -112,6 +112,7 @@ func scanExportWordSnapshot(scanner rowScanner) (ExportWordSnapshot, error) {
 		distractorGroup sql.NullString
 		exampleEN       sql.NullString
 		exampleJA       sql.NullString
+		source          string
 		createdAt       string
 		state           sql.NullString
 		dueAt           sql.NullString
@@ -137,6 +138,7 @@ func scanExportWordSnapshot(scanner rowScanner) (ExportWordSnapshot, error) {
 		&distractorGroup,
 		&exampleEN,
 		&exampleJA,
+		&source,
 		&createdAt,
 		&state,
 		&dueAt,
@@ -163,6 +165,7 @@ func scanExportWordSnapshot(scanner rowScanner) (ExportWordSnapshot, error) {
 	snapshot.Word.DistractorGroup = distractorGroup.String
 	snapshot.Word.ExampleEN = exampleEN.String
 	snapshot.Word.ExampleJA = exampleJA.String
+	snapshot.Word.Source = source
 
 	parsedCreatedAt, err := parseTime(createdAt)
 	if err != nil {

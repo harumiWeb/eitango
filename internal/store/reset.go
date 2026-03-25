@@ -54,18 +54,15 @@ func (s *Store) Reset(ctx context.Context, options ResetOptions, coreWords []dic
 	}
 
 	if options.Reseed {
-		clearedWords, err := countRowsTx(ctx, tx, "words")
+		clearedWords, err := deleteWordsBySourceTx(ctx, tx, WordSourceCore)
 		if err != nil {
 			_ = tx.Rollback()
 			return ResetResult{}, err
 		}
 		result.ClearedWords = clearedWords
 
-		if _, err := tx.ExecContext(ctx, `DELETE FROM words`); err != nil {
-			_ = tx.Rollback()
-			return ResetResult{}, fmt.Errorf("reset words: %w", err)
-		}
-		if err := insertSeedWordsTx(ctx, tx, coreWords); err != nil {
+		counts, err := upsertWordsTx(ctx, tx, WordSourceCore, coreWords)
+		if err != nil {
 			_ = tx.Rollback()
 			return ResetResult{}, err
 		}
@@ -74,7 +71,7 @@ func (s *Store) Reset(ctx context.Context, options ResetOptions, coreWords []dic
 			return ResetResult{}, err
 		}
 
-		result.SeededWords = len(coreWords)
+		result.SeededWords = counts.inserted + counts.updated
 		result.DictVersion = coreVersion
 	}
 
@@ -86,14 +83,43 @@ func (s *Store) Reset(ctx context.Context, options ResetOptions, coreWords []dic
 }
 
 func resetLearningTablesTx(ctx context.Context, tx *sql.Tx, result *ResetResult) error {
-	steps := []struct {
+	type resetStep struct {
 		table string
-		dest  *int
-	}{
-		{table: "session_items", dest: &result.ClearedSessionItems},
-		{table: "reviews", dest: &result.ClearedReviews},
-		{table: "progress", dest: &result.ClearedProgress},
-		{table: "sessions", dest: &result.ClearedSessions},
+		apply func(int)
+	}
+	steps := []resetStep{
+		{
+			table: "session_items",
+			apply: func(count int) {
+				if result != nil {
+					result.ClearedSessionItems = count
+				}
+			},
+		},
+		{
+			table: "reviews",
+			apply: func(count int) {
+				if result != nil {
+					result.ClearedReviews = count
+				}
+			},
+		},
+		{
+			table: "progress",
+			apply: func(count int) {
+				if result != nil {
+					result.ClearedProgress = count
+				}
+			},
+		},
+		{
+			table: "sessions",
+			apply: func(count int) {
+				if result != nil {
+					result.ClearedSessions = count
+				}
+			},
+		},
 	}
 
 	for _, step := range steps {
@@ -101,7 +127,7 @@ func resetLearningTablesTx(ctx context.Context, tx *sql.Tx, result *ResetResult)
 		if err != nil {
 			return err
 		}
-		*step.dest = count
+		step.apply(count)
 
 		if _, err := tx.ExecContext(ctx, "DELETE FROM "+step.table); err != nil {
 			return fmt.Errorf("reset %s: %w", step.table, err)
@@ -117,47 +143,4 @@ func countRowsTx(ctx context.Context, tx *sql.Tx, table string) (int, error) {
 		return 0, fmt.Errorf("count %s: %w", table, err)
 	}
 	return count, nil
-}
-
-func insertSeedWordsTx(ctx context.Context, tx *sql.Tx, entries []dict.Entry) error {
-	stmt, err := tx.PrepareContext(ctx, `
-INSERT INTO words (
-lemma,
-pos,
-meaning_ja,
-level,
-frequency_rank,
-distractor_group,
-example_en,
-example_ja
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-`)
-	if err != nil {
-		return fmt.Errorf("prepare seed words: %w", err)
-	}
-	defer func() {
-		_ = stmt.Close()
-	}()
-
-	for _, entry := range entries {
-		var rank any
-		if entry.FrequencyRank > 0 {
-			rank = entry.FrequencyRank
-		}
-		if _, err := stmt.ExecContext(
-			ctx,
-			nullableString(entry.Lemma),
-			nullableString(entry.Pos),
-			nullableString(entry.MeaningJA),
-			nullableString(entry.Level),
-			rank,
-			nullableString(entry.DistractorGroup),
-			nullableString(entry.ExampleEN),
-			nullableString(entry.ExampleJA),
-		); err != nil {
-			return fmt.Errorf("insert seed word %s: %w", entry.Lemma, err)
-		}
-	}
-
-	return nil
 }

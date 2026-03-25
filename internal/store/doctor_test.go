@@ -188,6 +188,69 @@ func TestRunDiagnosticsDetectsUnquizzableWords(t *testing.T) {
 	}
 }
 
+func TestRunDiagnosticsWarnsOnCrossSourceDuplicates(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	if err := st.SeedWords(ctx, doctorTestEntries(), dict.CoreWordsVersion); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+	if _, err := st.ImportWords(ctx, "travel-pack", []dict.Entry{
+		{
+			Lemma:           "apply",
+			Pos:             "verb",
+			MeaningJA:       "申請する",
+			Level:           "toeic700",
+			DistractorGroup: "import-verb",
+		},
+	}); err != nil {
+		t.Fatalf("ImportWords() error = %v", err)
+	}
+
+	report := st.RunDiagnostics(ctx)
+
+	wordSources, ok := report.Check("word sources")
+	if !ok {
+		t.Fatal("word sources check not found")
+	}
+	if wordSources.Status != DiagnosticStatusWarning {
+		t.Fatalf("word sources status = %q, want %q", wordSources.Status, DiagnosticStatusWarning)
+	}
+	if !strings.Contains(strings.Join(wordSources.Details, "\n"), "apply [verb]") {
+		t.Fatalf("word sources details = %+v, want apply sample", wordSources.Details)
+	}
+}
+
+func TestRunDiagnosticsErrorsOnSameSourceDuplicates(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	if err := st.SeedWords(ctx, doctorTestEntries(), dict.CoreWordsVersion); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+	if _, err := st.db.ExecContext(ctx, `
+INSERT INTO words (lemma, pos, meaning_ja, source)
+VALUES ('apply', 'verb', '重複データ', ?)
+`, WordSourceCore); err != nil {
+		t.Fatalf("insert same-source duplicate: %v", err)
+	}
+
+	report := st.RunDiagnostics(ctx)
+
+	wordSources, ok := report.Check("word sources")
+	if !ok {
+		t.Fatal("word sources check not found")
+	}
+	if wordSources.Status != DiagnosticStatusError {
+		t.Fatalf("word sources status = %q, want %q", wordSources.Status, DiagnosticStatusError)
+	}
+	if !strings.Contains(strings.Join(wordSources.Details, "\n"), WordSourceCore+" -> apply [verb]") {
+		t.Fatalf("word sources details = %+v, want same-source duplicate sample", wordSources.Details)
+	}
+}
+
 func doctorTestEntries() []dict.Entry {
 	return []dict.Entry{
 		{

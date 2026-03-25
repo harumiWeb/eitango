@@ -65,8 +65,11 @@ func (s *Store) SeedWords(ctx context.Context, entries []dict.Entry, version str
 	if len(entries) == 0 {
 		return fmt.Errorf("seed words: no entries provided")
 	}
+	if version == "" {
+		return fmt.Errorf("seed words: version is required")
+	}
 
-	wordCount, err := s.wordCount(ctx)
+	coreWordCount, err := s.countWordsBySource(ctx, WordSourceCore)
 	if err != nil {
 		return err
 	}
@@ -75,7 +78,7 @@ func (s *Store) SeedWords(ctx context.Context, entries []dict.Entry, version str
 	if err != nil {
 		return err
 	}
-	if wordCount > 0 && currentVersion == version {
+	if coreWordCount > 0 && currentVersion == version {
 		return nil
 	}
 
@@ -84,22 +87,18 @@ func (s *Store) SeedWords(ctx context.Context, entries []dict.Entry, version str
 		return fmt.Errorf("begin seed words: %w", err)
 	}
 
-	if wordCount > 0 {
-		for _, statement := range []string{
-			`DELETE FROM session_items`,
-			`DELETE FROM reviews`,
-			`DELETE FROM progress`,
-			`DELETE FROM sessions`,
-			`DELETE FROM words`,
-		} {
-			if _, err := tx.ExecContext(ctx, statement); err != nil {
-				_ = tx.Rollback()
-				return fmt.Errorf("reset before seed: %w", err)
-			}
+	if coreWordCount > 0 && currentVersion != version {
+		if err := resetLearningTablesTx(ctx, tx, nil); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("reset before seed: %w", err)
+		}
+		if _, err := deleteWordsBySourceTx(ctx, tx, WordSourceCore); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("replace core words before seed: %w", err)
 		}
 	}
 
-	if err := insertSeedWordsTx(ctx, tx, entries); err != nil {
+	if _, err := upsertWordsTx(ctx, tx, WordSourceCore, entries); err != nil {
 		_ = tx.Rollback()
 		return err
 	}
