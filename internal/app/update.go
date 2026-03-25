@@ -120,11 +120,11 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		m.loading = true
 		m.status = "Starting review session..."
-		return m, sessionCmd(m.store, m.quiz, store.ModeReview, false, m.recentDistracts)
+		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeReview, false), m.recentDistracts)
 	case key.Matches(msg, m.keymap.NewSession):
 		m.loading = true
 		m.status = "Starting new session..."
-		return m, sessionCmd(m.store, m.quiz, store.ModeLearn, true, m.recentDistracts)
+		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeLearn, true), m.recentDistracts)
 	case key.Matches(msg, m.keymap.Confirm):
 		m.loading = true
 		if m.home.ActiveSession != nil {
@@ -132,7 +132,7 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = "Starting learn session..."
 		}
-		return m, sessionCmd(m.store, m.quiz, store.ModeLearn, false, m.recentDistracts)
+		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeLearn, false), m.recentDistracts)
 	case key.Matches(msg, m.keymap.Help):
 		m.status = "Enter=start/resume, n=new, r=review, s=stats, q=quit"
 		return m, nil

@@ -7,6 +7,30 @@ import (
 )
 
 const DefaultQuestionCount = 10
+const FocusQuestionCount = 5
+const DefaultReviewRatio = 0.7
+
+type PlanOptions struct {
+	QuestionCount int
+	ReviewRatio   float64
+}
+
+func DefaultPlanOptions() PlanOptions {
+	return PlanOptions{
+		QuestionCount: DefaultQuestionCount,
+		ReviewRatio:   DefaultReviewRatio,
+	}
+}
+
+func (o PlanOptions) Normalize() PlanOptions {
+	if o.QuestionCount <= 0 {
+		o.QuestionCount = DefaultQuestionCount
+	}
+	if math.IsNaN(o.ReviewRatio) || o.ReviewRatio < 0 || o.ReviewRatio > 1 {
+		o.ReviewRatio = DefaultReviewRatio
+	}
+	return o
+}
 
 type Plan struct {
 	NewCount    int
@@ -19,10 +43,9 @@ type Runtime struct {
 	Items   []store.SessionItem
 }
 
-func MakePlan(total, dueAvailable, newAvailable int, mode string) Plan {
-	if total <= 0 {
-		total = DefaultQuestionCount
-	}
+func MakePlan(options PlanOptions, dueAvailable, newAvailable int, mode string) Plan {
+	normalized := options.Normalize()
+	total := normalized.QuestionCount
 
 	if mode == store.ModeReview {
 		reviewCount := minInt(total, dueAvailable)
@@ -34,11 +57,11 @@ func MakePlan(total, dueAvailable, newAvailable int, mode string) Plan {
 		retryBudget = 1
 	}
 
-	reviewTarget := int(math.Round(float64(total) * 0.7))
+	reviewTarget := int(math.Round(float64(total) * normalized.ReviewRatio))
 	if reviewTarget > total {
 		reviewTarget = total
 	}
-	if reviewTarget == 0 && dueAvailable > 0 {
+	if reviewTarget == 0 && dueAvailable > 0 && normalized.ReviewRatio > 0 {
 		reviewTarget = 1
 	}
 	newTarget := total - reviewTarget

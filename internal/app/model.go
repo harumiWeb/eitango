@@ -46,9 +46,21 @@ type errMsg struct {
 	err error
 }
 
+type StartupRequest struct {
+	Mode          string
+	ReplaceActive bool
+}
+
+type Options struct {
+	Plan    session.PlanOptions
+	Startup *StartupRequest
+}
+
 type RootModel struct {
 	store           *store.Store
 	quiz            *quiz.Service
+	planOptions     session.PlanOptions
+	startup         *StartupRequest
 	screen          Screen
 	keymap          tui.KeyMap
 	styles          tui.Styles
@@ -68,18 +80,38 @@ type RootModel struct {
 	recentDistracts []int64
 }
 
-func NewModel(store *store.Store) RootModel {
+func NewModel(store *store.Store, options Options) RootModel {
 	return RootModel{
-		store:   store,
-		quiz:    quiz.NewService(store),
-		screen:  ScreenHome,
-		keymap:  tui.NewKeyMap(),
-		styles:  tui.NewStyles(),
-		loading: true,
-		status:  "Loading...",
+		store:       store,
+		quiz:        quiz.NewService(store),
+		planOptions: options.Plan.Normalize(),
+		startup:     options.Startup,
+		screen:      ScreenHome,
+		keymap:      tui.NewKeyMap(),
+		styles:      tui.NewStyles(),
+		loading:     true,
+		status:      "Loading...",
 	}
 }
 
 func (m RootModel) Init() tea.Cmd {
+	if m.startup != nil {
+		return tea.Sequence(
+			loadHomeCmd(m.store),
+			sessionCmd(m.store, m.quiz, sessionRequest{
+				Mode:          m.startup.Mode,
+				ReplaceActive: m.startup.ReplaceActive,
+				Plan:          m.planOptions,
+			}, m.recentDistracts),
+		)
+	}
 	return loadHomeCmd(m.store)
+}
+
+func (m RootModel) sessionRequest(mode string, replaceActive bool) sessionRequest {
+	return sessionRequest{
+		Mode:          mode,
+		ReplaceActive: replaceActive,
+		Plan:          m.planOptions,
+	}
 }

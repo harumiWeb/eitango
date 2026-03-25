@@ -1,10 +1,16 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
+
+	"github.com/BurntSushi/toml"
+	"github.com/yourname/eitango/internal/session"
 )
 
 const appDirName = "eitango-cli"
@@ -14,6 +20,63 @@ type Paths struct {
 	DBPath     string
 	ConfigPath string
 	LogsDir    string
+}
+
+type Settings struct {
+	SessionSize      int
+	ReviewRatio      float64
+	FocusModeDefault bool
+}
+
+type fileSettings struct {
+	SessionSize      *int     `toml:"session_size"`
+	ReviewRatio      *float64 `toml:"review_ratio"`
+	FocusModeDefault *bool    `toml:"focus_mode_default"`
+}
+
+func DefaultSettings() Settings {
+	return Settings{
+		SessionSize: session.DefaultQuestionCount,
+		ReviewRatio: session.DefaultReviewRatio,
+	}
+}
+
+func Load(path string) (Settings, error) {
+	settings := DefaultSettings()
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return settings, nil
+	}
+	if err != nil {
+		return Settings{}, fmt.Errorf("read config %s: %w", path, err)
+	}
+
+	var raw fileSettings
+	meta, err := toml.Decode(string(data), &raw)
+	if err != nil {
+		return Settings{}, fmt.Errorf("parse config %s: %w", path, err)
+	}
+	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+		return Settings{}, fmt.Errorf("unknown config keys: %s", joinUndecoded(undecoded))
+	}
+
+	if raw.SessionSize != nil {
+		if *raw.SessionSize <= 0 {
+			return Settings{}, fmt.Errorf("session_size must be greater than 0")
+		}
+		settings.SessionSize = *raw.SessionSize
+	}
+	if raw.ReviewRatio != nil {
+		if math.IsNaN(*raw.ReviewRatio) || *raw.ReviewRatio < 0 || *raw.ReviewRatio > 1 {
+			return Settings{}, fmt.Errorf("review_ratio must be between 0 and 1")
+		}
+		settings.ReviewRatio = *raw.ReviewRatio
+	}
+	if raw.FocusModeDefault != nil {
+		settings.FocusModeDefault = *raw.FocusModeDefault
+	}
+
+	return settings, nil
 }
 
 func Resolve() (Paths, error) {
@@ -66,4 +129,12 @@ func dataDir() (string, error) {
 	default:
 		return filepath.Join(home, ".local", "share", appDirName), nil
 	}
+}
+
+func joinUndecoded(keys []toml.Key) string {
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, key.String())
+	}
+	return strings.Join(parts, ", ")
 }

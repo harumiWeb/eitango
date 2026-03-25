@@ -2,7 +2,7 @@
 
 更新基準: `docs/design.md` と現行実装（`fc4fa8f` 時点）を突き合わせた整理。
 
-このファイルは、まだ未着手または一部着手の項目だけを次の実装候補として残す。すでに動いている `eitango learn` / `eitango stats` / Bubble Tea の基本学習ループ / SQLite schema / SRS / resume / retry / embedded core words はここでは再掲しない。
+このファイルは、まだ未着手または一部着手の項目を次の実装候補として残す。完了済みになったものは進捗を追いやすいようにチェック済みで残す。すでに動いている `eitango learn` / `eitango stats` / Bubble Tea の基本学習ループ / SQLite schema / SRS / resume / retry / embedded core words はここでは再掲しない。
 
 ## 判定ルール
 
@@ -18,7 +18,7 @@
 
 ## P0: 設計と現実の差分を先に埋める
 
-- [ ] `eitango review` コマンドを追加する
+- [x] `eitango review` コマンドを追加する
   - 種別: 一部着手
   - 現状: home 画面の `r` では review セッションを開始できるが、Cobra の `eitango review` は無い
   - 実装方針:
@@ -27,7 +27,7 @@
     - active session がある場合の優先順位を明文化する。基本は resume 優先、強制開始は別フラグで切る
   - 完了条件: `eitango review` だけで due 単語のみのセッションを開始できる
 
-- [ ] `config.toml` の実読み込みを入れる
+- [x] `config.toml` の実読み込みを入れる
   - 種別: 一部着手
   - 現状: `internal/config` は保存先パスだけ解決しており、設定ロード/保存は未実装
   - 実装方針:
@@ -36,7 +36,7 @@
     - 最初の段階では読み込みだけ実装し、設定編集コマンドは後回しにする
   - 完了条件: 設定値がセッション計画に反映される
 
-- [ ] `--focus-mode` を `learn` / `review` に追加する
+- [x] `--focus-mode` を `learn` / `review` に追加する
   - 種別: 一部着手
   - 現状: `session.MakePlan` は総問題数を受け取れるが、呼び出し側が常に `DefaultQuestionCount = 10` を使っている
   - 実装方針:
@@ -152,13 +152,11 @@
 
 ## 推奨着手順
 
-1. `eitango review`
-2. `config.toml` 読み込み
-3. `--focus-mode`
-4. `eitango doctor`
-5. Phase 1 辞書パック拡張
-6. `eitango reset`
-7. `eitango export`
-8. `words.source` migration + `eitango import`
-9. `eitango browse`
-10. help 画面 / 例文表示 / waiting metrics
+- 完了済み: `eitango review`, `config.toml` 読み込み, `--focus-mode`
+1. `eitango doctor`
+2. Phase 1 辞書パック拡張
+3. `eitango reset`
+4. `eitango export`
+5. `words.source` migration + `eitango import`
+6. `eitango browse`
+7. help 画面 / 例文表示 / waiting metrics

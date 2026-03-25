@@ -12,6 +12,12 @@ import (
 	"github.com/yourname/eitango/internal/store"
 )
 
+type sessionRequest struct {
+	Mode          string
+	ReplaceActive bool
+	Plan          session.PlanOptions
+}
+
 func loadHomeCmd(st *store.Store) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
@@ -37,16 +43,22 @@ func loadStatsCmd(st *store.Store) tea.Cmd {
 	}
 }
 
-func sessionCmd(st *store.Store, svc *quiz.Service, mode string, replaceActive bool, recent []int64) tea.Cmd {
+func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, recent []int64) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
-		if replaceActive {
+		mode := request.Mode
+		if mode == "" {
+			mode = store.ModeLearn
+		}
+		options := request.Plan.Normalize()
+
+		if request.ReplaceActive {
 			if err := st.AbandonActiveSession(ctx); err != nil {
 				return errMsg{err: err}
 			}
 		}
 
-		if !replaceActive {
+		if !request.ReplaceActive {
 			record, items, err := st.LoadActiveRuntime(ctx)
 			if err != nil {
 				return errMsg{err: err}
@@ -61,7 +73,7 @@ func sessionCmd(st *store.Store, svc *quiz.Service, mode string, replaceActive b
 			}
 		}
 
-		dueWords, err := st.ListDueWords(ctx, session.DefaultQuestionCount)
+		dueWords, err := st.ListDueWords(ctx, options.QuestionCount)
 		if err != nil {
 			return errMsg{err: err}
 		}
@@ -69,19 +81,19 @@ func sessionCmd(st *store.Store, svc *quiz.Service, mode string, replaceActive b
 		var itemsPlan []store.SessionItemPlan
 		switch mode {
 		case store.ModeReview:
-			plan := session.MakePlan(session.DefaultQuestionCount, len(dueWords), 0, store.ModeReview)
+			plan := session.MakePlan(options, len(dueWords), 0, store.ModeReview)
 			itemsPlan = session.BuildSessionItems(dueWords[:plan.ReviewCount], nil)
 		default:
 			dueIDs := make([]int64, 0, len(dueWords))
 			for _, word := range dueWords {
 				dueIDs = append(dueIDs, word.ID)
 			}
-			newWords, err := st.ListNewWords(ctx, session.DefaultQuestionCount, dueIDs)
+			newWords, err := st.ListNewWords(ctx, options.QuestionCount, dueIDs)
 			if err != nil {
 				return errMsg{err: err}
 			}
 
-			plan := session.MakePlan(session.DefaultQuestionCount, len(dueWords), len(newWords), store.ModeLearn)
+			plan := session.MakePlan(options, len(dueWords), len(newWords), mode)
 			reviewWords := dueWords[:plan.ReviewCount]
 			newSelection := newWords[:plan.NewCount]
 			itemsPlan = session.BuildSessionItems(reviewWords, newSelection)

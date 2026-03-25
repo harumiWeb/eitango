@@ -7,7 +7,7 @@ import (
 )
 
 func TestMakePlanLearn(t *testing.T) {
-	plan := MakePlan(10, 7, 5, store.ModeLearn)
+	plan := MakePlan(DefaultPlanOptions(), 7, 5, store.ModeLearn)
 	if plan.ReviewCount != 7 {
 		t.Fatalf("ReviewCount = %d, want 7", plan.ReviewCount)
 	}
@@ -16,6 +16,26 @@ func TestMakePlanLearn(t *testing.T) {
 	}
 	if plan.RetryCount != 1 {
 		t.Fatalf("RetryCount = %d, want 1", plan.RetryCount)
+	}
+}
+
+func TestMakePlanUsesCustomOptions(t *testing.T) {
+	plan := MakePlan(PlanOptions{QuestionCount: 5, ReviewRatio: 0.4}, 4, 6, store.ModeLearn)
+	if plan.ReviewCount != 2 {
+		t.Fatalf("ReviewCount = %d, want 2", plan.ReviewCount)
+	}
+	if plan.NewCount != 3 {
+		t.Fatalf("NewCount = %d, want 3", plan.NewCount)
+	}
+}
+
+func TestPlanOptionsNormalize(t *testing.T) {
+	options := (PlanOptions{ReviewRatio: -1}).Normalize()
+	if options.QuestionCount != DefaultQuestionCount {
+		t.Fatalf("QuestionCount = %d, want %d", options.QuestionCount, DefaultQuestionCount)
+	}
+	if options.ReviewRatio != DefaultReviewRatio {
+		t.Fatalf("ReviewRatio = %v, want %v", options.ReviewRatio, DefaultReviewRatio)
 	}
 }
 
