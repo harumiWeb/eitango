@@ -19,6 +19,7 @@ const (
 	ScreenFeedback
 	ScreenResults
 	ScreenStats
+	ScreenHelp
 )
 
 type homeLoadedMsg struct {
@@ -74,6 +75,8 @@ type RootModel struct {
 	status          string
 	err             error
 	loading         bool
+	helpReturn      Screen
+	helpStatus      string
 	width           int
 	height          int
 	questionStarted time.Time

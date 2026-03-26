@@ -79,8 +79,16 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Quit):
-			if m.screen == ScreenFeedback {
+			switch m.screen {
+			case ScreenFeedback:
 				m.status = "Select a/h/g/e to continue"
+				return m, nil
+			case ScreenHelp:
+				if m.helpReturn == ScreenFeedback {
+					m.status = "Press Esc to return, then rate the card"
+				} else {
+					m.status = "Press Esc to return"
+				}
 				return m, nil
 			}
 			return m, tea.Quit
@@ -97,6 +105,8 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateResults(msg)
 		case ScreenStats:
 			return m.updateStats(msg)
+		case ScreenHelp:
+			return m.updateHelp(msg)
 		}
 	}
 
@@ -104,6 +114,11 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keymap.Help):
+		return m.openHelp(), nil
+	}
+
 	if m.loading {
 		return m, nil
 	}
@@ -133,15 +148,17 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.status = "Starting learn session..."
 		}
 		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeLearn, false), m.recentDistracts)
-	case key.Matches(msg, m.keymap.Help):
-		m.status = "Enter=start/resume, n=new, r=review, s=stats, q=quit"
-		return m, nil
 	}
 
 	return m, nil
 }
 
 func (m RootModel) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keymap.Help):
+		return m.openHelp(), nil
+	}
+
 	if m.currentQ == nil || len(m.currentQ.Choices) == 0 {
 		return m, nil
 	}
@@ -167,15 +184,17 @@ func (m RootModel) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.showFeedback(3), nil
 	case key.Matches(msg, m.keymap.Confirm):
 		return m.showFeedback(m.cursor), nil
-	case key.Matches(msg, m.keymap.Help):
-		m.status = "1-4=select, j/k=move, enter=confirm, q=save and quit"
-		return m, nil
 	}
 
 	return m, nil
 }
 
 func (m RootModel) updateFeedback(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keymap.Help):
+		return m.openHelp(), nil
+	}
+
 	if m.feedback == nil || m.runtime == nil {
 		return m, nil
 	}
@@ -201,26 +220,32 @@ func (m RootModel) updateFeedback(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m RootModel) updateResults(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
+	case key.Matches(msg, m.keymap.Help):
+		return m.openHelp(), nil
 	case key.Matches(msg, m.keymap.Confirm), key.Matches(msg, m.keymap.Back):
 		m.loading = true
 		m.status = "Returning home..."
 		return m, loadHomeCmd(m.store)
-	case key.Matches(msg, m.keymap.Help):
-		m.status = "Enter or Esc to return home"
-		return m, nil
 	}
 	return m, nil
 }
 
 func (m RootModel) updateStats(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
+	case key.Matches(msg, m.keymap.Help):
+		return m.openHelp(), nil
 	case key.Matches(msg, m.keymap.Back), key.Matches(msg, m.keymap.Confirm):
 		m.screen = ScreenHome
 		m.status = "Back to home"
 		return m, nil
-	case key.Matches(msg, m.keymap.Help):
-		m.status = "Esc or Enter to go back"
-		return m, nil
+	}
+	return m, nil
+}
+
+func (m RootModel) updateHelp(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keymap.Back):
+		return m.closeHelp(), nil
 	}
 	return m, nil
 }
@@ -248,4 +273,21 @@ func appendRecent(existing []int64, ids ...int64) []int64 {
 		return combined
 	}
 	return combined[len(combined)-12:]
+}
+
+func (m RootModel) openHelp() RootModel {
+	if m.screen == ScreenHelp {
+		return m
+	}
+	m.helpReturn = m.screen
+	m.helpStatus = m.status
+	m.screen = ScreenHelp
+	m.status = "Help"
+	return m
+}
+
+func (m RootModel) closeHelp() RootModel {
+	m.screen = m.helpReturn
+	m.status = m.helpStatus
+	return m
 }

@@ -117,28 +117,35 @@
 
 ## P2: UI / 体験の未着手項目
 
-- [ ] 専用の help 画面を追加する
+- [x] 専用の help 画面を追加する
   - 種別: 一部着手
   - 現状: `?` は status line のヒントだけで、設計書の `ScreenHelp` はまだ無い
   - 実装方針:
     - 画面ごとの keymap を共通の help renderer に寄せる
     - `?` で開く / `Esc` で戻るの往復だけにする
+  - 実装メモ:
+    - `internal/app` に `ScreenHelp` と共通 help renderer を追加し、home / quiz / feedback / results / stats から `?` で開いて `Esc` で戻れるようにした
   - 完了条件: home / quiz / feedback / results / stats から一貫した help を見られる
 
-- [ ] 例文表示を quiz / feedback に載せる
+- [x] 例文表示を quiz / feedback に載せる
   - 種別: 一部着手
   - 現状: schema に `example_en` / `example_ja` はあるが、seed データと画面表示では未使用
   - 実装方針:
     - まずは quiz では非表示、feedback で正答確認と一緒に出す
     - seed データ拡張では例文が無い単語を許容し、表示側で空欄を自然に扱う
   - 依存: 辞書パック拡張
+  - 実装メモ:
+    - `feedback` 画面で `example_en` / `example_ja` を表示し、例文が無い単語ではラベルごと省略するようにした
   - 完了条件: 例文付き単語が自然に学習フローへ出る
 
-- [ ] `streak by waiting` を stats / home に追加する
+- [x] `streak by waiting` を stats / home に追加する
   - 種別: 未着手
   - 実装方針:
     - 既存の `reviews.response_ms` から待機時間変換メトリクスを導出し、最初は追加テーブルを作らず集計で出す
     - 指標名は streak よりも `wait minutes` / `waiting converted` のように誤読しない形に寄せる
+  - 実装メモ:
+    - `stats.Window` に `WaitMinutes` を追加し、`reviews.response_ms` の合計から today / 7 days / 30 days / total の待機分数を集計表示するようにした
+    - home 画面でも `Wait today` として当日分の値を見られるようにした
   - 完了条件: 通常の連続日数とは別に、待機時間由来の学習量を表示できる
 
 ## P3: 配布・将来機能の保留タスク

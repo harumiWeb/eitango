@@ -77,10 +77,30 @@ func (s *Store) LoadStatsSnapshot(ctx context.Context) (stats.Snapshot, error) {
 	}
 
 	return stats.Snapshot{
-		Today:      stats.Window{Label: "Today", Reviews: today.reviews, Correct: today.correct},
-		SevenDays:  stats.Window{Label: "7 days", Reviews: sevenDays.reviews, Correct: sevenDays.correct},
-		ThirtyDays: stats.Window{Label: "30 days", Reviews: thirtyDays.reviews, Correct: thirtyDays.correct},
-		Total:      stats.Window{Label: "Total", Reviews: total.reviews, Correct: total.correct},
+		Today: stats.Window{
+			Label:       "Today",
+			Reviews:     today.reviews,
+			Correct:     today.correct,
+			WaitMinutes: waitMinutesFromResponseMS(today.responseMS),
+		},
+		SevenDays: stats.Window{
+			Label:       "7 days",
+			Reviews:     sevenDays.reviews,
+			Correct:     sevenDays.correct,
+			WaitMinutes: waitMinutesFromResponseMS(sevenDays.responseMS),
+		},
+		ThirtyDays: stats.Window{
+			Label:       "30 days",
+			Reviews:     thirtyDays.reviews,
+			Correct:     thirtyDays.correct,
+			WaitMinutes: waitMinutesFromResponseMS(thirtyDays.responseMS),
+		},
+		Total: stats.Window{
+			Label:       "Total",
+			Reviews:     total.reviews,
+			Correct:     total.correct,
+			WaitMinutes: waitMinutesFromResponseMS(total.responseMS),
+		},
 		DueCount:   dueCount,
 		NewCount:   newCount,
 		StreakDays: streakDays,
@@ -584,12 +604,13 @@ LIMIT 5
 }
 
 type reviewCounts struct {
-	reviews int
-	correct int
+	reviews    int
+	correct    int
+	responseMS int64
 }
 
 func (s *Store) reviewWindow(ctx context.Context, since *time.Time) (reviewCounts, error) {
-	query := `SELECT COUNT(*), COALESCE(SUM(is_correct), 0) FROM reviews`
+	query := `SELECT COUNT(*), COALESCE(SUM(is_correct), 0), COALESCE(SUM(response_ms), 0) FROM reviews`
 	args := make([]any, 0, 1)
 	if since != nil {
 		query += ` WHERE answered_at >= ?`
@@ -597,10 +618,14 @@ func (s *Store) reviewWindow(ctx context.Context, since *time.Time) (reviewCount
 	}
 
 	var result reviewCounts
-	if err := s.db.QueryRowContext(ctx, query, args...).Scan(&result.reviews, &result.correct); err != nil {
+	if err := s.db.QueryRowContext(ctx, query, args...).Scan(&result.reviews, &result.correct, &result.responseMS); err != nil {
 		return reviewCounts{}, fmt.Errorf("query review window: %w", err)
 	}
 	return result, nil
+}
+
+func waitMinutesFromResponseMS(responseMS int64) float64 {
+	return float64(responseMS) / 60000.0
 }
 
 func (s *Store) countDueWords(ctx context.Context) (int, error) {

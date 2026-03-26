@@ -6,9 +6,10 @@ import (
 )
 
 type Window struct {
-	Label   string
-	Reviews int
-	Correct int
+	Label       string
+	Reviews     int
+	Correct     int
+	WaitMinutes float64
 }
 
 func (w Window) Accuracy() float64 {
@@ -44,5 +45,5 @@ func RenderText(snapshot Snapshot) string {
 }
 
 func renderWindow(window Window) string {
-	return fmt.Sprintf("%-12s reviews=%d correct=%d accuracy=%.1f%%\n", window.Label+":", window.Reviews, window.Correct, window.Accuracy())
+	return fmt.Sprintf("%-12s reviews=%d correct=%d accuracy=%.1f%% wait=%.1fm\n", window.Label+":", window.Reviews, window.Correct, window.Accuracy(), window.WaitMinutes)
 }

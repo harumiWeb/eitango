@@ -1,0 +1,28 @@
+package stats
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestRenderTextIncludesWaitMinutes(t *testing.T) {
+	t.Parallel()
+
+	snapshot := Snapshot{
+		Today:      Window{Label: "Today", Reviews: 4, Correct: 3, WaitMinutes: 5.5},
+		SevenDays:  Window{Label: "7 days", Reviews: 10, Correct: 8, WaitMinutes: 12.0},
+		ThirtyDays: Window{Label: "30 days", Reviews: 20, Correct: 15, WaitMinutes: 42.0},
+		Total:      Window{Label: "Total", Reviews: 30, Correct: 23, WaitMinutes: 54.5},
+		DueCount:   3,
+		NewCount:   8,
+		StreakDays: 2,
+	}
+
+	got := RenderText(snapshot)
+	if !strings.Contains(got, "wait=5.5m") {
+		t.Fatalf("RenderText() missing today wait minutes:\n%s", got)
+	}
+	if !strings.Contains(got, "wait=54.5m") {
+		t.Fatalf("RenderText() missing total wait minutes:\n%s", got)
+	}
+}

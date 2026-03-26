@@ -279,8 +279,14 @@ func TestSaveAnswerCreatesRetryCompletesSessionAndUpdatesStats(t *testing.T) {
 	if statsSnapshot.Today.Reviews != 2 || statsSnapshot.Today.Correct != 1 {
 		t.Fatalf("unexpected today stats: %+v", statsSnapshot.Today)
 	}
+	if diff := statsSnapshot.Today.WaitMinutes - 0.035; diff < -0.000001 || diff > 0.000001 {
+		t.Fatalf("Today.WaitMinutes = %v, want about 0.035", statsSnapshot.Today.WaitMinutes)
+	}
 	if statsSnapshot.Total.Reviews != 2 || statsSnapshot.Total.Correct != 1 {
 		t.Fatalf("unexpected total stats: %+v", statsSnapshot.Total)
+	}
+	if diff := statsSnapshot.Total.WaitMinutes - 0.035; diff < -0.000001 || diff > 0.000001 {
+		t.Fatalf("Total.WaitMinutes = %v, want about 0.035", statsSnapshot.Total.WaitMinutes)
 	}
 	if statsSnapshot.NewCount != 2 {
 		t.Fatalf("NewCount after completing one word = %d, want 2", statsSnapshot.NewCount)
