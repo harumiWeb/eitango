@@ -159,6 +159,4 @@
 - 完了済み: `eitango reset`
 - 完了済み: `eitango export`
 - 完了済み: `words.source` migration + `eitango import`
-1. `eitango browse`
-2. help 画面 / 例文表示 / waiting metrics
-3. `.goreleaser.yaml` / `--idle-hook` の整理
+1. `.goreleaser.yaml`の整理
