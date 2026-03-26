@@ -142,12 +142,16 @@
 
 ## P3: 配布・将来機能の保留タスク
 
-- [ ] `.goreleaser.yaml` を実運用向けに固める
+- [x] `.goreleaser.yaml` を実運用向けに固める
   - 種別: 一部着手
   - 現状: テンプレートはあるが、成果物名・アーカイブ構成・リリース運用は未整理
   - 実装方針:
     - `cmd/eitango` を前提に成果物名を固定し、Windows zip / Unix tar.gz を最終仕様に合わせる
     - `go generate ./...` が不要なら hook から外す
+  - 実装メモ:
+    - `.goreleaser.yaml` を `cmd/eitango` / `binary: eitango` 前提へ更新し、darwin/linux/windows 向けの archive 名・checksum・ldflags を固定した
+    - `cmd/eitango/main.go` に build metadata と `--version` 表示を追加し、GoReleaser から注入した情報を表示できるようにした
+    - `goreleaser release --snapshot --clean` を実行し、Windows zip / Unix tar.gz / `checksums.txt` の生成を確認した
   - 完了条件: ローカル dry-run で配布アーカイブを確認できる
 
 

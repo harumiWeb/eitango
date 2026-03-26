@@ -18,6 +18,13 @@ import (
 	"github.com/yourname/eitango/internal/store"
 )
 
+var (
+	// These are overwritten by GoReleaser ldflags for release builds.
+	version = "dev"
+	commit  = "unknown"
+	date    = "unknown"
+)
+
 func main() {
 	if err := newRootCommand().Execute(); err != nil {
 		exitCode := 1
@@ -38,8 +45,10 @@ func newRootCommand() *cobra.Command {
 		Short:         i18n.T(i18n.CLIRootShort),
 		SilenceErrors: true,
 		SilenceUsage:  true,
+		Version:       buildVersionText(),
 		RunE:          runDashboard,
 	}
+	cmd.SetVersionTemplate("{{ .Version }}\n")
 	cmd.AddCommand(newLearnCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand(), newImportCommand(), newExportCommand(), newResetCommand())
 	return cmd
 }
@@ -329,6 +338,27 @@ func commandContext(cmd *cobra.Command) context.Context {
 		return context.Background()
 	}
 	return ctx
+}
+
+func buildVersionText() string {
+	return formatBuildVersion("eitango", version, commit, date)
+}
+
+func formatBuildVersion(name, version, commit, date string) string {
+	return fmt.Sprintf("%s %s\ncommit: %s\ndate: %s",
+		defaultBuildValue(name, "eitango"),
+		defaultBuildValue(version, "dev"),
+		defaultBuildValue(commit, "unknown"),
+		defaultBuildValue(date, "unknown"),
+	)
+}
+
+func defaultBuildValue(value, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 type commandExitError struct {

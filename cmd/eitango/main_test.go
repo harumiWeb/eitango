@@ -100,6 +100,45 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 	}
 }
 
+func TestNewRootCommandVersionFlag(t *testing.T) {
+	var out bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--version"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "eitango ") {
+		t.Fatalf("version output = %q, want app name", output)
+	}
+	if !strings.Contains(output, "commit: ") {
+		t.Fatalf("version output = %q, want commit line", output)
+	}
+	if !strings.Contains(output, "date: ") {
+		t.Fatalf("version output = %q, want date line", output)
+	}
+}
+
+func TestFormatBuildVersion(t *testing.T) {
+	t.Parallel()
+
+	got := formatBuildVersion("eitango", "1.2.3", "abcdef0", "2026-03-26T11:30:00Z")
+
+	for _, want := range []string{
+		"eitango 1.2.3",
+		"commit: abcdef0",
+		"date: 2026-03-26T11:30:00Z",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("formatBuildVersion() = %q, want substring %q", got, want)
+		}
+	}
+}
+
 func TestSessionOptionsFromSettings(t *testing.T) {
 	t.Parallel()
 
