@@ -102,7 +102,7 @@
   - 実装メモ:
     - `assets/migrations/004_words_source.sql` で `words.source` を追加し、既存 core rows をそのまま `source = core` として扱えるようにした
     - core seed / `reset --reseed` は `source = core` だけを置き換えるように変え、imported words 自体は保持したまま学習履歴だけをリセットするようにした
-    - `internal/dict.ParseCSV`, `Store.ImportWords`, `cmd/eitango/import.go` を追加し、`eitango import --file ... --format csv [--source ...]` を実装した
+    - `internal/dict.ParseCSV`, `internal/dict.ParseJSONL`, `Store.ImportWords`, `cmd/eitango/import.go` を追加し、`eitango import --file ... --format csv|jsonl [--source ...]` を実装した
     - import source のデフォルトはファイル名由来で、同一 source 内は `(source, lemma, pos)` キー相当で upsert、source を跨ぐ重複は `doctor` の `word sources` check が warning として報告する
   - 依存: `words.source` 追加 migration, `doctor`, `reset`
   - 完了条件: CSV から追加辞書を取り込める
@@ -155,6 +155,83 @@
   - 完了条件: ローカル dry-run で配布アーカイブを確認できる
 
 
+## P4: 30,000語拡張
+
+- [x] 30k 語彙の配布方針を固める
+  - 種別: 完了
+  - 現状: `core` の埋め込み seed、`import`、`doctor`、`reset --reseed` は揃っており、`source` 付きで複数語彙セットを共存できる
+  - 実装方針:
+    - 最終目標は単一バイナリで完結する `core` 同梱 30,000 語とする
+    - ただし実装と検証は 5k → 10k → 30k の段階投入で進める
+    - `source` モデルは維持し、将来の追加パック運用へ戻れる余地も残す
+  - 実装メモ:
+    - `docs/design.md` に 30k 拡張時の配布方針を追記し、`core` 同梱を最終目標、段階投入を実装方針として固定した
+    - `words.source` を維持して import pack と共存できる前提も文書化した
+  - 完了条件: 30k 到達時の配布、reseed、進捗リセット方針が後続タスクの前提として参照できる
+
+- [x] 30k 語彙のデータ契約を定義する
+  - 種別: 完了
+  - 現状: loader/import は最低限の列で動くが、30k では `pos`、`level`、`frequency_rank`、`distractor_group` の品質が出題品質を左右する
+  - 実装方針:
+    - 必須/任意項目、taxonomy、rank 付与ルール、`distractor_group` の最小件数ルールを固定する
+    - 欠損、重複、不正 rank、曖昧な列定義は hard fail とする
+  - 実装メモ:
+    - `LoadCoreWords` が runtime でも `core` 辞書契約を検証するようにし、required fields、`(lemma, pos)` 一意性、`frequency_rank` 一意性、`distractor_group` 最小件数を保証する方向へ寄せる
+    - `import` 側は最小必須を維持しつつ、段階投入や pack 運用に備えて CSV の optional `frequency_rank` を受けられるようにする
+    - `docs/design.md` に 30k 拡張時の `core` 入力契約を追記し、`core` と `import` の validation レベル差を明文化した
+  - 依存: 30k 語彙の配布方針
+  - 完了条件: 生データから最終辞書まで同じ契約で検証できる
+
+- [x] 語彙生成・検証パイプラインを追加する
+  - 種別: 完了
+  - 現状: `assets/words_core.jsonl` は直接管理されているが、大規模辞書へ拡張する再現可能な生成/検証手順はまだ無い
+  - 実装方針:
+    - 生データから最終 JSONL を生成する scripts または CLI 導線を用意する
+    - required fields、一意性、rank、`distractor_group` 件数、表記揺れを検査できるようにする
+  - 実装メモ:
+    - `eitango validate` を追加し、embedded core と外部 CSV/JSONL の validation を DB 非依存で回せるようにする
+    - import CSV も runtime validation を通し、重複 `lemma/pos` や重複 `frequency_rank` を事前に拒否する
+    - `eitango import` も `jsonl` を受けられるようにし、`core` と pack のフォーマット差を減らした
+  - 依存: 30k 語彙のデータ契約
+  - 完了条件: 語彙拡張を手作業の差し替えではなく再現可能な手順で回せる
+
+- [ ] 語彙データを段階的に拡張する
+  - 種別: blocked
+  - 現状: Phase 1 の約 1,051 語は揃っているが、repo 内には追加語彙ソースが無く、30,000 語への実データ拡張はまだ始められない
+  - 実装方針:
+    - 5,000、10,000、30,000 の各段階でデータを増やす
+    - 各段階でサンプルレビュー、`doctor`、quizability、seed/import 時間を確認する
+  - 実装メモ:
+    - `eitango validate --embedded-core` は現行 1,051 語で green
+    - 追加の licensable source data が入り次第、`validate` → `import` / `words_core.jsonl` 生成 → `doctor` の順で段階投入に進める
+  - 依存: 語彙生成・検証パイプライン
+  - 完了条件: 各段階で品質ゲートを満たしつつ 30k へ進める
+
+- [x] 大規模語彙向けの診断と性能確認を強化する
+  - 種別: 完了
+  - 現状: `doctor` と既存テストはあるが、30k 規模での 4 択生成安定性や seed/import 性能の確認はまだ薄い
+  - 実装方針:
+    - `doctor` と関連テストを 30k 前提でも有効な形に広げる
+    - seed/import が律速なら `word_write` の upsert を chunked/bulk 寄りに改善する
+  - 実装メモ:
+    - `internal/store` に embedded core seed benchmark、`internal/quiz` に choice build benchmark を追加して基準化を始める
+    - `doctor` に `word metadata` check を追加し、欠損 `level` / `frequency_rank` / `distractor_group` と same-source rank 重複を warning で拾えるようにした
+    - `word_write` の upsert は source ごとの既存 row を先に map 化するように変え、seed benchmark は `21.9ms -> 18.4ms` 相当まで改善した
+  - 依存: 語彙生成・検証パイプライン
+  - 完了条件: 30k 想定でも quiz、stats、session の既存挙動を崩さずに回せる
+
+- [ ] 移行導線とドキュメントを仕上げる
+  - 種別: blocked
+  - 現状: `CoreWordsVersion`、`reset --reseed`、CLI ヘルプはあるが、30k 版への移行前提では実データと version bump がまだ無い
+  - 実装方針:
+    - `CoreWordsVersion` 更新、reseed 動作確認、既存ユーザーの進捗リセット方針整理を行う
+    - 関連ドキュメントと CLI ヘルプの説明を更新する
+  - 実装メモ:
+    - 配布方針、validation 導線、benchmark、metadata 診断までは先に整備済み
+    - 30k データ本体が揃い次第、version bump と reseed 導線の最終仕上げに進める
+  - 依存: 語彙データの段階拡張, 大規模語彙向けの診断と性能確認
+  - 完了条件: 30k 版の配布・移行・運用方針が明文化される
+
 ## 推奨着手順
 
 - 完了済み: `eitango review`, `config.toml` 読み込み, `--focus-mode`
@@ -163,4 +240,10 @@
 - 完了済み: `eitango reset`
 - 完了済み: `eitango export`
 - 完了済み: `words.source` migration + `eitango import`
-1. `.goreleaser.yaml`の整理
+- 完了済み: `.goreleaser.yaml` の整理
+- 完了済み: 30k 語彙の配布方針を固める
+- 完了済み: 30k 語彙のデータ契約を定義する
+- 完了済み: 語彙生成・検証パイプラインを追加する
+- 完了済み: 大規模語彙向けの診断と性能確認を強化する
+1. 追加語彙ソースを調達し、5k / 10k / 30k の段階投入を進める
+2. `CoreWordsVersion` 更新と reseed / 移行導線を仕上げる

@@ -49,7 +49,7 @@ func newRootCommand() *cobra.Command {
 		RunE:          runDashboard,
 	}
 	cmd.SetVersionTemplate("{{ .Version }}\n")
-	cmd.AddCommand(newLearnCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand(), newImportCommand(), newExportCommand(), newResetCommand())
+	cmd.AddCommand(newLearnCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand(), newImportCommand(), newExportCommand(), newResetCommand(), newValidateCommand())
 	return cmd
 }
 

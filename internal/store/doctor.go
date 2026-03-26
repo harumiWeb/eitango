@@ -75,6 +75,7 @@ func (s *Store) RunDiagnostics(ctx context.Context) DiagnosticReport {
 			s.checkMigrations(ctx),
 			s.checkDictionary(ctx),
 			s.checkWordSources(ctx),
+			s.checkWordMetadata(ctx),
 			s.checkOrphanProgress(ctx),
 			s.checkOrphanReviews(ctx),
 			s.checkOrphanSessionItems(ctx),
@@ -334,6 +335,148 @@ LIMIT ?
 		return diagnosticCheckWarning("word sources", fmt.Sprintf("%d lemma/pos pair(s) appear in multiple sources", duplicateCount), details...)
 	default:
 		return diagnosticCheckOK("word sources", "all words have sources and no duplicate lemma/pos pairs were found")
+	}
+}
+
+func (s *Store) checkWordMetadata(ctx context.Context) DiagnosticCheck {
+	type metadataIssue struct {
+		label string
+		count int
+		query string
+	}
+
+	issues := []metadataIssue{
+		{
+			label: "missing pos",
+			query: `
+SELECT COUNT(*)
+FROM words
+WHERE TRIM(COALESCE(pos, '')) = ''
+`,
+		},
+		{
+			label: "missing level",
+			query: `
+SELECT COUNT(*)
+FROM words
+WHERE TRIM(COALESCE(level, '')) = ''
+`,
+		},
+		{
+			label: "missing frequency rank",
+			query: `
+SELECT COUNT(*)
+FROM words
+WHERE COALESCE(frequency_rank, 0) <= 0
+`,
+		},
+		{
+			label: "missing distractor group",
+			query: `
+SELECT COUNT(*)
+FROM words
+WHERE TRIM(COALESCE(distractor_group, '')) = ''
+`,
+		},
+	}
+
+	details := make([]string, 0, len(issues)+1)
+	totalIssueCount := 0
+
+	for i := range issues {
+		count, err := s.countRows(ctx, issues[i].query)
+		if err != nil {
+			return diagnosticCheckError("word metadata", fmt.Sprintf("%s could not be counted", issues[i].label), err.Error())
+		}
+		issues[i].count = count
+		if count == 0 {
+			continue
+		}
+		totalIssueCount += count
+
+		samples, err := s.sampleStringRows(ctx, fmt.Sprintf(`
+SELECT lemma
+FROM words
+WHERE %s
+ORDER BY id ASC
+LIMIT ?
+`, metadataConditionForLabel(issues[i].label)), doctorSampleLimit)
+		if err != nil {
+			return diagnosticCheckError("word metadata", fmt.Sprintf("%s samples could not be loaded", issues[i].label), err.Error())
+		}
+		details = append(details, formatStringSamples(issues[i].label, count, samples))
+	}
+
+	duplicateRankCount, err := s.countRows(ctx, `
+SELECT COUNT(*)
+FROM (
+  SELECT source, frequency_rank
+  FROM words
+  WHERE frequency_rank IS NOT NULL
+  GROUP BY source, frequency_rank
+  HAVING COUNT(*) > 1
+)
+`)
+	if err != nil {
+		return diagnosticCheckError("word metadata", "duplicate frequency ranks could not be counted", err.Error())
+	}
+	if duplicateRankCount > 0 {
+		totalIssueCount += duplicateRankCount
+		rows, err := s.db.QueryContext(ctx, `
+SELECT source, frequency_rank, GROUP_CONCAT(lemma, ', ')
+FROM (
+  SELECT source, frequency_rank, lemma
+  FROM words
+  WHERE frequency_rank IS NOT NULL
+  ORDER BY source ASC, frequency_rank ASC, lemma ASC
+)
+GROUP BY source, frequency_rank
+HAVING COUNT(*) > 1
+ORDER BY source ASC, frequency_rank ASC
+LIMIT ?
+`, doctorSampleLimit)
+		if err != nil {
+			return diagnosticCheckError("word metadata", "duplicate frequency rank samples could not be loaded", err.Error())
+		}
+		samples := make([]string, 0, doctorSampleLimit)
+		for rows.Next() {
+			var (
+				source string
+				rank   int
+				lemmas string
+			)
+			if err := rows.Scan(&source, &rank, &lemmas); err != nil {
+				_ = rows.Close()
+				return diagnosticCheckError("word metadata", "duplicate frequency rank samples could not be scanned", err.Error())
+			}
+			samples = append(samples, fmt.Sprintf("%s -> %d (%s)", source, rank, lemmas))
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return diagnosticCheckError("word metadata", "duplicate frequency rank samples could not be iterated", err.Error())
+		}
+		_ = rows.Close()
+		details = append(details, formatStringSamples("duplicate frequency ranks", duplicateRankCount, samples))
+	}
+
+	if totalIssueCount > 0 {
+		return diagnosticCheckWarning("word metadata", fmt.Sprintf("%d metadata issue(s) affect ranking or distractors", totalIssueCount), details...)
+	}
+	return diagnosticCheckOK("word metadata", "all words have metadata needed for ranking and distractors")
+}
+
+func metadataConditionForLabel(label string) string {
+	switch label {
+	case "missing pos":
+		return "TRIM(COALESCE(pos, '')) = ''"
+	case "missing level":
+		return "TRIM(COALESCE(level, '')) = ''"
+	case "missing frequency rank":
+		return "COALESCE(frequency_rank, 0) <= 0"
+	case "missing distractor group":
+		return "TRIM(COALESCE(distractor_group, '')) = ''"
+	default:
+		panic("unsupported metadata label: " + label)
 	}
 }
 

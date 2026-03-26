@@ -69,6 +69,23 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 		t.Fatal("import source flag not found")
 	}
 
+	validate := findSubcommand(cmd, "validate")
+	if validate == nil {
+		t.Fatal("validate command not found")
+	}
+	if validate.Flags().Lookup("file") == nil {
+		t.Fatal("validate file flag not found")
+	}
+	if validate.Flags().Lookup("format") == nil {
+		t.Fatal("validate format flag not found")
+	}
+	if validate.Flags().Lookup("kind") == nil {
+		t.Fatal("validate kind flag not found")
+	}
+	if validate.Flags().Lookup("embedded-core") == nil {
+		t.Fatal("validate embedded-core flag not found")
+	}
+
 	export := findSubcommand(cmd, "export")
 	if export == nil {
 		t.Fatal("export command not found")

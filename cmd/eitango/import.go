@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -13,32 +12,32 @@ import (
 func newImportCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "import",
-		Short: "Import words from CSV",
+		Short: "Import words from CSV or JSONL",
 		Args:  cobra.NoArgs,
 		RunE:  runImport,
 	}
-	cmd.Flags().String("file", "", "CSV file to import")
-	cmd.Flags().String("format", "csv", "Import format (csv)")
+	cmd.Flags().String("file", "", "Dictionary file to import (.csv or .jsonl)")
+	cmd.Flags().String("format", formatCSV, "Import format (csv or jsonl)")
 	cmd.Flags().String("source", "", "Import source name (defaults to the file name)")
 	_ = cmd.MarkFlagRequired("file")
 	return cmd
 }
 
 func runImport(cmd *cobra.Command, args []string) error {
-	if err := validateImportFormat(cmd, "csv"); err != nil {
-		return err
-	}
-
 	filePath, err := cmd.Flags().GetString("file")
 	if err != nil {
 		return fmt.Errorf("get file flag: %w", err)
+	}
+	format, err := resolveImportFormat(cmd)
+	if err != nil {
+		return err
 	}
 	source, err := importSourceFromFlags(cmd, filePath)
 	if err != nil {
 		return err
 	}
 
-	entries, err := loadImportEntries(filePath)
+	entries, err := loadImportEntries(filePath, format)
 	if err != nil {
 		return err
 	}
@@ -61,15 +60,18 @@ func runImport(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-func validateImportFormat(cmd *cobra.Command, expected string) error {
+func resolveImportFormat(cmd *cobra.Command) (string, error) {
 	format, err := cmd.Flags().GetString("format")
 	if err != nil {
-		return fmt.Errorf("get format flag: %w", err)
+		return "", fmt.Errorf("get format flag: %w", err)
 	}
-	if format != expected {
-		return fmt.Errorf("%s only supports --format %s", cmd.CommandPath(), expected)
+	normalized := strings.TrimSpace(strings.ToLower(format))
+	switch normalized {
+	case formatCSV, formatJSONL:
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("%s only supports --format %s or %s", cmd.CommandPath(), formatCSV, formatJSONL)
 	}
-	return nil
 }
 
 func importSourceFromFlags(cmd *cobra.Command, filePath string) (string, error) {
@@ -83,18 +85,13 @@ func importSourceFromFlags(cmd *cobra.Command, filePath string) (string, error) 
 	return store.DefaultImportSource(filePath)
 }
 
-func loadImportEntries(filePath string) ([]dict.Entry, error) {
-	file, err := os.Open(filePath)
+func loadImportEntries(filePath, format string) ([]dict.Entry, error) {
+	entries, err := loadEntriesForValidation(filePath, format)
 	if err != nil {
-		return nil, fmt.Errorf("open import file %s: %w", filePath, err)
+		return nil, fmt.Errorf("load import file %s: %w", filePath, err)
 	}
-	defer func() {
-		_ = file.Close()
-	}()
-
-	entries, err := dict.ParseCSV(file)
-	if err != nil {
-		return nil, fmt.Errorf("parse import file %s: %w", filePath, err)
+	if err := dict.ValidateImportEntries(entries); err != nil {
+		return nil, fmt.Errorf("validate import file %s: %w", filePath, err)
 	}
 	return entries, nil
 }

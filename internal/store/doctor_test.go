@@ -222,6 +222,34 @@ func TestRunDiagnosticsWarnsOnCrossSourceDuplicates(t *testing.T) {
 	}
 }
 
+func TestRunDiagnosticsWarnsOnMissingWordMetadata(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	if err := st.SeedWords(ctx, []dict.Entry{
+		{Lemma: "adopt", Pos: "verb", MeaningJA: "採用する", Level: "toeic600", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "apply", Pos: "verb", MeaningJA: "応募する", Level: "toeic600", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
+		{Lemma: "cancel", Pos: "verb", MeaningJA: "取り消す", Level: "", FrequencyRank: 0, DistractorGroup: ""},
+		{Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "toeic600", FrequencyRank: 160, DistractorGroup: "basic-verb-action"},
+	}, dict.CoreWordsVersion); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	report := st.RunDiagnostics(ctx)
+
+	metadata, ok := report.Check("word metadata")
+	if !ok {
+		t.Fatal("word metadata check not found")
+	}
+	if metadata.Status != DiagnosticStatusWarning {
+		t.Fatalf("word metadata status = %q, want %q", metadata.Status, DiagnosticStatusWarning)
+	}
+	if !strings.Contains(strings.Join(metadata.Details, "\n"), "cancel") {
+		t.Fatalf("word metadata details = %+v, want missing-metadata sample", metadata.Details)
+	}
+}
+
 func TestRunDiagnosticsErrorsOnSameSourceDuplicates(t *testing.T) {
 	t.Parallel()
 

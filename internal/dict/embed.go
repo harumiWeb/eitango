@@ -21,6 +21,9 @@ func LoadCoreWords() ([]Entry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse embedded words: %w", err)
 	}
+	if err := ValidateCoreEntries(entries); err != nil {
+		return nil, fmt.Errorf("validate embedded words: %w", err)
+	}
 
 	return entries, nil
 }

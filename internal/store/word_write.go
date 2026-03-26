@@ -110,19 +110,10 @@ func deleteWordsBySourceTx(ctx context.Context, tx *sql.Tx, source string) (int,
 }
 
 func upsertWordsTx(ctx context.Context, tx *sql.Tx, source string, entries []dict.Entry) (upsertWordCounts, error) {
-	lookupStmt, err := tx.PrepareContext(ctx, `
-SELECT id
-FROM words
-WHERE source = ? AND lemma = ? AND IFNULL(pos, '') = ?
-ORDER BY id ASC
-LIMIT 1
-`)
+	existingIDs, err := listExistingWordIDsBySourceTx(ctx, tx, source)
 	if err != nil {
-		return upsertWordCounts{}, fmt.Errorf("prepare word lookup for source %q: %w", source, err)
+		return upsertWordCounts{}, err
 	}
-	defer func() {
-		_ = lookupStmt.Close()
-	}()
 
 	insertStmt, err := tx.PrepareContext(ctx, `
 INSERT INTO words (
@@ -163,10 +154,7 @@ WHERE id = ?
 
 	counts := upsertWordCounts{}
 	for _, entry := range entries {
-		existingID, exists, err := lookupWordIDTx(ctx, lookupStmt, source, entry)
-		if err != nil {
-			return upsertWordCounts{}, err
-		}
+		existingID, exists := existingIDs[wordKey(entry)]
 		if exists {
 			if err := updateWordTx(ctx, updateStmt, existingID, entry); err != nil {
 				return upsertWordCounts{}, err
@@ -183,16 +171,42 @@ WHERE id = ?
 	return counts, nil
 }
 
-func lookupWordIDTx(ctx context.Context, stmt *sql.Stmt, source string, entry dict.Entry) (int64, bool, error) {
-	var id int64
-	err := stmt.QueryRowContext(ctx, source, strings.TrimSpace(entry.Lemma), strings.TrimSpace(entry.Pos)).Scan(&id)
-	if err == nil {
-		return id, true, nil
+func listExistingWordIDsBySourceTx(ctx context.Context, tx *sql.Tx, source string) (map[string]int64, error) {
+	rows, err := tx.QueryContext(ctx, `
+SELECT id, lemma, IFNULL(pos, '')
+FROM words
+WHERE source = ?
+`, source)
+	if err != nil {
+		return nil, fmt.Errorf("list existing words for source %q: %w", source, err)
 	}
-	if err == sql.ErrNoRows {
-		return 0, false, nil
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	existingIDs := make(map[string]int64)
+	for rows.Next() {
+		var (
+			id    int64
+			lemma string
+			pos   string
+		)
+		if err := rows.Scan(&id, &lemma, &pos); err != nil {
+			return nil, fmt.Errorf("scan existing word for source %q: %w", source, err)
+		}
+		key := strings.ToLower(strings.TrimSpace(lemma) + "\x00" + strings.TrimSpace(pos))
+		if _, exists := existingIDs[key]; !exists {
+			existingIDs[key] = id
+		}
 	}
-	return 0, false, fmt.Errorf("lookup word %q for source %q: %w", entry.Lemma, source, err)
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate existing words for source %q: %w", source, err)
+	}
+	return existingIDs, nil
+}
+
+func wordKey(entry dict.Entry) string {
+	return strings.ToLower(strings.TrimSpace(entry.Lemma) + "\x00" + strings.TrimSpace(entry.Pos))
 }
 
 func insertWordTx(ctx context.Context, stmt *sql.Stmt, source string, entry dict.Entry) error {
