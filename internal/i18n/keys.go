@@ -70,8 +70,8 @@ const (
 
 // Help screen
 const (
-	HelpTitle       = "help.title"
-	HelpBack        = "help.back"
+	HelpTitle        = "help.title"
+	HelpBack         = "help.back"
 	HelpQuitDisabled = "help.quit_disabled"
 )
 
@@ -117,27 +117,27 @@ const (
 
 // Status messages
 const (
-	StatusReady         = "status.ready"
-	StatusLoading       = "status.loading"
-	StatusResumeFound   = "status.resume_found"
-	StatusStatsLoaded   = "status.stats_loaded"
+	StatusReady          = "status.ready"
+	StatusLoading        = "status.loading"
+	StatusResumeFound    = "status.resume_found"
+	StatusStatsLoaded    = "status.stats_loaded"
 	StatusSessionStarted = "status.session_started"
-	StatusSaved         = "status.saved"
-	StatusCheckRate     = "status.check_rate"
-	StatusCorrect       = "status.correct"
-	StatusSelectRating  = "status.select_rating"
-	StatusEscThenRate   = "status.esc_then_rate"
-	StatusEscToReturn   = "status.esc_to_return"
-	StatusLoadingStats  = "status.loading_stats"
-	StatusActiveFound   = "status.active_found"
+	StatusSaved          = "status.saved"
+	StatusCheckRate      = "status.check_rate"
+	StatusCorrect        = "status.correct"
+	StatusSelectRating   = "status.select_rating"
+	StatusEscThenRate    = "status.esc_then_rate"
+	StatusEscToReturn    = "status.esc_to_return"
+	StatusLoadingStats   = "status.loading_stats"
+	StatusActiveFound    = "status.active_found"
 	StatusStartingReview = "status.starting_review"
-	StatusStartingNew   = "status.starting_new"
-	StatusStartingLearn = "status.starting_learn"
-	StatusResuming      = "status.resuming"
-	StatusSaving        = "status.saving"
-	StatusReturningHome = "status.returning_home"
-	StatusBackHome      = "status.back_home"
-	StatusHelp          = "status.help"
+	StatusStartingNew    = "status.starting_new"
+	StatusStartingLearn  = "status.starting_learn"
+	StatusResuming       = "status.resuming"
+	StatusSaving         = "status.saving"
+	StatusReturningHome  = "status.returning_home"
+	StatusBackHome       = "status.back_home"
+	StatusHelp           = "status.help"
 )
 
 // CLI report messages
