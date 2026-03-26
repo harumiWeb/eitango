@@ -3,6 +3,8 @@ package stats
 import (
 	"strings"
 	"testing"
+
+	"github.com/yourname/eitango/internal/i18n"
 )
 
 func TestRenderTextIncludesWaitMinutes(t *testing.T) {
@@ -19,10 +21,11 @@ func TestRenderTextIncludesWaitMinutes(t *testing.T) {
 	}
 
 	got := RenderText(snapshot)
-	if !strings.Contains(got, "wait=5.5m") {
+	waitLabel := i18n.T(i18n.StatsWait)
+	if !strings.Contains(got, waitLabel+"=5.5m") {
 		t.Fatalf("RenderText() missing today wait minutes:\n%s", got)
 	}
-	if !strings.Contains(got, "wait=54.5m") {
+	if !strings.Contains(got, waitLabel+"=54.5m") {
 		t.Fatalf("RenderText() missing total wait minutes:\n%s", got)
 	}
 }

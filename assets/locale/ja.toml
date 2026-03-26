@@ -1,0 +1,127 @@
+# 日本語 (デフォルト)
+
+[home]
+subtitle = "待ち時間を活用する英単語トレーニング"
+due = "復習予定"
+new = "未学習"
+streak = "連続日数"
+wait = "今日の学習時間"
+active = "進行中のセッション"
+active_detail = "%d/%d 問回答済み (%s)"
+keys = "Enter=開始/再開  n=新規  r=復習  s=統計  q=終了"
+
+[quiz]
+no_question = "問題を読み込めませんでした"
+keys = "1-4=解答  j/k=移動  enter=決定  q=保存して終了"
+
+[kind]
+review = "復習"
+retry = "再挑戦"
+new = "新規"
+
+[fb]
+no_feedback = "結果を表示できません"
+correct = "✓ 正解！"
+incorrect = "✗ 不正解"
+word = "単語"
+correct_answer = "正答"
+your_answer = "あなたの回答"
+response_time = "回答時間"
+example_en = "例文（英語）"
+example_ja = "例文（日本語）"
+keys = "評価: a=もう一度  h=難しい  g=良い  e=簡単"
+streak = "🔥 %d 問連続正解！"
+
+[results]
+no_summary = "セッション結果がありません"
+title = "セッション結果"
+accuracy = "正答率"
+correct = "正解数"
+mix = "出題内訳"
+mix_detail = "新規=%d 復習=%d 再挑戦=%d"
+hard_words = "苦手な単語"
+keys = "Enter/Esc=ホームに戻る  q=終了"
+
+[stats]
+title = "英単語 統計"
+keys = "Esc/Enter=戻る"
+due = "復習予定"
+new = "未学習"
+streak = "連続日数"
+reviews = "回答"
+correct = "正解"
+accuracy = "正答率"
+wait = "学習時間"
+
+[help]
+title = "ヘルプ"
+back = "Esc=戻る"
+quit_disabled = "評価するまで無効"
+
+[help.section]
+answer = "解答"
+move = "移動"
+general = "全般"
+rate = "記憶度の評価"
+nav = "ナビゲーション"
+sessions = "セッション"
+
+[help.screen]
+quiz = "クイズ操作"
+feedback = "結果操作"
+results = "成績操作"
+stats = "統計操作"
+home = "ホーム操作"
+
+[key]
+up = "上に移動"
+down = "下に移動"
+choice1 = "選択肢 1"
+choice2 = "選択肢 2"
+choice3 = "選択肢 3"
+choice4 = "選択肢 4"
+confirm = "決定"
+quit = "終了"
+help = "ヘルプ"
+again = "もう一度"
+hard = "難しい"
+good = "良い"
+easy = "簡単"
+new_session = "新規セッション"
+review = "復習"
+stats = "統計"
+back = "戻る"
+
+[status]
+ready = "準備完了"
+loading = "読み込み中..."
+resume_found = "中断中のセッションがあります"
+stats_loaded = "統計を読み込みました"
+session_started = "セッション開始"
+saved = "保存しました"
+check_rate = "正答を確認して記憶度を評価してください"
+correct = "正解！"
+select_rating = "a/h/g/e で評価してください"
+esc_then_rate = "Esc で戻ってから評価してください"
+esc_to_return = "Esc で戻ってください"
+loading_stats = "統計を読み込み中..."
+active_found = "セッションがあります。Enter で再開、n で新規開始"
+starting_review = "復習セッションを開始中..."
+starting_new = "新規セッションを開始中..."
+starting_learn = "学習セッションを開始中..."
+resuming = "セッションを再開中..."
+saving = "保存中..."
+returning_home = "ホームに戻ります..."
+back_home = "ホームに戻りました"
+help = "ヘルプ"
+
+[cli]
+root_short = "オフライン英単語トレーニング TUI"
+doctor_header = "英単語 診断"
+doctor_ok = "結果: 問題なし"
+doctor_errors = "結果: %d 件のエラー"
+doctor_warnings = "結果: %d 件の警告"
+doctor_both = "結果: %d 件の警告、%d 件のエラー"
+reset_header = "英単語 リセット"
+reset_cleared = "学習履歴を初期化しました: sessions=%d, session_items=%d, reviews=%d, progress=%d"
+reset_reseeded = "組み込み辞書を再投入しました: 削除=%d, 挿入=%d, バージョン=%s"

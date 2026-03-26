@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yourname/eitango/internal/config"
 	"github.com/yourname/eitango/internal/dict"
+	"github.com/yourname/eitango/internal/i18n"
 	"github.com/yourname/eitango/internal/session"
 	"github.com/yourname/eitango/internal/srs"
 	"github.com/yourname/eitango/internal/store"
@@ -176,10 +177,10 @@ func TestDoctorCommandRunsDiagnostics(t *testing.T) {
 	}
 
 	output := out.String()
-	if !strings.Contains(output, "eitango doctor") {
+	if !strings.Contains(output, i18n.T(i18n.CLIDoctorHeader)) {
 		t.Fatalf("doctor output = %q, want header", output)
 	}
-	if !strings.Contains(output, "Summary: OK") {
+	if !strings.Contains(output, i18n.T(i18n.CLIDoctorOK)) {
 		t.Fatalf("doctor output = %q, want OK summary", output)
 	}
 }
@@ -273,7 +274,7 @@ func TestResetCommandProgressClearsLearningHistory(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
-	if !strings.Contains(out.String(), "eitango reset") {
+	if !strings.Contains(out.String(), i18n.T(i18n.CLIResetHeader)) {
 		t.Fatalf("reset output = %q, want header", out.String())
 	}
 	if got := mustCountSQLiteTable(t, dbPath, "words"); got != len(entries) {
@@ -312,8 +313,8 @@ func TestResetCommandReseedReloadsEmbeddedCoreWords(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
-	if !strings.Contains(out.String(), "reseeded embedded core words") {
-		t.Fatalf("reset output = %q, want reseed summary", out.String())
+	if !strings.Contains(out.String(), dict.CoreWordsVersion) {
+		t.Fatalf("reset output = %q, want reseed summary with dict version", out.String())
 	}
 
 	coreWords, err := dict.LoadCoreWords()

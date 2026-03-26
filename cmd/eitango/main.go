@@ -12,6 +12,7 @@ import (
 	"github.com/yourname/eitango/internal/app"
 	"github.com/yourname/eitango/internal/config"
 	"github.com/yourname/eitango/internal/dict"
+	"github.com/yourname/eitango/internal/i18n"
 	"github.com/yourname/eitango/internal/session"
 	"github.com/yourname/eitango/internal/stats"
 	"github.com/yourname/eitango/internal/store"
@@ -34,9 +35,10 @@ func main() {
 func newRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "eitango",
-		Short:         "Offline TUI English vocabulary trainer",
+		Short:         i18n.T(i18n.CLIRootShort),
 		SilenceErrors: true,
 		SilenceUsage:  true,
+		RunE:          runDashboard,
 	}
 	cmd.AddCommand(newLearnCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand(), newImportCommand(), newExportCommand(), newResetCommand())
 	return cmd
@@ -61,6 +63,23 @@ func newReviewCommand() *cobra.Command {
 	addFocusModeFlag(cmd)
 	cmd.Flags().Bool("restart", false, "Abandon the active session and start a fresh review session")
 	return cmd
+}
+
+func runDashboard(cmd *cobra.Command, args []string) error {
+	ctx := commandContext(cmd)
+	st, settings, err := openStore(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = st.Close()
+	}()
+
+	program := tea.NewProgram(app.NewModel(st, app.Options{
+		Plan: sessionOptionsFromSettings(settings, nil),
+	}))
+	_, err = program.Run()
+	return err
 }
 
 func runLearn(cmd *cobra.Command, args []string) error {
@@ -276,6 +295,10 @@ func openStore(ctx context.Context) (*store.Store, config.Settings, error) {
 		return nil, config.Settings{}, fmt.Errorf("load config: %w", err)
 	}
 
+	if err := i18n.Load(settings.Language); err != nil {
+		return nil, config.Settings{}, fmt.Errorf("load locale: %w", err)
+	}
+
 	st, err := store.Open(ctx, paths.DBPath)
 	if err != nil {
 		return nil, config.Settings{}, fmt.Errorf("open db: %w", err)
@@ -322,8 +345,9 @@ func (e commandExitError) ExitCode() int {
 
 func formatDoctorReport(report store.DiagnosticReport) string {
 	var b strings.Builder
-	fmt.Fprintln(&b, "eitango doctor")
-	fmt.Fprintln(&b, "==============")
+	header := i18n.T(i18n.CLIDoctorHeader)
+	fmt.Fprintln(&b, header)
+	fmt.Fprintln(&b, strings.Repeat("=", len([]rune(header))))
 	fmt.Fprintln(&b)
 
 	for _, check := range report.Checks {
@@ -336,13 +360,13 @@ func formatDoctorReport(report store.DiagnosticReport) string {
 	fmt.Fprintln(&b)
 	switch warnings, errors := report.WarningCount(), report.ErrorCount(); {
 	case warnings == 0 && errors == 0:
-		fmt.Fprintln(&b, "Summary: OK")
+		fmt.Fprintln(&b, i18n.T(i18n.CLIDoctorOK))
 	case warnings == 0:
-		fmt.Fprintf(&b, "Summary: %d error(s)\n", errors)
+		fmt.Fprintln(&b, i18n.Tf(i18n.CLIDoctorErrors, errors))
 	case errors == 0:
-		fmt.Fprintf(&b, "Summary: %d warning(s)\n", warnings)
+		fmt.Fprintln(&b, i18n.Tf(i18n.CLIDoctorWarnings, warnings))
 	default:
-		fmt.Fprintf(&b, "Summary: %d warning(s), %d error(s)\n", warnings, errors)
+		fmt.Fprintln(&b, i18n.Tf(i18n.CLIDoctorBoth, warnings, errors))
 	}
 
 	return b.String()
@@ -350,21 +374,22 @@ func formatDoctorReport(report store.DiagnosticReport) string {
 
 func formatResetReport(result store.ResetResult) string {
 	var b strings.Builder
-	fmt.Fprintln(&b, "eitango reset")
-	fmt.Fprintln(&b, "=============")
+	header := i18n.T(i18n.CLIResetHeader)
+	fmt.Fprintln(&b, header)
+	fmt.Fprintln(&b, strings.Repeat("=", len([]rune(header))))
 	fmt.Fprintln(&b)
-	fmt.Fprintf(&b, "- cleared learning history: sessions=%d, session_items=%d, reviews=%d, progress=%d\n",
+	fmt.Fprintln(&b, i18n.Tf(i18n.CLIResetCleared,
 		result.ClearedSessions,
 		result.ClearedSessionItems,
 		result.ClearedReviews,
 		result.ClearedProgress,
-	)
+	))
 	if result.Options.Reseed {
-		fmt.Fprintf(&b, "- reseeded embedded core words: removed=%d, inserted=%d, dict_version=%s\n",
+		fmt.Fprintln(&b, i18n.Tf(i18n.CLIResetReseeded,
 			result.ClearedWords,
 			result.SeededWords,
 			result.DictVersion,
-		)
+		))
 	}
 	return b.String()
 }

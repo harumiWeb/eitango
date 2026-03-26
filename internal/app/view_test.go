@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/yourname/eitango/internal/i18n"
 	"github.com/yourname/eitango/internal/quiz"
 	"github.com/yourname/eitango/internal/stats"
 	"github.com/yourname/eitango/internal/store"
@@ -30,10 +31,10 @@ func TestRenderFeedbackShowsExamplesWhenAvailable(t *testing.T) {
 	}
 
 	got := model.renderFeedback()
-	if !strings.Contains(got, "Example EN   : She will apply for the role.") {
+	if !strings.Contains(got, "She will apply for the role.") {
 		t.Fatalf("renderFeedback() missing english example:\n%s", got)
 	}
-	if !strings.Contains(got, "Example JA   : 彼女はその役割に応募する。") {
+	if !strings.Contains(got, "彼女はその役割に応募する。") {
 		t.Fatalf("renderFeedback() missing japanese example:\n%s", got)
 	}
 }
@@ -54,7 +55,7 @@ func TestRenderFeedbackOmitsExampleLabelsWhenAbsent(t *testing.T) {
 	}
 
 	got := model.renderFeedback()
-	if strings.Contains(got, "Example EN") || strings.Contains(got, "Example JA") {
+	if strings.Contains(got, i18n.T(i18n.FbExampleEN)) || strings.Contains(got, i18n.T(i18n.FbExampleJA)) {
 		t.Fatalf("renderFeedback() unexpectedly rendered empty examples:\n%s", got)
 	}
 }
@@ -71,12 +72,12 @@ func TestHelpScreenRoundTripFromAllScreens(t *testing.T) {
 		{
 			name:      "home",
 			screen:    ScreenHome,
-			helpTitle: "Home controls",
+			helpTitle: i18n.T(i18n.HelpScreenHome),
 		},
 		{
 			name:      "quiz",
 			screen:    ScreenQuiz,
-			helpTitle: "Quiz controls",
+			helpTitle: i18n.T(i18n.HelpScreenQuiz),
 			prepare: func(model *RootModel) {
 				model.currentQ = &quiz.Question{
 					Choices: []quiz.Choice{
@@ -91,7 +92,7 @@ func TestHelpScreenRoundTripFromAllScreens(t *testing.T) {
 		{
 			name:      "feedback",
 			screen:    ScreenFeedback,
-			helpTitle: "Feedback controls",
+			helpTitle: i18n.T(i18n.HelpScreenFeedback),
 			prepare: func(model *RootModel) {
 				model.feedback = &quiz.Feedback{
 					Question: quiz.Question{
@@ -106,12 +107,12 @@ func TestHelpScreenRoundTripFromAllScreens(t *testing.T) {
 		{
 			name:      "results",
 			screen:    ScreenResults,
-			helpTitle: "Results controls",
+			helpTitle: i18n.T(i18n.HelpScreenResults),
 		},
 		{
 			name:      "stats",
 			screen:    ScreenStats,
-			helpTitle: "Stats controls",
+			helpTitle: i18n.T(i18n.HelpScreenStats),
 		},
 	}
 
@@ -147,7 +148,7 @@ func TestHelpScreenRoundTripFromAllScreens(t *testing.T) {
 			if !strings.Contains(helpView, tc.helpTitle) {
 				t.Fatalf("renderHelp() missing title %q:\n%s", tc.helpTitle, helpView)
 			}
-			if !strings.Contains(helpView, "Esc=back") {
+			if !strings.Contains(helpView, i18n.T(i18n.HelpBack)) {
 				t.Fatalf("renderHelp() missing back hint:\n%s", helpView)
 			}
 
@@ -181,7 +182,7 @@ func TestRenderHomeShowsWaitToday(t *testing.T) {
 	}
 
 	got := model.renderHome()
-	if !strings.Contains(got, "Wait today   : 5.5 min") {
+	if !strings.Contains(got, "5.5 min") {
 		t.Fatalf("renderHome() missing wait metric:\n%s", got)
 	}
 }

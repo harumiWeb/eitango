@@ -3,6 +3,8 @@ package stats
 import (
 	"fmt"
 	"strings"
+
+	"github.com/yourname/eitango/internal/i18n"
 )
 
 type Window struct {
@@ -31,19 +33,26 @@ type Snapshot struct {
 
 func RenderText(snapshot Snapshot) string {
 	var b strings.Builder
-	b.WriteString("Eitango stats\n")
-	b.WriteString(strings.Repeat("=", 13))
+	title := i18n.T(i18n.StatsTitle)
+	b.WriteString(title + "\n")
+	b.WriteString(strings.Repeat("=", len([]rune(title))))
 	b.WriteString("\n\n")
 	b.WriteString(renderWindow(snapshot.Today))
 	b.WriteString(renderWindow(snapshot.SevenDays))
 	b.WriteString(renderWindow(snapshot.ThirtyDays))
 	b.WriteString(renderWindow(snapshot.Total))
-	_, _ = fmt.Fprintf(&b, "Due now      : %d\n", snapshot.DueCount)
-	_, _ = fmt.Fprintf(&b, "New available: %d\n", snapshot.NewCount)
-	_, _ = fmt.Fprintf(&b, "Streak days  : %d\n", snapshot.StreakDays)
+	_, _ = fmt.Fprintf(&b, "%-14s: %d\n", i18n.T(i18n.StatsDue), snapshot.DueCount)
+	_, _ = fmt.Fprintf(&b, "%-14s: %d\n", i18n.T(i18n.StatsNew), snapshot.NewCount)
+	_, _ = fmt.Fprintf(&b, "%-14s: %d\n", i18n.T(i18n.StatsStreak), snapshot.StreakDays)
 	return b.String()
 }
 
 func renderWindow(window Window) string {
-	return fmt.Sprintf("%-12s reviews=%d correct=%d accuracy=%.1f%% wait=%.1fm\n", window.Label+":", window.Reviews, window.Correct, window.Accuracy(), window.WaitMinutes)
+	return fmt.Sprintf("%-12s %s=%d %s=%d %s=%.1f%% %s=%.1fm\n",
+		window.Label+":",
+		i18n.T(i18n.StatsReviews), window.Reviews,
+		i18n.T(i18n.StatsCorrect), window.Correct,
+		i18n.T(i18n.StatsAccuracy), window.Accuracy(),
+		i18n.T(i18n.StatsWait), window.WaitMinutes,
+	)
 }

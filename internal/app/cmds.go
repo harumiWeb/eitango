@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/yourname/eitango/internal/i18n"
 	"github.com/yourname/eitango/internal/quiz"
 	"github.com/yourname/eitango/internal/session"
 	"github.com/yourname/eitango/internal/srs"
@@ -146,14 +147,14 @@ func submitAnswerCmd(st *store.Store, svc *quiz.Service, runtime *session.Runtim
 			if err != nil {
 				return errMsg{err: err}
 			}
-			return answerSavedMsg{Runtime: nextRuntime, Summary: &summary, Status: "Saved"}
+			return answerSavedMsg{Runtime: nextRuntime, Summary: &summary, Status: i18n.T(i18n.StatusSaved)}
 		}
 
 		question, err := buildCurrentQuestion(ctx, svc, nextRuntime, recent)
 		if err != nil {
 			return errMsg{err: err}
 		}
-		return answerSavedMsg{Runtime: nextRuntime, NextQuestion: &question, Status: "Saved"}
+		return answerSavedMsg{Runtime: nextRuntime, NextQuestion: &question, Status: i18n.T(i18n.StatusSaved)}
 	}
 }
 

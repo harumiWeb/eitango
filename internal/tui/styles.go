@@ -6,6 +6,8 @@ type Styles struct {
 	Title          lipgloss.Style
 	Subtitle       lipgloss.Style
 	Panel          lipgloss.Style
+	CorrectPanel   lipgloss.Style
+	WrongPanel     lipgloss.Style
 	Choice         lipgloss.Style
 	ChoiceSelected lipgloss.Style
 	Correct        lipgloss.Style
@@ -22,6 +24,8 @@ func NewStyles() Styles {
 		Title:          lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("63")),
 		Subtitle:       lipgloss.NewStyle().Bold(true),
 		Panel:          panel,
+		CorrectPanel:   lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2).BorderForeground(lipgloss.Color("42")),
+		WrongPanel:     lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2).BorderForeground(lipgloss.Color("203")),
 		Choice:         lipgloss.NewStyle().PaddingLeft(1),
 		ChoiceSelected: lipgloss.NewStyle().PaddingLeft(1).Bold(true).Foreground(lipgloss.Color("86")),
 		Correct:        lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true),

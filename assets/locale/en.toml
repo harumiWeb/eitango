@@ -1,0 +1,127 @@
+# English
+
+[home]
+subtitle = "AI waiting time -> 1-3 minute vocab loop"
+due = "Due now"
+new = "New available"
+streak = "Streak days"
+wait = "Wait today"
+active = "Active session"
+active_detail = "%d/%d answered (%s)"
+keys = "Enter=start/resume  n=new  r=review  s=stats  q=quit"
+
+[quiz]
+no_question = "No question loaded"
+keys = "1-4=answer  j/k=move  enter=confirm  q=save and quit"
+
+[kind]
+review = "review"
+retry = "retry"
+new = "new"
+
+[fb]
+no_feedback = "No feedback available"
+correct = "✓ Correct"
+incorrect = "✗ Incorrect"
+word = "Word"
+correct_answer = "Correct"
+your_answer = "Your answer"
+response_time = "Response time"
+example_en = "Example EN"
+example_ja = "Example JA"
+keys = "Rate it: a=again  h=hard  g=good  e=easy"
+streak = "🔥 %d correct in a row!"
+
+[results]
+no_summary = "No session summary available"
+title = "Session results"
+accuracy = "Accuracy"
+correct = "Correct"
+mix = "Mix"
+mix_detail = "new=%d review=%d retry=%d"
+hard_words = "Hard words"
+keys = "Enter/Esc=home  q=quit"
+
+[stats]
+title = "Eitango stats"
+keys = "Esc/Enter=back"
+due = "Due now"
+new = "New available"
+streak = "Streak days"
+reviews = "reviews"
+correct = "correct"
+accuracy = "accuracy"
+wait = "wait"
+
+[help]
+title = "Help"
+back = "Esc=back"
+quit_disabled = "disabled until you rate"
+
+[help.section]
+answer = "Answer"
+move = "Move"
+general = "General"
+rate = "Rate recall"
+nav = "Navigation"
+sessions = "Sessions"
+
+[help.screen]
+quiz = "Quiz controls"
+feedback = "Feedback controls"
+results = "Results controls"
+stats = "Stats controls"
+home = "Home controls"
+
+[key]
+up = "move up"
+down = "move down"
+choice1 = "choice 1"
+choice2 = "choice 2"
+choice3 = "choice 3"
+choice4 = "choice 4"
+confirm = "confirm"
+quit = "quit"
+help = "help"
+again = "again"
+hard = "hard"
+good = "good"
+easy = "easy"
+new_session = "new session"
+review = "review"
+stats = "stats"
+back = "back"
+
+[status]
+ready = "Ready"
+loading = "Loading..."
+resume_found = "Resume session found"
+stats_loaded = "Stats loaded"
+session_started = "Session started"
+saved = "Saved"
+check_rate = "Check the answer and rate it"
+correct = "Correct"
+select_rating = "Select a/h/g/e to continue"
+esc_then_rate = "Press Esc to return, then rate the card"
+esc_to_return = "Press Esc to return"
+loading_stats = "Loading stats..."
+active_found = "Active session found. Press Enter to resume or n to replace it."
+starting_review = "Starting review session..."
+starting_new = "Starting new session..."
+starting_learn = "Starting learn session..."
+resuming = "Resuming session..."
+saving = "Saving..."
+returning_home = "Returning home..."
+back_home = "Back to home"
+help = "Help"
+
+[cli]
+root_short = "Offline TUI English vocabulary trainer"
+doctor_header = "eitango doctor"
+doctor_ok = "Summary: OK"
+doctor_errors = "Summary: %d error(s)"
+doctor_warnings = "Summary: %d warning(s)"
+doctor_both = "Summary: %d warning(s), %d error(s)"
+reset_header = "eitango reset"
+reset_cleared = "- cleared learning history: sessions=%d, session_items=%d, reviews=%d, progress=%d"
+reset_reseeded = "- reseeded embedded core words: removed=%d, inserted=%d, dict_version=%s"

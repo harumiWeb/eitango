@@ -4,6 +4,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/yourname/eitango/internal/i18n"
 	"github.com/yourname/eitango/internal/quiz"
 	"github.com/yourname/eitango/internal/session"
 	"github.com/yourname/eitango/internal/stats"
@@ -81,6 +82,7 @@ type RootModel struct {
 	height          int
 	questionStarted time.Time
 	recentDistracts []int64
+	correctStreak   int
 }
 
 func NewModel(store *store.Store, options Options) RootModel {
@@ -93,7 +95,7 @@ func NewModel(store *store.Store, options Options) RootModel {
 		keymap:      tui.NewKeyMap(),
 		styles:      tui.NewStyles(),
 		loading:     true,
-		status:      "Loading...",
+		status:      i18n.T(i18n.StatusLoading),
 	}
 }
 

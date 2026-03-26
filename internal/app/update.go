@@ -5,6 +5,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/yourname/eitango/internal/i18n"
 	"github.com/yourname/eitango/internal/quiz"
 	"github.com/yourname/eitango/internal/srs"
 	"github.com/yourname/eitango/internal/store"
@@ -23,9 +24,9 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.err = nil
 		if m.home.ActiveSession != nil {
-			m.status = "Resume session found"
+			m.status = i18n.T(i18n.StatusResumeFound)
 		} else {
-			m.status = "Ready"
+			m.status = i18n.T(i18n.StatusReady)
 		}
 		return m, nil
 	case statsLoadedMsg:
@@ -33,7 +34,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.screen = ScreenStats
 		m.loading = false
 		m.err = nil
-		m.status = "Stats loaded"
+		m.status = i18n.T(i18n.StatusStatsLoaded)
 		return m, nil
 	case sessionLoadedMsg:
 		m.runtime = msg.Runtime
@@ -44,7 +45,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.err = nil
 		m.screen = ScreenQuiz
-		m.status = "Session started"
+		m.status = i18n.T(i18n.StatusSessionStarted)
 		m.questionStarted = time.Now().UTC()
 		m.recentDistracts = appendRecent(m.recentDistracts, msg.Question.DistractorIDs()...)
 		return m, nil
@@ -81,13 +82,13 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keymap.Quit):
 			switch m.screen {
 			case ScreenFeedback:
-				m.status = "Select a/h/g/e to continue"
+				m.status = i18n.T(i18n.StatusSelectRating)
 				return m, nil
 			case ScreenHelp:
 				if m.helpReturn == ScreenFeedback {
-					m.status = "Press Esc to return, then rate the card"
+					m.status = i18n.T(i18n.StatusEscThenRate)
 				} else {
-					m.status = "Press Esc to return"
+					m.status = i18n.T(i18n.StatusEscToReturn)
 				}
 				return m, nil
 			}
@@ -126,26 +127,26 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, m.keymap.Stats):
 		m.loading = true
-		m.status = "Loading stats..."
+		m.status = i18n.T(i18n.StatusLoadingStats)
 		return m, loadStatsCmd(m.store)
 	case key.Matches(msg, m.keymap.Review):
 		if m.home.ActiveSession != nil {
-			m.status = "Active session found. Press Enter to resume or n to replace it."
+			m.status = i18n.T(i18n.StatusActiveFound)
 			return m, nil
 		}
 		m.loading = true
-		m.status = "Starting review session..."
+		m.status = i18n.T(i18n.StatusStartingReview)
 		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeReview, false), m.recentDistracts)
 	case key.Matches(msg, m.keymap.NewSession):
 		m.loading = true
-		m.status = "Starting new session..."
+		m.status = i18n.T(i18n.StatusStartingNew)
 		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeLearn, true), m.recentDistracts)
 	case key.Matches(msg, m.keymap.Confirm):
 		m.loading = true
 		if m.home.ActiveSession != nil {
-			m.status = "Resuming session..."
+			m.status = i18n.T(i18n.StatusResuming)
 		} else {
-			m.status = "Starting learn session..."
+			m.status = i18n.T(i18n.StatusStartingLearn)
 		}
 		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeLearn, false), m.recentDistracts)
 	}
@@ -214,7 +215,7 @@ func (m RootModel) updateFeedback(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	m.loading = true
-	m.status = "Saving..."
+	m.status = i18n.T(i18n.StatusSaving)
 	return m, submitAnswerCmd(m.store, m.quiz, m.runtime, *m.feedback, rating, m.recentDistracts)
 }
 
@@ -224,7 +225,7 @@ func (m RootModel) updateResults(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.openHelp(), nil
 	case key.Matches(msg, m.keymap.Confirm), key.Matches(msg, m.keymap.Back):
 		m.loading = true
-		m.status = "Returning home..."
+		m.status = i18n.T(i18n.StatusReturningHome)
 		return m, loadHomeCmd(m.store)
 	}
 	return m, nil
@@ -236,7 +237,7 @@ func (m RootModel) updateStats(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.openHelp(), nil
 	case key.Matches(msg, m.keymap.Back), key.Matches(msg, m.keymap.Confirm):
 		m.screen = ScreenHome
-		m.status = "Back to home"
+		m.status = i18n.T(i18n.StatusBackHome)
 		return m, nil
 	}
 	return m, nil
@@ -260,9 +261,11 @@ func (m RootModel) showFeedback(index int) RootModel {
 	m.feedback = &feedback
 	m.screen = ScreenFeedback
 	if feedback.Correct {
-		m.status = "Correct"
+		m.correctStreak++
+		m.status = i18n.T(i18n.StatusCorrect)
 	} else {
-		m.status = "Check the answer and rate it"
+		m.correctStreak = 0
+		m.status = i18n.T(i18n.StatusCheckRate)
 	}
 	return m
 }
@@ -282,7 +285,7 @@ func (m RootModel) openHelp() RootModel {
 	m.helpReturn = m.screen
 	m.helpStatus = m.status
 	m.screen = ScreenHelp
-	m.status = "Help"
+	m.status = i18n.T(i18n.StatusHelp)
 	return m
 }
 

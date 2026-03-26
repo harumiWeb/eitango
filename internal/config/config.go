@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/yourname/eitango/internal/i18n"
 	"github.com/yourname/eitango/internal/session"
 )
 
@@ -26,18 +27,21 @@ type Settings struct {
 	SessionSize      int
 	ReviewRatio      float64
 	FocusModeDefault bool
+	Language         string
 }
 
 type fileSettings struct {
 	SessionSize      *int     `toml:"session_size"`
 	ReviewRatio      *float64 `toml:"review_ratio"`
 	FocusModeDefault *bool    `toml:"focus_mode_default"`
+	Language         *string  `toml:"language"`
 }
 
 func DefaultSettings() Settings {
 	return Settings{
 		SessionSize: session.DefaultQuestionCount,
 		ReviewRatio: session.DefaultReviewRatio,
+		Language:    i18n.DefaultLang,
 	}
 }
 
@@ -74,6 +78,12 @@ func Load(path string) (Settings, error) {
 	}
 	if raw.FocusModeDefault != nil {
 		settings.FocusModeDefault = *raw.FocusModeDefault
+	}
+	if raw.Language != nil {
+		if !i18n.ValidLang(*raw.Language) {
+			return Settings{}, fmt.Errorf("unsupported language: %q (use %q or %q)", *raw.Language, i18n.LangJA, i18n.LangEN)
+		}
+		settings.Language = *raw.Language
 	}
 
 	return settings, nil

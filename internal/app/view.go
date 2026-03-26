@@ -6,8 +6,10 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/yourname/eitango/internal/i18n"
 	"github.com/yourname/eitango/internal/stats"
 	"github.com/yourname/eitango/internal/store"
+	"github.com/yourname/eitango/internal/tui"
 )
 
 func (m RootModel) View() tea.View {
@@ -28,7 +30,7 @@ func (m RootModel) View() tea.View {
 	}
 
 	if m.loading {
-		body += "\n\n" + m.styles.Muted.Render("Loading...")
+		body += "\n\n" + m.styles.Muted.Render(i18n.T(i18n.StatusLoading))
 	}
 	body += "\n\n" + m.renderStatusLine()
 	return tea.NewView(body)
@@ -36,31 +38,31 @@ func (m RootModel) View() tea.View {
 
 func (m RootModel) renderHome() string {
 	lines := []string{
-		m.styles.Title.Render("eitango"),
-		m.styles.Muted.Render("AI waiting time -> 1-3 minute vocab loop"),
+		m.styles.Title.Render(tui.Logo),
+		m.styles.Muted.Render(i18n.T(i18n.HomeSubtitle)),
 		"",
-		fmt.Sprintf("Due now      : %d", m.home.DueCount),
-		fmt.Sprintf("New available: %d", m.home.NewCount),
-		fmt.Sprintf("Streak days  : %d", m.home.StreakDays),
-		fmt.Sprintf("Wait today   : %.1f min", m.stats.Today.WaitMinutes),
+		fmt.Sprintf("%-14s: %d", i18n.T(i18n.HomeDue), m.home.DueCount),
+		fmt.Sprintf("%-14s: %d", i18n.T(i18n.HomeNew), m.home.NewCount),
+		fmt.Sprintf("%-14s: %d", i18n.T(i18n.HomeStreak), m.home.StreakDays),
+		fmt.Sprintf("%-14s: %.1f min", i18n.T(i18n.HomeWait), m.stats.Today.WaitMinutes),
 	}
 	if m.home.ActiveSession != nil {
 		lines = append(lines,
 			"",
-			m.styles.Subtitle.Render("Active session"),
-			fmt.Sprintf("%d/%d answered (%s)", m.home.ActiveSession.AnsweredQuestions, m.home.ActiveSession.TotalQuestions, m.home.ActiveSession.Mode),
+			m.styles.Subtitle.Render(i18n.T(i18n.HomeActive)),
+			i18n.Tf(i18n.HomeActiveDetail, m.home.ActiveSession.AnsweredQuestions, m.home.ActiveSession.TotalQuestions, m.home.ActiveSession.Mode),
 		)
 	}
 	lines = append(lines,
 		"",
-		m.styles.Muted.Render("Enter=start/resume  n=new  r=review  s=stats  q=quit"),
+		m.styles.Muted.Render(i18n.T(i18n.HomeKeys)),
 	)
 	return m.styles.Panel.Render(strings.Join(lines, "\n"))
 }
 
 func (m RootModel) renderQuiz() string {
 	if m.currentQ == nil {
-		return m.styles.Panel.Render("No question loaded")
+		return m.styles.Panel.Render(i18n.T(i18n.QuizNoQuestion))
 	}
 
 	lines := []string{
@@ -75,67 +77,82 @@ func (m RootModel) renderQuiz() string {
 			lines = append(lines, m.styles.Choice.Render(text))
 		}
 	}
-	lines = append(lines, "", m.styles.Muted.Render("1-4=answer  j/k=move  enter=confirm  q=save and quit"))
+	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.QuizKeys)))
 	return m.styles.Panel.Render(strings.Join(lines, "\n"))
 }
 
 func (m RootModel) renderFeedback() string {
 	if m.feedback == nil {
-		return m.styles.Panel.Render("No feedback available")
+		return m.styles.Panel.Render(i18n.T(i18n.FbNoFeedback))
 	}
 
-	result := m.styles.Wrong.Render("Incorrect")
+	panel := m.styles.WrongPanel
+	result := m.styles.Wrong.Render("✗ " + i18n.T(i18n.FbIncorrect))
 	if m.feedback.Correct {
-		result = m.styles.Correct.Render("Correct")
+		panel = m.styles.CorrectPanel
+		result = m.styles.Correct.Render("✓ " + i18n.T(i18n.FbCorrect))
 	}
 
-	lines := []string{
-		result,
-		fmt.Sprintf("Word         : %s", m.feedback.Question.Word.Lemma),
-		fmt.Sprintf("Correct      : %s", m.feedback.Question.CorrectChoice().Meaning),
-		fmt.Sprintf("Response time: %d ms", m.feedback.ResponseMS),
+	lines := []string{result}
+
+	if m.feedback.Correct && m.correctStreak >= 3 {
+		lines = append(lines, m.styles.Correct.Render(i18n.Tf(i18n.FbStreak, m.correctStreak)))
 	}
+
+	lines = append(lines,
+		"",
+		fmt.Sprintf("%-14s: %s", i18n.T(i18n.FbWord), m.feedback.Question.Word.Lemma),
+		fmt.Sprintf("%-14s: %s", i18n.T(i18n.FbCorrectAnswer), m.feedback.Question.CorrectChoice().Meaning),
+	)
+
+	if !m.feedback.Correct {
+		selected := m.feedback.Question.Choices[m.feedback.SelectedIndex].Meaning
+		lines = append(lines, fmt.Sprintf("%-14s: %s", i18n.T(i18n.FbYourAnswer), selected))
+	}
+
+	lines = append(lines, fmt.Sprintf("%-14s: %d ms", i18n.T(i18n.FbResponseTime), m.feedback.ResponseMS))
+
 	if m.feedback.Question.Word.ExampleEN != "" || m.feedback.Question.Word.ExampleJA != "" {
 		lines = append(lines, "")
 		if m.feedback.Question.Word.ExampleEN != "" {
-			lines = append(lines, fmt.Sprintf("Example EN   : %s", m.feedback.Question.Word.ExampleEN))
+			lines = append(lines, fmt.Sprintf("%-14s: %s", i18n.T(i18n.FbExampleEN), m.feedback.Question.Word.ExampleEN))
 		}
 		if m.feedback.Question.Word.ExampleJA != "" {
-			lines = append(lines, fmt.Sprintf("Example JA   : %s", m.feedback.Question.Word.ExampleJA))
+			lines = append(lines, fmt.Sprintf("%-14s: %s", i18n.T(i18n.FbExampleJA), m.feedback.Question.Word.ExampleJA))
 		}
 	}
-	lines = append(lines, "", m.styles.Muted.Render("Rate it: a=again  h=hard  g=good  e=easy"))
-	return m.styles.Panel.Render(strings.Join(lines, "\n"))
+	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.FbKeys)))
+	return panel.Render(strings.Join(lines, "\n"))
 }
 
 func (m RootModel) renderResults() string {
 	if m.summary == nil {
-		return m.styles.Panel.Render("No session summary available")
+		return m.styles.Panel.Render(i18n.T(i18n.ResultsNoSummary))
 	}
 
 	lines := []string{
-		m.styles.Title.Render("Session results"),
-		fmt.Sprintf("Accuracy : %.1f%%", m.summary.Accuracy),
-		fmt.Sprintf("Correct  : %d/%d", m.summary.CorrectAnswers, m.summary.TotalQuestions),
-		fmt.Sprintf("Mix      : new=%d review=%d retry=%d", m.summary.NewCount, m.summary.ReviewCount, m.summary.RetryCount),
+		m.styles.Title.Render(i18n.T(i18n.ResultsTitle)),
+		fmt.Sprintf("%-10s: %.1f%%", i18n.T(i18n.ResultsAccuracy), m.summary.Accuracy),
+		fmt.Sprintf("%-10s: %d/%d", i18n.T(i18n.ResultsCorrect), m.summary.CorrectAnswers, m.summary.TotalQuestions),
+		fmt.Sprintf("%-10s: %s", i18n.T(i18n.ResultsMix), i18n.Tf(i18n.ResultsMixDetail, m.summary.NewCount, m.summary.ReviewCount, m.summary.RetryCount)),
 	}
 	if len(m.summary.HardWords) > 0 {
-		lines = append(lines, "", m.styles.Subtitle.Render("Hard words"))
+		lines = append(lines, "", m.styles.Subtitle.Render(i18n.T(i18n.ResultsHardWords)))
 		for _, word := range m.summary.HardWords {
 			lines = append(lines, fmt.Sprintf("- %s: %s", word.Lemma, word.MeaningJA))
 		}
 	}
-	lines = append(lines, "", m.styles.Muted.Render("Enter/Esc=home  q=quit"))
+	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.ResultsKeys)))
 	return m.styles.Panel.Render(strings.Join(lines, "\n"))
 }
 
 func (m RootModel) renderStats() string {
-	return m.styles.Panel.Render(stats.RenderText(m.stats) + "\nEsc/Enter=back")
+	return m.styles.Panel.Render(stats.RenderText(m.stats) + "\n" + i18n.T(i18n.StatsKeys))
 }
 
 func (m RootModel) renderHelp() string {
 	lines := []string{
-		m.styles.Title.Render("Help"),
+		m.styles.Title.Render(i18n.T(i18n.HelpTitle)),
 		m.styles.Muted.Render(screenHelpTitle(m.helpReturn)),
 	}
 
@@ -144,7 +161,7 @@ func (m RootModel) renderHelp() string {
 		lines = append(lines, section.lines...)
 	}
 
-	lines = append(lines, "", m.styles.Muted.Render("Esc=back"))
+	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.HelpBack)))
 	return m.styles.Panel.Render(strings.Join(lines, "\n"))
 }
 
@@ -153,7 +170,7 @@ func (m RootModel) renderStatusLine() string {
 		return m.styles.Error.Render(m.status)
 	}
 	if m.status == "" {
-		return m.styles.Status.Render("Ready")
+		return m.styles.Status.Render(i18n.T(i18n.StatusReady))
 	}
 	return m.styles.Status.Render(m.status)
 }
@@ -161,11 +178,11 @@ func (m RootModel) renderStatusLine() string {
 func kindLabel(kind string) string {
 	switch kind {
 	case store.ItemKindReview:
-		return "review"
+		return i18n.T(i18n.KindReview)
 	case store.ItemKindRetry:
-		return "retry"
+		return i18n.T(i18n.KindRetry)
 	default:
-		return "new"
+		return i18n.T(i18n.KindNew)
 	}
 }
 
@@ -178,66 +195,66 @@ func (m RootModel) helpSections(screen Screen) []helpSection {
 	switch screen {
 	case ScreenQuiz:
 		return []helpSection{
-			{title: "Answer", lines: []string{
+			{title: i18n.T(i18n.HelpSectionAnswer), lines: []string{
 				helpLine(m.keymap.Select1),
 				helpLine(m.keymap.Select2),
 				helpLine(m.keymap.Select3),
 				helpLine(m.keymap.Select4),
 				helpLine(m.keymap.Confirm),
 			}},
-			{title: "Move", lines: []string{
+			{title: i18n.T(i18n.HelpSectionMove), lines: []string{
 				helpLine(m.keymap.Up),
 				helpLine(m.keymap.Down),
 			}},
-			{title: "General", lines: []string{
+			{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
 				helpLine(m.keymap.Help),
 				helpLine(m.keymap.Quit),
 			}},
 		}
 	case ScreenFeedback:
 		return []helpSection{
-			{title: "Rate recall", lines: []string{
+			{title: i18n.T(i18n.HelpSectionRate), lines: []string{
 				helpLine(m.keymap.Again),
 				helpLine(m.keymap.Hard),
 				helpLine(m.keymap.Good),
 				helpLine(m.keymap.Easy),
 			}},
-			{title: "General", lines: []string{
+			{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
 				helpLine(m.keymap.Help),
-				fmt.Sprintf("%-10s %s", "q", "disabled until you rate"),
+				fmt.Sprintf("%-10s %s", "q", i18n.T(i18n.HelpQuitDisabled)),
 			}},
 		}
 	case ScreenResults:
 		return []helpSection{
-			{title: "Navigation", lines: []string{
+			{title: i18n.T(i18n.HelpSectionNav), lines: []string{
 				helpLine(m.keymap.Confirm),
 				helpLine(m.keymap.Back),
 			}},
-			{title: "General", lines: []string{
+			{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
 				helpLine(m.keymap.Help),
 				helpLine(m.keymap.Quit),
 			}},
 		}
 	case ScreenStats:
 		return []helpSection{
-			{title: "Navigation", lines: []string{
+			{title: i18n.T(i18n.HelpSectionNav), lines: []string{
 				helpLine(m.keymap.Confirm),
 				helpLine(m.keymap.Back),
 			}},
-			{title: "General", lines: []string{
+			{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
 				helpLine(m.keymap.Help),
 				helpLine(m.keymap.Quit),
 			}},
 		}
 	default:
 		return []helpSection{
-			{title: "Sessions", lines: []string{
+			{title: i18n.T(i18n.HelpSectionSessions), lines: []string{
 				helpLine(m.keymap.Confirm),
 				helpLine(m.keymap.NewSession),
 				helpLine(m.keymap.Review),
 				helpLine(m.keymap.Stats),
 			}},
-			{title: "General", lines: []string{
+			{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
 				helpLine(m.keymap.Help),
 				helpLine(m.keymap.Quit),
 			}},
@@ -253,14 +270,14 @@ func helpLine(binding key.Binding) string {
 func screenHelpTitle(screen Screen) string {
 	switch screen {
 	case ScreenQuiz:
-		return "Quiz controls"
+		return i18n.T(i18n.HelpScreenQuiz)
 	case ScreenFeedback:
-		return "Feedback controls"
+		return i18n.T(i18n.HelpScreenFeedback)
 	case ScreenResults:
-		return "Results controls"
+		return i18n.T(i18n.HelpScreenResults)
 	case ScreenStats:
-		return "Stats controls"
+		return i18n.T(i18n.HelpScreenStats)
 	default:
-		return "Home controls"
+		return i18n.T(i18n.HelpScreenHome)
 	}
 }

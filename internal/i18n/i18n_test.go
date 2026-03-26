@@ -1,0 +1,133 @@
+package i18n_test
+
+import (
+	"testing"
+
+	"github.com/yourname/eitango/internal/i18n"
+)
+
+func TestLoadJA(t *testing.T) {
+	if err := i18n.Load("ja"); err != nil {
+		t.Fatalf("Load(ja): %v", err)
+	}
+	got := i18n.T(i18n.HomeSubtitle)
+	if got == "" || got == i18n.HomeSubtitle {
+		t.Errorf("T(%s) returned %q; want non-empty translated string", i18n.HomeSubtitle, got)
+	}
+}
+
+func TestLoadEN(t *testing.T) {
+	if err := i18n.Load("en"); err != nil {
+		t.Fatalf("Load(en): %v", err)
+	}
+	got := i18n.T(i18n.HomeSubtitle)
+	want := "AI waiting time -> 1-3 minute vocab loop"
+	if got != want {
+		t.Errorf("T(%s) = %q; want %q", i18n.HomeSubtitle, got, want)
+	}
+}
+
+func TestFallback(t *testing.T) {
+	if err := i18n.Load("ja"); err != nil {
+		t.Fatalf("Load(ja): %v", err)
+	}
+	// A key that exists in both should return the primary (ja) version.
+	ja := i18n.T(i18n.StatusReady)
+	if ja == "Ready" {
+		t.Errorf("T(%s) returned English fallback instead of Japanese", i18n.StatusReady)
+	}
+}
+
+func TestMissingKeyReturnsKey(t *testing.T) {
+	if err := i18n.Load("ja"); err != nil {
+		t.Fatalf("Load(ja): %v", err)
+	}
+	got := i18n.T("nonexistent.key")
+	if got != "nonexistent.key" {
+		t.Errorf("T(nonexistent.key) = %q; want raw key", got)
+	}
+}
+
+func TestTf(t *testing.T) {
+	if err := i18n.Load("ja"); err != nil {
+		t.Fatalf("Load(ja): %v", err)
+	}
+	got := i18n.Tf(i18n.HomeActiveDetail, 5, 10, "learn")
+	if got == "" {
+		t.Error("Tf returned empty string")
+	}
+}
+
+func TestNormaliseLang(t *testing.T) {
+	for _, lang := range []string{"ja", "ja_JP", "JA", "ja-jp"} {
+		if !i18n.ValidLang(lang) {
+			t.Errorf("ValidLang(%q) = false; want true", lang)
+		}
+	}
+	for _, lang := range []string{"en", "en_US", "EN", "en-gb"} {
+		if !i18n.ValidLang(lang) {
+			t.Errorf("ValidLang(%q) = false; want true", lang)
+		}
+	}
+}
+
+func TestAllJAKeysExistInEN(t *testing.T) {
+	if err := i18n.Load("ja"); err != nil {
+		t.Fatalf("Load(ja): %v", err)
+	}
+
+	// Ensure every defined key constant returns a non-key value for both languages.
+	keys := []string{
+		i18n.HomeSubtitle, i18n.HomeDue, i18n.HomeNew, i18n.HomeStreak,
+		i18n.HomeWait, i18n.HomeActive, i18n.HomeActiveDetail, i18n.HomeKeys,
+		i18n.QuizNoQuestion, i18n.QuizKeys,
+		i18n.KindReview, i18n.KindRetry, i18n.KindNew,
+		i18n.FbNoFeedback, i18n.FbCorrect, i18n.FbIncorrect,
+		i18n.FbWord, i18n.FbCorrectAnswer, i18n.FbYourAnswer,
+		i18n.FbResponseTime, i18n.FbExampleEN, i18n.FbExampleJA,
+		i18n.FbKeys, i18n.FbStreak,
+		i18n.ResultsNoSummary, i18n.ResultsTitle, i18n.ResultsAccuracy,
+		i18n.ResultsCorrect, i18n.ResultsMix, i18n.ResultsMixDetail,
+		i18n.ResultsHardWords, i18n.ResultsKeys,
+		i18n.StatsTitle, i18n.StatsKeys, i18n.StatsDue, i18n.StatsNew,
+		i18n.StatsStreak, i18n.StatsReviews, i18n.StatsCorrect,
+		i18n.StatsAccuracy, i18n.StatsWait,
+		i18n.HelpTitle, i18n.HelpBack, i18n.HelpQuitDisabled,
+		i18n.HelpSectionAnswer, i18n.HelpSectionMove, i18n.HelpSectionGeneral,
+		i18n.HelpSectionRate, i18n.HelpSectionNav, i18n.HelpSectionSessions,
+		i18n.HelpScreenQuiz, i18n.HelpScreenFeedback, i18n.HelpScreenResults,
+		i18n.HelpScreenStats, i18n.HelpScreenHome,
+		i18n.KeyUp, i18n.KeyDown, i18n.KeyChoice1, i18n.KeyChoice2,
+		i18n.KeyChoice3, i18n.KeyChoice4, i18n.KeyConfirm, i18n.KeyQuit,
+		i18n.KeyHelp, i18n.KeyAgain, i18n.KeyHard, i18n.KeyGood,
+		i18n.KeyEasy, i18n.KeyNewSession, i18n.KeyReview, i18n.KeyStats, i18n.KeyBack,
+		i18n.StatusReady, i18n.StatusLoading, i18n.StatusResumeFound,
+		i18n.StatusStatsLoaded, i18n.StatusSessionStarted, i18n.StatusSaved,
+		i18n.StatusCheckRate, i18n.StatusCorrect, i18n.StatusSelectRating,
+		i18n.StatusEscThenRate, i18n.StatusEscToReturn, i18n.StatusLoadingStats,
+		i18n.StatusActiveFound, i18n.StatusStartingReview, i18n.StatusStartingNew,
+		i18n.StatusStartingLearn, i18n.StatusResuming, i18n.StatusSaving,
+		i18n.StatusReturningHome, i18n.StatusBackHome, i18n.StatusHelp,
+		i18n.CLIRootShort, i18n.CLIDoctorHeader, i18n.CLIDoctorOK,
+		i18n.CLIDoctorErrors, i18n.CLIDoctorWarnings, i18n.CLIDoctorBoth,
+		i18n.CLIResetHeader, i18n.CLIResetCleared, i18n.CLIResetReseeded,
+	}
+
+	for _, k := range keys {
+		got := i18n.T(k)
+		if got == k {
+			t.Errorf("key %q has no Japanese translation (returned raw key)", k)
+		}
+	}
+
+	// Now switch to English and verify the same keys exist.
+	if err := i18n.Load("en"); err != nil {
+		t.Fatalf("Load(en): %v", err)
+	}
+	for _, k := range keys {
+		got := i18n.T(k)
+		if got == k {
+			t.Errorf("key %q has no English translation (returned raw key)", k)
+		}
+	}
+}
