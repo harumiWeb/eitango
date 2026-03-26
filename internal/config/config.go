@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -65,28 +66,73 @@ func Load(path string) (Settings, error) {
 	}
 
 	if raw.SessionSize != nil {
-		if *raw.SessionSize <= 0 {
-			return Settings{}, fmt.Errorf("session_size must be greater than 0")
-		}
 		settings.SessionSize = *raw.SessionSize
 	}
 	if raw.ReviewRatio != nil {
-		if math.IsNaN(*raw.ReviewRatio) || *raw.ReviewRatio < 0 || *raw.ReviewRatio > 1 {
-			return Settings{}, fmt.Errorf("review_ratio must be between 0 and 1")
-		}
 		settings.ReviewRatio = *raw.ReviewRatio
 	}
 	if raw.FocusModeDefault != nil {
 		settings.FocusModeDefault = *raw.FocusModeDefault
 	}
 	if raw.Language != nil {
-		if !i18n.ValidLang(*raw.Language) {
-			return Settings{}, fmt.Errorf("unsupported language: %q (use %q or %q)", *raw.Language, i18n.LangJA, i18n.LangEN)
-		}
 		settings.Language = *raw.Language
 	}
 
+	if err := validateSettings(settings); err != nil {
+		return Settings{}, err
+	}
+
 	return settings, nil
+}
+
+func Save(path string, settings Settings) error {
+	if err := validateSettings(settings); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := toml.NewEncoder(&buf).Encode(struct {
+		SessionSize      int     `toml:"session_size"`
+		ReviewRatio      float64 `toml:"review_ratio"`
+		FocusModeDefault bool    `toml:"focus_mode_default"`
+		Language         string  `toml:"language"`
+	}{
+		SessionSize:      settings.SessionSize,
+		ReviewRatio:      settings.ReviewRatio,
+		FocusModeDefault: settings.FocusModeDefault,
+		Language:         settings.Language,
+	}); err != nil {
+		return fmt.Errorf("encode config %s: %w", path, err)
+	}
+
+	tmp, err := os.CreateTemp(filepath.Dir(path), "eitango-config-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp config for %s: %w", path, err)
+	}
+	tmpPath := tmp.Name()
+	defer func() {
+		_ = os.Remove(tmpPath)
+	}()
+
+	if _, err := tmp.Write(buf.Bytes()); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write temp config for %s: %w", path, err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("sync temp config for %s: %w", path, err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close temp config for %s: %w", path, err)
+	}
+
+	if err := replaceFile(tmpPath, path); err != nil {
+		return fmt.Errorf("replace config %s: %w", path, err)
+	}
+	return nil
 }
 
 func Resolve() (Paths, error) {
@@ -147,4 +193,27 @@ func joinUndecoded(keys []toml.Key) string {
 		parts = append(parts, key.String())
 	}
 	return strings.Join(parts, ", ")
+}
+
+func validateSettings(settings Settings) error {
+	if settings.SessionSize <= 0 {
+		return fmt.Errorf("session_size must be greater than 0")
+	}
+	if math.IsNaN(settings.ReviewRatio) || settings.ReviewRatio < 0 || settings.ReviewRatio > 1 {
+		return fmt.Errorf("review_ratio must be between 0 and 1")
+	}
+	if !i18n.ValidLang(settings.Language) {
+		return fmt.Errorf("unsupported language: %q (use %q or %q)", settings.Language, i18n.LangJA, i18n.LangEN)
+	}
+	return nil
+}
+
+func replaceFile(src, dst string) error {
+	if err := os.Rename(src, dst); err == nil {
+		return nil
+	}
+	if err := os.Remove(dst); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return os.Rename(src, dst)
 }

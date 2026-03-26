@@ -59,7 +59,7 @@ func newLearnCommand() *cobra.Command {
 		Short: "Start a learning session",
 		RunE:  runLearn,
 	}
-	addFocusModeFlag(cmd)
+	addSessionFlags(cmd)
 	return cmd
 }
 
@@ -69,7 +69,7 @@ func newReviewCommand() *cobra.Command {
 		Short: "Start a due-only review session",
 		RunE:  runReview,
 	}
-	addFocusModeFlag(cmd)
+	addSessionFlags(cmd)
 	cmd.Flags().Bool("restart", false, "Abandon the active session and start a fresh review session")
 	return cmd
 }
@@ -83,9 +83,15 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 	defer func() {
 		_ = st.Close()
 	}()
+	paths, err := config.Resolve()
+	if err != nil {
+		return fmt.Errorf("resolve config path: %w", err)
+	}
 
 	program := tea.NewProgram(app.NewModel(st, app.Options{
-		Plan: sessionOptionsFromSettings(settings, nil),
+		Plan:       mustSessionOptions(settings, nil, nil),
+		Settings:   settings,
+		ConfigPath: paths.ConfigPath,
 	}))
 	_, err = program.Run()
 	return err
@@ -100,14 +106,28 @@ func runLearn(cmd *cobra.Command, args []string) error {
 	defer func() {
 		_ = st.Close()
 	}()
+	paths, err := config.Resolve()
+	if err != nil {
+		return fmt.Errorf("resolve config path: %w", err)
+	}
 
 	focusMode, err := resolveFocusModeOverride(cmd)
 	if err != nil {
 		return err
 	}
+	questionCount, err := resolveQuestionCountOverride(cmd)
+	if err != nil {
+		return err
+	}
+	options, err := sessionOptionsFromSettings(settings, questionCount, focusMode)
+	if err != nil {
+		return err
+	}
 
 	program := tea.NewProgram(app.NewModel(st, app.Options{
-		Plan: sessionOptionsFromSettings(settings, focusMode),
+		Plan:       options,
+		Settings:   settings,
+		ConfigPath: paths.ConfigPath,
 	}))
 	_, err = program.Run()
 	return err
@@ -122,8 +142,16 @@ func runReview(cmd *cobra.Command, args []string) error {
 	defer func() {
 		_ = st.Close()
 	}()
+	paths, err := config.Resolve()
+	if err != nil {
+		return fmt.Errorf("resolve config path: %w", err)
+	}
 
 	focusMode, err := resolveFocusModeOverride(cmd)
+	if err != nil {
+		return err
+	}
+	questionCount, err := resolveQuestionCountOverride(cmd)
 	if err != nil {
 		return err
 	}
@@ -131,9 +159,15 @@ func runReview(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("get restart flag: %w", err)
 	}
+	options, err := sessionOptionsFromSettings(settings, questionCount, focusMode)
+	if err != nil {
+		return err
+	}
 
 	program := tea.NewProgram(app.NewModel(st, app.Options{
-		Plan: sessionOptionsFromSettings(settings, focusMode),
+		Plan:       options,
+		Settings:   settings,
+		ConfigPath: paths.ConfigPath,
 		Startup: &app.StartupRequest{
 			Mode:          store.ModeReview,
 			ReplaceActive: restart,
@@ -244,8 +278,9 @@ func runReset(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-func addFocusModeFlag(cmd *cobra.Command) {
+func addSessionFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("focus-mode", false, "Use a 5-question session")
+	cmd.Flags().Int("questions", 0, "Override the lesson size with a specific question count")
 }
 
 func resetOptionsFromFlags(cmd *cobra.Command) (store.ResetOptions, error) {
@@ -278,10 +313,32 @@ func resolveFocusModeOverride(cmd *cobra.Command) (*bool, error) {
 	return &focusMode, nil
 }
 
-func sessionOptionsFromSettings(settings config.Settings, focusModeOverride *bool) session.PlanOptions {
+func resolveQuestionCountOverride(cmd *cobra.Command) (*int, error) {
+	flag := cmd.Flags().Lookup("questions")
+	if flag == nil || !flag.Changed {
+		return nil, nil
+	}
+	questionCount, err := cmd.Flags().GetInt("questions")
+	if err != nil {
+		return nil, fmt.Errorf("get questions flag: %w", err)
+	}
+	if questionCount <= 0 {
+		return nil, fmt.Errorf("questions must be greater than 0")
+	}
+	return &questionCount, nil
+}
+
+func sessionOptionsFromSettings(settings config.Settings, questionCountOverride *int, focusModeOverride *bool) (session.PlanOptions, error) {
 	options := session.PlanOptions{
 		QuestionCount: settings.SessionSize,
 		ReviewRatio:   settings.ReviewRatio,
+	}
+	if questionCountOverride != nil {
+		if focusModeOverride != nil && *focusModeOverride {
+			return session.PlanOptions{}, fmt.Errorf("cannot use --questions with --focus-mode")
+		}
+		options.QuestionCount = *questionCountOverride
+		return options.Normalize(), nil
 	}
 	focusMode := settings.FocusModeDefault
 	if focusModeOverride != nil {
@@ -290,7 +347,15 @@ func sessionOptionsFromSettings(settings config.Settings, focusModeOverride *boo
 	if focusMode {
 		options.QuestionCount = session.FocusQuestionCount
 	}
-	return options.Normalize()
+	return options.Normalize(), nil
+}
+
+func mustSessionOptions(settings config.Settings, questionCountOverride *int, focusModeOverride *bool) session.PlanOptions {
+	options, err := sessionOptionsFromSettings(settings, questionCountOverride, focusModeOverride)
+	if err != nil {
+		panic(err)
+	}
+	return options
 }
 
 func openStore(ctx context.Context) (*store.Store, config.Settings, error) {

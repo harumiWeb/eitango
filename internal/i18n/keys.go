@@ -15,6 +15,28 @@ const (
 	HomeKeys         = "home.keys"
 )
 
+// Home settings overlay
+const (
+	SettingsTitle      = "settings.title"
+	SettingsQuestions  = "settings.questions"
+	SettingsLanguage   = "settings.language"
+	SettingsLanguageJA = "settings.language_ja"
+	SettingsLanguageEN = "settings.language_en"
+	SettingsKeys       = "settings.keys"
+	SettingsFocusNote  = "settings.focus_note"
+)
+
+// Start setup screen
+const (
+	StartTitle      = "start.title"
+	StartMode       = "start.mode"
+	StartQuestions  = "start.questions"
+	StartModeLearn  = "start.mode_learn"
+	StartModeReview = "start.mode_review"
+	StartNote       = "start.note"
+	StartKeys       = "start.keys"
+)
+
 // Quiz screen
 const (
 	QuizNoQuestion = "quiz.no_question"
@@ -70,9 +92,11 @@ const (
 
 // Help screen
 const (
-	HelpTitle        = "help.title"
-	HelpBack         = "help.back"
-	HelpQuitDisabled = "help.quit_disabled"
+	HelpTitle          = "help.title"
+	HelpBack           = "help.back"
+	HelpQuitDisabled   = "help.quit_disabled"
+	HelpStartDigits    = "help.start_digits"
+	HelpSettingsDigits = "help.settings_digits"
 )
 
 // Help section titles
@@ -80,6 +104,7 @@ const (
 	HelpSectionAnswer   = "help.section.answer"
 	HelpSectionMove     = "help.section.move"
 	HelpSectionGeneral  = "help.section.general"
+	HelpSectionInput    = "help.section.input"
 	HelpSectionRate     = "help.section.rate"
 	HelpSectionNav      = "help.section.nav"
 	HelpSectionSessions = "help.section.sessions"
@@ -87,6 +112,8 @@ const (
 
 // Help screen titles
 const (
+	HelpScreenStart    = "help.screen.start"
+	HelpScreenSettings = "help.screen.settings"
 	HelpScreenQuiz     = "help.screen.quiz"
 	HelpScreenFeedback = "help.screen.feedback"
 	HelpScreenResults  = "help.screen.results"
@@ -98,6 +125,8 @@ const (
 const (
 	KeyUp         = "key.up"
 	KeyDown       = "key.down"
+	KeyLeft       = "key.left"
+	KeyRight      = "key.right"
 	KeyChoice1    = "key.choice1"
 	KeyChoice2    = "key.choice2"
 	KeyChoice3    = "key.choice3"
@@ -112,32 +141,39 @@ const (
 	KeyNewSession = "key.new_session"
 	KeyReview     = "key.review"
 	KeyStats      = "key.stats"
+	KeySettings   = "key.settings"
 	KeyBack       = "key.back"
 )
 
 // Status messages
 const (
-	StatusReady          = "status.ready"
-	StatusLoading        = "status.loading"
-	StatusResumeFound    = "status.resume_found"
-	StatusStatsLoaded    = "status.stats_loaded"
-	StatusSessionStarted = "status.session_started"
-	StatusSaved          = "status.saved"
-	StatusCheckRate      = "status.check_rate"
-	StatusCorrect        = "status.correct"
-	StatusSelectRating   = "status.select_rating"
-	StatusEscThenRate    = "status.esc_then_rate"
-	StatusEscToReturn    = "status.esc_to_return"
-	StatusLoadingStats   = "status.loading_stats"
-	StatusActiveFound    = "status.active_found"
-	StatusStartingReview = "status.starting_review"
-	StatusStartingNew    = "status.starting_new"
-	StatusStartingLearn  = "status.starting_learn"
-	StatusResuming       = "status.resuming"
-	StatusSaving         = "status.saving"
-	StatusReturningHome  = "status.returning_home"
-	StatusBackHome       = "status.back_home"
-	StatusHelp           = "status.help"
+	StatusReady               = "status.ready"
+	StatusLoading             = "status.loading"
+	StatusResumeFound         = "status.resume_found"
+	StatusConfiguring         = "status.configuring_session"
+	StatusConfiguringSettings = "status.configuring_settings"
+	StatusStatsLoaded         = "status.stats_loaded"
+	StatusSessionStarted      = "status.session_started"
+	StatusSaved               = "status.saved"
+	StatusCheckRate           = "status.check_rate"
+	StatusCorrect             = "status.correct"
+	StatusSelectRating        = "status.select_rating"
+	StatusEscThenRate         = "status.esc_then_rate"
+	StatusEscToReturn         = "status.esc_to_return"
+	StatusLoadingStats        = "status.loading_stats"
+	StatusActiveFound         = "status.active_found"
+	StatusStartingReview      = "status.starting_review"
+	StatusStartingNew         = "status.starting_new"
+	StatusStartingLearn       = "status.starting_learn"
+	StatusResuming            = "status.resuming"
+	StatusSaving              = "status.saving"
+	StatusReturningHome       = "status.returning_home"
+	StatusBackHome            = "status.back_home"
+	StatusHelp                = "status.help"
+	StatusInvalidCount        = "status.invalid_question_count"
+	StatusSavingSettings      = "status.saving_settings"
+	StatusSettingsSaved       = "status.settings_saved"
+	StatusSettingsSavedFocus  = "status.settings_saved_focus_mode"
 )
 
 // CLI report messages

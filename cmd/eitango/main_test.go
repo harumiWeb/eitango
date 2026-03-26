@@ -32,6 +32,9 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 	if learn.Flags().Lookup("focus-mode") == nil {
 		t.Fatal("learn focus-mode flag not found")
 	}
+	if learn.Flags().Lookup("questions") == nil {
+		t.Fatal("learn questions flag not found")
+	}
 
 	review := findSubcommand(cmd, "review")
 	if review == nil {
@@ -39,6 +42,9 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 	}
 	if review.Flags().Lookup("focus-mode") == nil {
 		t.Fatal("review focus-mode flag not found")
+	}
+	if review.Flags().Lookup("questions") == nil {
+		t.Fatal("review questions flag not found")
 	}
 	if review.Flags().Lookup("restart") == nil {
 		t.Fatal("review restart flag not found")
@@ -148,7 +154,10 @@ func TestSessionOptionsFromSettings(t *testing.T) {
 		FocusModeDefault: true,
 	}
 
-	options := sessionOptionsFromSettings(settings, nil)
+	options, err := sessionOptionsFromSettings(settings, nil, nil)
+	if err != nil {
+		t.Fatalf("sessionOptionsFromSettings() error = %v", err)
+	}
 	if options.QuestionCount != session.FocusQuestionCount {
 		t.Fatalf("QuestionCount with config focus mode = %d, want %d", options.QuestionCount, session.FocusQuestionCount)
 	}
@@ -156,17 +165,40 @@ func TestSessionOptionsFromSettings(t *testing.T) {
 		t.Fatalf("ReviewRatio = %v, want 0.25", options.ReviewRatio)
 	}
 
+	questionOverride := 12
+	options, err = sessionOptionsFromSettings(settings, &questionOverride, nil)
+	if err != nil {
+		t.Fatalf("sessionOptionsFromSettings(question override) error = %v", err)
+	}
+	if options.QuestionCount != 12 {
+		t.Fatalf("QuestionCount with explicit question override = %d, want 12", options.QuestionCount)
+	}
+
 	override := false
-	options = sessionOptionsFromSettings(settings, &override)
+	options, err = sessionOptionsFromSettings(settings, nil, &override)
+	if err != nil {
+		t.Fatalf("sessionOptionsFromSettings(explicit false) error = %v", err)
+	}
 	if options.QuestionCount != 12 {
 		t.Fatalf("QuestionCount with explicit false = %d, want 12", options.QuestionCount)
 	}
 
 	settings.FocusModeDefault = false
 	override = true
-	options = sessionOptionsFromSettings(settings, &override)
+	options, err = sessionOptionsFromSettings(settings, nil, &override)
+	if err != nil {
+		t.Fatalf("sessionOptionsFromSettings(explicit true) error = %v", err)
+	}
 	if options.QuestionCount != session.FocusQuestionCount {
 		t.Fatalf("QuestionCount with explicit true = %d, want %d", options.QuestionCount, session.FocusQuestionCount)
+	}
+
+	_, err = sessionOptionsFromSettings(settings, &questionOverride, &override)
+	if err == nil {
+		t.Fatal("sessionOptionsFromSettings(conflicting overrides) error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "--questions") {
+		t.Fatalf("sessionOptionsFromSettings(conflicting overrides) error = %v, want questions conflict", err)
 	}
 }
 

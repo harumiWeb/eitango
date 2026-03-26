@@ -64,15 +64,27 @@ func TestHelpScreenRoundTripFromAllScreens(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name      string
-		screen    Screen
-		helpTitle string
-		prepare   func(*RootModel)
+		name               string
+		screen             Screen
+		helpTitle          string
+		expectSettingsOpen bool
+		prepare            func(*RootModel)
 	}{
 		{
 			name:      "home",
 			screen:    ScreenHome,
 			helpTitle: i18n.T(i18n.HelpScreenHome),
+		},
+		{
+			name:               "home-settings",
+			screen:             ScreenHome,
+			helpTitle:          i18n.T(i18n.HelpScreenSettings),
+			expectSettingsOpen: true,
+			prepare: func(model *RootModel) {
+				model.settingsOpen = true
+				model.settingsInput = "10"
+				model.settingsLanguage = i18n.LangJA
+			},
 		},
 		{
 			name:      "quiz",
@@ -163,6 +175,9 @@ func TestHelpScreenRoundTripFromAllScreens(t *testing.T) {
 			if restored.status != "original status" {
 				t.Fatalf("status after Esc = %q, want original status", restored.status)
 			}
+			if restored.settingsOpen != tc.expectSettingsOpen {
+				t.Fatalf("settingsOpen after Esc = %v, want %v", restored.settingsOpen, tc.expectSettingsOpen)
+			}
 		})
 	}
 }
@@ -184,5 +199,23 @@ func TestRenderHomeShowsWaitToday(t *testing.T) {
 	got := model.renderHome()
 	if !strings.Contains(got, "5.5 min") {
 		t.Fatalf("renderHome() missing wait metric:\n%s", got)
+	}
+}
+
+func TestRenderHomeWithSettingsOverlayUsesScreenSwitch(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.settingsOpen = true
+	model.settingsInput = "10"
+	model.settingsLanguage = i18n.LangJA
+
+	got := model.renderHomeWithSettingsOverlay()
+	if !strings.Contains(got, i18n.T(i18n.SettingsTitle)) {
+		t.Fatalf("renderHomeWithSettingsOverlay() missing settings title:\n%s", got)
+	}
+	if strings.Contains(got, i18n.T(i18n.HomeSubtitle)) {
+		t.Fatalf("renderHomeWithSettingsOverlay() should not include home background when settings are open:\n%s", got)
 	}
 }

@@ -9,6 +9,7 @@ package i18n
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 	"github.com/yourname/eitango/assets"
@@ -26,6 +27,8 @@ var messages map[string]string
 
 // fallback holds the flattened key→text map for the fallback language (en).
 var fallback map[string]string
+
+var mu sync.RWMutex
 
 func init() {
 	// Pre-load with the default language so T() works even if Load() is
@@ -50,14 +53,19 @@ func Load(lang string) error {
 		fb = map[string]string{}
 	}
 
+	mu.Lock()
 	messages = primary
 	fallback = fb
+	mu.Unlock()
 	return nil
 }
 
 // T returns the localised string for key.
 // Falls back to the other language, then to the raw key.
 func T(key string) string {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	if v, ok := messages[key]; ok {
 		return v
 	}

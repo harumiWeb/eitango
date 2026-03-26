@@ -15,6 +15,11 @@ import (
 func (m RootModel) View() tea.View {
 	body := ""
 	switch m.screen {
+	case ScreenHome:
+		body = m.renderHome()
+		if m.settingsOpen {
+			body = m.renderHomeWithSettingsOverlay()
+		}
 	case ScreenQuiz:
 		body = m.renderQuiz()
 	case ScreenFeedback:
@@ -25,8 +30,6 @@ func (m RootModel) View() tea.View {
 		body = m.renderStats()
 	case ScreenHelp:
 		body = m.renderHelp()
-	default:
-		body = m.renderHome()
 	}
 
 	if m.loading {
@@ -58,6 +61,25 @@ func (m RootModel) renderHome() string {
 		m.styles.Muted.Render(i18n.T(i18n.HomeKeys)),
 	)
 	return m.styles.Panel.Render(strings.Join(lines, "\n"))
+}
+
+func (m RootModel) renderHomeWithSettingsOverlay() string {
+	return m.renderSettingsOverlay()
+}
+
+func (m RootModel) renderSettingsOverlay() string {
+	lines := []string{
+		m.styles.Title.Render(i18n.T(i18n.SettingsTitle)),
+		"",
+		m.renderSettingsRow(0, i18n.T(i18n.SettingsQuestions), m.settingsQuestionDisplay()),
+		m.renderSettingsRow(1, i18n.T(i18n.SettingsLanguage), m.settingsLanguageLabel()),
+		"",
+		m.styles.Muted.Render(i18n.T(i18n.SettingsKeys)),
+	}
+	if m.settings.FocusModeDefault {
+		lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.SettingsFocusNote)))
+	}
+	return m.styles.ModalPanel.Render(strings.Join(lines, "\n"))
 }
 
 func (m RootModel) renderQuiz() string {
@@ -153,7 +175,7 @@ func (m RootModel) renderStats() string {
 func (m RootModel) renderHelp() string {
 	lines := []string{
 		m.styles.Title.Render(i18n.T(i18n.HelpTitle)),
-		m.styles.Muted.Render(screenHelpTitle(m.helpReturn)),
+		m.styles.Muted.Render(m.helpScreenTitle()),
 	}
 
 	for _, section := range m.helpSections(m.helpReturn) {
@@ -186,12 +208,40 @@ func kindLabel(kind string) string {
 	}
 }
 
+func (m RootModel) renderSettingsRow(index int, label, value string) string {
+	text := fmt.Sprintf("%-16s: %s", label, value)
+	if m.settingsCursor == index {
+		return m.styles.ChoiceSelected.Render(text)
+	}
+	return m.styles.Choice.Render(text)
+}
+
 type helpSection struct {
 	title string
 	lines []string
 }
 
 func (m RootModel) helpSections(screen Screen) []helpSection {
+	if screen == ScreenHome && m.settingsOpen {
+		return []helpSection{
+			{title: i18n.T(i18n.HelpSectionNav), lines: []string{
+				helpLine(m.keymap.Up),
+				helpLine(m.keymap.Down),
+				helpLine(m.keymap.Left),
+				helpLine(m.keymap.Right),
+				helpLine(m.keymap.Confirm),
+				helpLine(m.keymap.Back),
+			}},
+			{title: i18n.T(i18n.HelpSectionInput), lines: []string{
+				fmt.Sprintf("%-10s %s", "0-9", i18n.T(i18n.HelpSettingsDigits)),
+			}},
+			{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
+				helpLine(m.keymap.Help),
+				helpLine(m.keymap.Quit),
+			}},
+		}
+	}
+
 	switch screen {
 	case ScreenQuiz:
 		return []helpSection{
@@ -253,6 +303,7 @@ func (m RootModel) helpSections(screen Screen) []helpSection {
 				helpLine(m.keymap.NewSession),
 				helpLine(m.keymap.Review),
 				helpLine(m.keymap.Stats),
+				helpLine(m.keymap.Settings),
 			}},
 			{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
 				helpLine(m.keymap.Help),
@@ -280,4 +331,11 @@ func screenHelpTitle(screen Screen) string {
 	default:
 		return i18n.T(i18n.HelpScreenHome)
 	}
+}
+
+func (m RootModel) helpScreenTitle() string {
+	if m.helpReturn == ScreenHome && m.settingsOpen {
+		return i18n.T(i18n.HelpScreenSettings)
+	}
+	return screenHelpTitle(m.helpReturn)
 }

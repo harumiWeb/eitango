@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strconv"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -9,6 +10,7 @@ import (
 	"github.com/yourname/eitango/internal/quiz"
 	"github.com/yourname/eitango/internal/srs"
 	"github.com/yourname/eitango/internal/store"
+	"github.com/yourname/eitango/internal/tui"
 )
 
 func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -23,11 +25,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.screen = ScreenHome
 		m.loading = false
 		m.err = nil
-		if m.home.ActiveSession != nil {
-			m.status = i18n.T(i18n.StatusResumeFound)
-		} else {
-			m.status = i18n.T(i18n.StatusReady)
-		}
+		m.status = m.homeStatus()
 		return m, nil
 	case statsLoadedMsg:
 		m.stats = msg.Snapshot
@@ -35,6 +33,28 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.err = nil
 		m.status = i18n.T(i18n.StatusStatsLoaded)
+		return m, nil
+	case settingsSavedMsg:
+		if err := i18n.Load(msg.Settings.Language); err != nil {
+			m.loading = false
+			m.err = err
+			m.status = err.Error()
+			return m, nil
+		}
+		m.loading = false
+		m.err = nil
+		m.settings = msg.Settings
+		m.keymap = tui.NewKeyMap()
+		m.planOptions = planOptionsFromSettings(msg.Settings)
+		m.settingsOpen = false
+		m.settingsEditing = false
+		m.settingsInput = strconv.Itoa(msg.Settings.SessionSize)
+		m.settingsLanguage = msg.Settings.Language
+		if msg.FocusModeDisabled {
+			m.status = i18n.T(i18n.StatusSettingsSavedFocus)
+		} else {
+			m.status = i18n.T(i18n.StatusSettingsSaved)
+		}
 		return m, nil
 	case sessionLoadedMsg:
 		m.runtime = msg.Runtime
@@ -124,11 +144,17 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	if m.settingsOpen {
+		return m.updateSettingsOverlay(msg)
+	}
+
 	switch {
 	case key.Matches(msg, m.keymap.Stats):
 		m.loading = true
 		m.status = i18n.T(i18n.StatusLoadingStats)
 		return m, loadStatsCmd(m.store)
+	case key.Matches(msg, m.keymap.Settings):
+		return m.openSettingsOverlay(), nil
 	case key.Matches(msg, m.keymap.Review):
 		if m.home.ActiveSession != nil {
 			m.status = i18n.T(i18n.StatusActiveFound)
@@ -142,13 +168,102 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.status = i18n.T(i18n.StatusStartingNew)
 		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeLearn, true), m.recentDistracts)
 	case key.Matches(msg, m.keymap.Confirm):
-		m.loading = true
 		if m.home.ActiveSession != nil {
+			m.loading = true
 			m.status = i18n.T(i18n.StatusResuming)
-		} else {
-			m.status = i18n.T(i18n.StatusStartingLearn)
+			return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeLearn, false), m.recentDistracts)
 		}
+		m.loading = true
+		m.status = i18n.T(i18n.StatusStartingLearn)
 		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeLearn, false), m.recentDistracts)
+	}
+
+	return m, nil
+}
+
+func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keymap.Help):
+		return m.openHelp(), nil
+	case key.Matches(msg, m.keymap.Back), key.Matches(msg, m.keymap.Settings):
+		return m.closeSettingsOverlay(), nil
+	case key.Matches(msg, m.keymap.Up):
+		if m.settingsCursor > 0 {
+			m.settingsCursor--
+		}
+		m.settingsEditing = false
+		m.status = i18n.T(i18n.StatusConfiguringSettings)
+		return m, nil
+	case key.Matches(msg, m.keymap.Down):
+		if m.settingsCursor < 1 {
+			m.settingsCursor++
+		}
+		m.settingsEditing = false
+		m.status = i18n.T(i18n.StatusConfiguringSettings)
+		return m, nil
+	case key.Matches(msg, m.keymap.Left):
+		switch m.settingsCursor {
+		case 0:
+			count, ok := m.settingsQuestionCount()
+			if !ok || count <= 1 {
+				count = 1
+			} else {
+				count--
+			}
+			m.settingsInput = strconv.Itoa(count)
+		case 1:
+			m.settingsLanguage = i18n.LangJA
+		}
+		m.settingsEditing = false
+		m.status = i18n.T(i18n.StatusConfiguringSettings)
+		return m, nil
+	case key.Matches(msg, m.keymap.Right):
+		switch m.settingsCursor {
+		case 0:
+			count, ok := m.settingsQuestionCount()
+			if !ok {
+				count = 0
+			}
+			count++
+			m.settingsInput = strconv.Itoa(count)
+		case 1:
+			m.settingsLanguage = i18n.LangEN
+		}
+		m.settingsEditing = false
+		m.status = i18n.T(i18n.StatusConfiguringSettings)
+		return m, nil
+	case key.Matches(msg, m.keymap.Confirm):
+		settings, ok, focusModeDisabled := m.settingsDraft()
+		if !ok {
+			m.status = i18n.T(i18n.StatusInvalidCount)
+			return m, nil
+		}
+		m.loading = true
+		m.status = i18n.T(i18n.StatusSavingSettings)
+		return m, saveSettingsCmd(m.configPath, settings, focusModeDisabled)
+	}
+
+	if m.settingsCursor == 0 {
+		switch msg.Code {
+		case tea.KeyBackspace, tea.KeyDelete:
+			if len(m.settingsInput) > 0 {
+				m.settingsInput = m.settingsInput[:len(m.settingsInput)-1]
+			}
+			m.settingsEditing = true
+			m.status = i18n.T(i18n.StatusConfiguringSettings)
+			return m, nil
+		}
+	}
+
+	if m.settingsCursor == 0 && len(msg.Text) == 1 && msg.Text[0] >= '0' && msg.Text[0] <= '9' {
+		if m.settingsEditing {
+			m.settingsInput += msg.Text
+		} else {
+			m.settingsInput = msg.Text
+			m.settingsEditing = true
+		}
+		m.status = i18n.T(i18n.StatusConfiguringSettings)
+		return m, nil
 	}
 
 	return m, nil

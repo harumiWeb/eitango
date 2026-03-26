@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/yourname/eitango/internal/config"
 	"github.com/yourname/eitango/internal/i18n"
 	"github.com/yourname/eitango/internal/quiz"
 	"github.com/yourname/eitango/internal/session"
@@ -155,6 +156,21 @@ func submitAnswerCmd(st *store.Store, svc *quiz.Service, runtime *session.Runtim
 			return errMsg{err: err}
 		}
 		return answerSavedMsg{Runtime: nextRuntime, NextQuestion: &question, Status: i18n.T(i18n.StatusSaved)}
+	}
+}
+
+func saveSettingsCmd(path string, settings config.Settings, focusModeDisabled bool) tea.Cmd {
+	return func() tea.Msg {
+		if path == "" {
+			return errMsg{err: fmt.Errorf("config path is not configured")}
+		}
+		if err := config.Save(path, settings); err != nil {
+			return errMsg{err: err}
+		}
+		return settingsSavedMsg{
+			Settings:          settings,
+			FocusModeDisabled: focusModeDisabled,
+		}
 	}
 }
 

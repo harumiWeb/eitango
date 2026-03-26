@@ -1,9 +1,11 @@
 package app
 
 import (
+	"strconv"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/yourname/eitango/internal/config"
 	"github.com/yourname/eitango/internal/i18n"
 	"github.com/yourname/eitango/internal/quiz"
 	"github.com/yourname/eitango/internal/session"
@@ -44,6 +46,11 @@ type answerSavedMsg struct {
 	Status       string
 }
 
+type settingsSavedMsg struct {
+	Settings          config.Settings
+	FocusModeDisabled bool
+}
+
 type errMsg struct {
 	err error
 }
@@ -54,43 +61,64 @@ type StartupRequest struct {
 }
 
 type Options struct {
-	Plan    session.PlanOptions
-	Startup *StartupRequest
+	Plan       session.PlanOptions
+	Startup    *StartupRequest
+	Settings   config.Settings
+	ConfigPath string
 }
 
 type RootModel struct {
-	store           *store.Store
-	quiz            *quiz.Service
-	planOptions     session.PlanOptions
-	startup         *StartupRequest
-	screen          Screen
-	keymap          tui.KeyMap
-	styles          tui.Styles
-	home            store.HomeSnapshot
-	stats           stats.Snapshot
-	runtime         *session.Runtime
-	currentQ        *quiz.Question
-	feedback        *quiz.Feedback
-	summary         *store.SessionSummary
-	cursor          int
-	status          string
-	err             error
-	loading         bool
-	helpReturn      Screen
-	helpStatus      string
-	width           int
-	height          int
-	questionStarted time.Time
-	recentDistracts []int64
-	correctStreak   int
+	store            *store.Store
+	quiz             *quiz.Service
+	planOptions      session.PlanOptions
+	startup          *StartupRequest
+	settings         config.Settings
+	configPath       string
+	screen           Screen
+	keymap           tui.KeyMap
+	styles           tui.Styles
+	home             store.HomeSnapshot
+	stats            stats.Snapshot
+	runtime          *session.Runtime
+	currentQ         *quiz.Question
+	feedback         *quiz.Feedback
+	summary          *store.SessionSummary
+	cursor           int
+	status           string
+	err              error
+	loading          bool
+	settingsOpen     bool
+	settingsCursor   int
+	settingsInput    string
+	settingsEditing  bool
+	settingsLanguage string
+	helpReturn       Screen
+	helpStatus       string
+	width            int
+	height           int
+	questionStarted  time.Time
+	recentDistracts  []int64
+	correctStreak    int
 }
 
 func NewModel(store *store.Store, options Options) RootModel {
+	settings := options.Settings
+	if settings == (config.Settings{}) {
+		settings = config.DefaultSettings()
+	}
+
+	planOptions := options.Plan.Normalize()
+	if options.Plan == (session.PlanOptions{}) {
+		planOptions = planOptionsFromSettings(settings)
+	}
+
 	return RootModel{
 		store:       store,
 		quiz:        quiz.NewService(store),
-		planOptions: options.Plan.Normalize(),
+		planOptions: planOptions,
 		startup:     options.Startup,
+		settings:    settings,
+		configPath:  options.ConfigPath,
 		screen:      ScreenHome,
 		keymap:      tui.NewKeyMap(),
 		styles:      tui.NewStyles(),
@@ -119,4 +147,85 @@ func (m RootModel) sessionRequest(mode string, replaceActive bool) sessionReques
 		ReplaceActive: replaceActive,
 		Plan:          m.planOptions,
 	}
+}
+
+func (m RootModel) openSettingsOverlay() RootModel {
+	m.settingsOpen = true
+	m.settingsCursor = 0
+	m.settingsInput = strconv.Itoa(m.settings.SessionSize)
+	m.settingsEditing = false
+	m.settingsLanguage = m.settings.Language
+	m.err = nil
+	m.status = i18n.T(i18n.StatusConfiguringSettings)
+	return m
+}
+
+func (m RootModel) closeSettingsOverlay() RootModel {
+	m.settingsOpen = false
+	m.settingsEditing = false
+	m.status = m.homeStatus()
+	return m
+}
+
+func (m RootModel) homeStatus() string {
+	if m.home.ActiveSession != nil {
+		return i18n.T(i18n.StatusResumeFound)
+	}
+	return i18n.T(i18n.StatusReady)
+}
+
+func (m RootModel) settingsQuestionCount() (int, bool) {
+	if m.settingsInput == "" {
+		return 0, false
+	}
+	count, err := strconv.Atoi(m.settingsInput)
+	if err != nil || count <= 0 {
+		return 0, false
+	}
+	return count, true
+}
+
+func (m RootModel) settingsQuestionDisplay() string {
+	if m.settingsInput == "" {
+		return "..."
+	}
+	if m.settingsCursor == 0 && m.settingsEditing {
+		return m.settingsInput + "_"
+	}
+	return m.settingsInput
+}
+
+func (m RootModel) settingsLanguageLabel() string {
+	if m.settingsLanguage == i18n.LangEN {
+		return i18n.T(i18n.SettingsLanguageEN)
+	}
+	return i18n.T(i18n.SettingsLanguageJA)
+}
+
+func (m RootModel) settingsDraft() (config.Settings, bool, bool) {
+	count, ok := m.settingsQuestionCount()
+	if !ok {
+		return config.Settings{}, false, false
+	}
+
+	draft := m.settings
+	draft.SessionSize = count
+	draft.Language = m.settingsLanguage
+
+	focusModeDisabled := draft.FocusModeDefault && draft.SessionSize != m.settings.SessionSize
+	if focusModeDisabled {
+		draft.FocusModeDefault = false
+	}
+	return draft, true, focusModeDisabled
+}
+
+func planOptionsFromSettings(settings config.Settings) session.PlanOptions {
+	options := session.PlanOptions{
+		QuestionCount: settings.SessionSize,
+		ReviewRatio:   settings.ReviewRatio,
+	}
+	if settings.FocusModeDefault {
+		options.QuestionCount = session.FocusQuestionCount
+	}
+	return options.Normalize()
 }
