@@ -3,10 +3,13 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/yourname/eitango/internal/dict"
 )
 
 func TestValidateCommandValidatesEmbeddedCore(t *testing.T) {
@@ -29,7 +32,11 @@ func TestValidateCommandValidatesEmbeddedCore(t *testing.T) {
 	if !strings.Contains(output, "source: embedded-core") {
 		t.Fatalf("validate output = %q, want embedded core source", output)
 	}
-	if !strings.Contains(output, "entries: 1051") {
+	entries, err := dict.LoadCoreWords()
+	if err != nil {
+		t.Fatalf("LoadCoreWords() error = %v", err)
+	}
+	if !strings.Contains(output, fmt.Sprintf("entries: %d", len(entries))) {
 		t.Fatalf("validate output = %q, want entry count", output)
 	}
 }

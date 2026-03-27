@@ -6,7 +6,7 @@ import (
 	projectassets "github.com/yourname/eitango/assets"
 )
 
-const CoreWordsVersion = "2026-03-25-phase1-core"
+const CoreWordsVersion = "2026-03-27-wordfreq-review-gate-core"
 
 func LoadCoreWords() ([]Entry, error) {
 	file, err := projectassets.Embedded.Open("words_core.jsonl")

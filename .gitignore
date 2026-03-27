@@ -1,2 +1,15 @@
 # Added by goreleaser init:
 dist/
+tmp/
+.venv/
+
+.python-version
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+pyproject.toml
+uv.lock
+*.egg-info/
+*.egg
+build/
