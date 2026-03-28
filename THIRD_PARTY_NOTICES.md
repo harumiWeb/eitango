@@ -37,7 +37,7 @@ Relevant upstream references:
 
 | Upstream source | How it is used here | License reference |
 | --- | --- | --- |
-| Japanese WordNet (`wnjpn.db`) | queried by scripts under `scripts/vocab/` for meanings and examples | `third_party/licenses/Japanese-WordNet.txt` |
+| Japanese WordNet (`wnjpn.db`) | queried by scripts under `scripts/vocab/` for meanings and examples; published results that use derived data should preserve the Japanese WordNet attribution guidance | `third_party/licenses/Japanese-WordNet.txt` |
 | Leipzig Corpora Collection English News 2024 1M word list | consulted for frequency-ranked seed generation and bundled-core ranking | `third_party/licenses/CC-BY-3.0.txt` |
 | Princeton WordNet / WordNet-family notices | relevant to WordNet-derived corpora and notices | `third_party/licenses/Princeton-WordNet.txt` |
 
@@ -46,12 +46,14 @@ Important distribution note:
 - this repository does **not** ship raw `wnjpn.db`
 - this repository does **not** ship the raw Leipzig corpus files used during local regeneration
 - this repository **does** ship `assets/words_core.jsonl`, which should be redistributed together with this notice and the referenced upstream license materials
+- redistributions that publish or embed Japanese-WordNet-influenced data should also keep the version-appropriate attribution link wording documented in `third_party/licenses/Japanese-WordNet.txt`
 
-If you redistribute `words_core.jsonl` or a derivative package that embeds it, keep this notice and review the referenced upstream terms before making additional licensing claims.
+If you redistribute `words_core.jsonl` or a derivative package that embeds it, keep this notice, the referenced upstream license materials, and the Japanese WordNet attribution guidance before making additional licensing claims.
 
 ## 5. Practical Guidance for Redistributors
 
 - Treat the application code license and the bundled data provenance as separate concerns.
 - Do not describe the entire repository as if every bundled artifact were covered only by Apache-2.0.
 - Include `LICENSE`, this file, and `third_party/licenses/` in source or binary redistributions.
+- For Japanese-WordNet-influenced data, preserve the version-appropriate attribution link text and companion license note from `third_party/licenses/Japanese-WordNet.txt`.
 - When in doubt about data provenance, keep the attribution and upstream links intact rather than removing them.

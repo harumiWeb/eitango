@@ -1,17 +1,82 @@
-Japanese WordNet reference notice
+Japanese WordNet attribution guidance and upstream license
 
 Project:
 https://bond-lab.github.io/wnja/
+
+Official downloads guidance:
+https://bond-lab.github.io/wnja/jpn/downloads.html
+
+Upstream license text:
+https://bond-lab.github.io/wnja/license.txt
 
 Repository usage note:
 - vocabulary generation scripts in `scripts/vocab/` consult a local
   `wnjpn.db` copy during data preparation
 - the raw Japanese WordNet database is not redistributed in this repository
 - the project treats bundled `assets/words_core.jsonl` conservatively as an
-  edited dataset influenced by Japanese WordNet output
+  edited dataset indirectly influenced by Japanese WordNet output
 
-License guidance summary used by this repository:
-- upstream documentation describes Japanese WordNet data as reusable with
-  retention of copyright / disclaimer notices in copies and redistributions
-- before redistributing raw Japanese WordNet data, consult the upstream
-  project pages and keep the original notices intact
+Attribution guidance for published results:
+- the official Japanese WordNet downloads page says that published results
+  using the data directly or indirectly, in whole or in part, should link back
+  with wording equivalent to the following version-specific notice
+
+  English example:
+  Japanese Wordnet (vXX) © 2009-2011 NICT, 2012-2015 Francis Bond and
+  2016-2024 Francis Bond, Takayuki Kuribayashi
+  https://bond-lab.github.io/wnja/index.en.html
+
+  Japanese example:
+  日本語ワードネット（XX版）© 2009-2011 NICT, 2012-2015 Francis Bond and
+  2016-2024 Francis Bond, Takayuki Kuribayashi
+  https://bond-lab.github.io/wnja/index.ja.html
+
+- use the version-appropriate `vXX` / `XX版` wording for the upstream release
+  that informed your published result
+
+Redistribution guidance:
+- if you redistribute this repository or a derivative package that includes
+  Japanese-WordNet-influenced data, keep this file and
+  `THIRD_PARTY_NOTICES.md` with the distribution
+- if you redistribute raw Japanese WordNet data, also preserve the upstream
+  license text below
+- Japanese WordNet downloads also reference separate Princeton WordNet terms
+  for the English data bundled in `wnjpn.db`; see `Princeton-WordNet.txt`
+
+Upstream license text from `license.txt`:
+
+Copyright: 2021-2024 Francis Bond, Takayuki Kuribayashi
+Copyright: 2018-2020 Francis Bond
+Copyright: 2016-2017 Francis Bond, Takayuki Kuribayashi
+Copyright: 2012-2015 Francis Bond
+Copyright: 2009-2011 NICT
+
+Japanese WordNet
+
+This software and database is being provided to you, the LICENSEE, by
+the National Institute of Information and Communications Technology
+under the following license. By obtaining, using and/or copying this
+software and database, you agree that you have read, understood, and
+will comply with these terms and conditions:
+
+  Permission to use, copy, modify and distribute this software and
+  database and its documentation for any purpose and without fee or
+  royalty is hereby granted, provided that you agree to comply with
+  the following copyright notice and statements, including the
+  disclaimer, and that the same appear on ALL copies of the software,
+  database and documentation, including modifications that you make
+  for internal use or for distribution.
+
+THIS SOFTWARE AND DATABASE IS PROVIDED "AS IS" AND NICT MAKES NO
+REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED. BY WAY OF EXAMPLE,
+BUT NOT LIMITATION, NICT MAKES NO REPRESENTATIONS OR WARRANTIES OF
+MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE
+OF THE LICENSED SOFTWARE, DATABASE OR DOCUMENTATION WILL NOT INFRINGE
+ANY THIRD PARTY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.
+
+The name of the National Institute of Information and Communications
+Technology may not be used in advertising or publicity pertaining to
+distribution of the software and/or database. Title to copyright in
+this software, database and any associated documentation shall at all
+times remain with National Institute of Information and Communications
+Technology and LICENSEE agrees to preserve same.

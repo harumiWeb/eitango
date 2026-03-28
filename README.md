@@ -77,13 +77,14 @@ eitango doctor
 - `frequency_rank` は Leipzig 由来の bundled-core ranking、`level` は `core-1` から `core-4` の内部バケットです
 - 語彙生成スクリプトはローカル入力の `tmp/eng_news_2024_1M-words.txt` と `tmp/wnjpn.db` を参照します
 - raw の Leipzig / WordNet 入力は配布物に含めず、生成条件は `scripts/vocab/source_manifest.json` に固定します
+- Japanese WordNet を直接・間接に使った成果公開や再配布では、`third_party/licenses/Japanese-WordNet.txt` にまとめた上流推奨のクレジット文言・リンク・ライセンス案内を保持してください
 
 再配布や派生利用の前に、必ず次を確認してください。
 
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - [`third_party/licenses/`](third_party/licenses)
 
-特に `words_core.jsonl` を含む再配布物では、第三者データ由来の注意書きを保持する前提で扱ってください。
+特に `words_core.jsonl` を含む再配布物では、第三者データ由来の注意書きに加えて、Japanese WordNet の帰属表示案内も保持する前提で扱ってください。
 
 ## 開発メモ
 

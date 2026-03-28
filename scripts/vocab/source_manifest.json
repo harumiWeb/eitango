@@ -28,7 +28,10 @@
       "name": "Japanese WordNet database",
       "local_input": "tmp/wnjpn.db",
       "url": "https://bond-lab.github.io/wnja/",
+      "downloads_page": "https://bond-lab.github.io/wnja/jpn/downloads.html",
+      "license_url": "https://bond-lab.github.io/wnja/license.txt",
       "license_reference": "third_party/licenses/Japanese-WordNet.txt",
+      "attribution_guidance": "Published results that directly or indirectly use Japanese WordNet data should keep the version-appropriate attribution link wording documented in third_party/licenses/Japanese-WordNet.txt.",
       "usage": [
         "exact lemma+POS join for English lemma support",
         "Japanese meaning candidates",

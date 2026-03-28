@@ -56,6 +56,7 @@ The bundled core vocabulary in this repository is now sourced only from the Leip
 - `frequency_rank` is a Leipzig-derived bundled-core ranking and `level` uses internal `core-1` through `core-4` buckets
 - the generation pipeline reads local inputs from `tmp/eng_news_2024_1M-words.txt` and `tmp/wnjpn.db`
 - raw upstream databases and corpora are not redistributed in the release artifacts; the reproducible source manifest lives at `scripts/vocab/source_manifest.json`
+- published or redistributed results that directly or indirectly use Japanese WordNet should keep the attribution wording, link target, and license guidance recorded in `third_party/licenses/Japanese-WordNet.txt`
 
 Before redistributing the repository or packaged artifacts, review:
 
