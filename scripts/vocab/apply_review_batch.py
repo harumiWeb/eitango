@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import sys
 from pathlib import Path
@@ -12,6 +11,8 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from common import (  # noqa: E402
     DEFAULT_CORE_PATH,
+    REVIEW_TSV_FIELDS,
+    load_tsv,
     load_core_entries,
     normalize_lemma,
 )
@@ -34,16 +35,18 @@ def main() -> None:
     out_path = args.out or args.core
 
     approved_rows = []
-    with args.review_tsv.open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle, delimiter="\t")
-        for row in reader:
-            if row["status"] != args.status:
-                continue
-            key = (normalize_lemma(row["lemma"]), row["pos"])
-            if key in seen:
-                continue
-            approved_rows.append(row)
-            seen.add(key)
+    for row in load_tsv(args.review_tsv, expected_fieldnames=REVIEW_TSV_FIELDS):
+        if row["status"] != args.status:
+            continue
+        if row.get("confidence"):
+            int(row["confidence"])
+        if row.get("example_ja", "").strip().isdigit():
+            raise ValueError(f"numeric example_ja is not allowed for {row['lemma']}:{row['pos']}")
+        key = (normalize_lemma(row["lemma"]), row["pos"])
+        if key in seen:
+            continue
+        approved_rows.append(row)
+        seen.add(key)
 
     approved_rows.sort(key=lambda row: int(row["source_frequency_rank"]))
 

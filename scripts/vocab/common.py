@@ -29,6 +29,21 @@ WN_TO_POS = {
 }
 
 VALID_POS = ("noun", "verb", "adjective", "adverb")
+REVIEW_TSV_FIELDS = [
+    "status",
+    "lemma",
+    "pos",
+    "source_frequency_rank",
+    "meaning_ja_candidate",
+    "meaning_ja_alternatives",
+    "level_candidate",
+    "distractor_group_candidate",
+    "example_en",
+    "example_ja",
+    "confidence",
+    "source_synsets",
+    "notes",
+]
 WORD_RE = re.compile(r"^[a-z]+(?:-[a-z]+)?$")
 TOKEN_RE = re.compile(r"[A-Za-z]+(?:'[A-Za-z]+)?")
 ASCII_RE = re.compile(r"[A-Za-z]")
@@ -700,11 +715,30 @@ def write_jsonl(path: Path, rows: Iterable[dict]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def load_tsv(path: Path) -> list[dict[str, str]]:
+def load_tsv(path: Path, expected_fieldnames: list[str] | None = None) -> list[dict[str, str]]:
     if not path.exists():
         return []
-    with path.open("r", encoding="utf-8", newline="") as handle:
-        return list(csv.DictReader(handle, delimiter="\t"))
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.reader(handle, delimiter="\t")
+        try:
+            header = next(reader)
+        except StopIteration:
+            return []
+        if len(header) != len(set(header)):
+            raise ValueError(f"duplicate TSV columns in {path}: {header}")
+        if expected_fieldnames is not None and header != expected_fieldnames:
+            raise ValueError(f"unexpected TSV header in {path}: {header}")
+
+        rows: list[dict[str, str]] = []
+        for line_no, row in enumerate(reader, start=2):
+            if not row or all(cell == "" for cell in row):
+                continue
+            if len(row) != len(header):
+                raise ValueError(
+                    f"row {line_no} in {path} has {len(row)} columns; expected {len(header)}"
+                )
+            rows.append({name: row[index] for index, name in enumerate(header)})
+        return rows
 
 
 def write_tsv(path: Path, fieldnames: list[str], rows: Iterable[dict[str, object]]) -> None:

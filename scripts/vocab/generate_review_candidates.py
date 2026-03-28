@@ -12,6 +12,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from common import (  # noqa: E402
     DEFAULT_CORE_PATH,
     DEFAULT_OUT_DIR,
+    REVIEW_TSV_FIELDS,
     load_core_keys,
     load_jsonl,
     load_tsv,
@@ -122,21 +123,7 @@ def main() -> None:
 
     write_tsv(
         args.out,
-        [
-            "status",
-            "lemma",
-            "pos",
-            "source_frequency_rank",
-            "meaning_ja_candidate",
-            "meaning_ja_alternatives",
-            "level_candidate",
-            "distractor_group_candidate",
-            "example_en",
-            "example_ja",
-            "confidence",
-            "source_synsets",
-            "notes",
-        ],
+        REVIEW_TSV_FIELDS,
         review_rows,
     )
     print(f"wrote {args.out}")
