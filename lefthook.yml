@@ -2,7 +2,7 @@ pre-commit:
   parallel: true
   commands:
     goimports:
-      run: goimports -w .
+      run: goimports -w cmd internal assets
     lint:
       run: golangci-lint run
     test:
