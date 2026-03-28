@@ -1,3 +1,11 @@
+<p align="center">
+    <img width="600" alt="logo" src="https://github.com/user-attachments/assets/ab4d0cb7-d415-427f-9026-5b2faac52b11" />
+</p>
+
+<p align="center">
+  <em>eitango - TUI English Vocabulary Tool</em>
+</p>
+
 # eitango
 
 オフラインで動く英単語トレーニング TUI です。Bubble Tea ベースの対話UIとローカル SQLite を使い、待ち時間に短く回せる学習セッションを想定しています。
