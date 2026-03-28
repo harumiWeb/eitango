@@ -15,3 +15,5 @@ uv.lock
 build/
 .gocache/
 .gomodcache/
+bin/
+eitango.exe
