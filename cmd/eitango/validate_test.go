@@ -46,8 +46,8 @@ func TestValidateCommandValidatesImportCSVWithoutOpeningDB(t *testing.T) {
 	csvPath := filepath.Join(dataDir, "travel-pack.csv")
 	if err := os.WriteFile(csvPath, []byte(strings.Join([]string{
 		"lemma,meaning_ja,pos,level,frequency_rank,distractor_group",
-		"coordinate,調整する,verb,toeic700,4200,import-verb",
-		"budget,予算,noun,toeic700,4300,import-noun",
+		"coordinate,調整する,verb,core-2,4200,import-verb",
+		"budget,予算,noun,core-2,4300,import-noun",
 	}, "\n")), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}

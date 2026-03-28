@@ -10,7 +10,7 @@ func TestParseCSVParsesRequiredAndOptionalColumns(t *testing.T) {
 
 	entries, err := ParseCSV(strings.NewReader(strings.Join([]string{
 		"lemma,meaning_ja,pos,level,frequency_rank,distractor_group,example_en,example_ja",
-		" apply , 応募する , verb , toeic600 , 1200 , basic-verb-action , She will apply. , 彼女は応募する。 ",
+		" apply , 応募する , verb , core-1 , 1200 , basic-verb-action , She will apply. , 彼女は応募する。 ",
 	}, "\n")))
 	if err != nil {
 		t.Fatalf("ParseCSV() error = %v", err)
@@ -22,7 +22,7 @@ func TestParseCSVParsesRequiredAndOptionalColumns(t *testing.T) {
 	if entry.Lemma != "apply" || entry.MeaningJA != "応募する" {
 		t.Fatalf("unexpected parsed entry: %+v", entry)
 	}
-	if entry.Pos != "verb" || entry.Level != "toeic600" || entry.DistractorGroup != "basic-verb-action" {
+	if entry.Pos != "verb" || entry.Level != "core-1" || entry.DistractorGroup != "basic-verb-action" {
 		t.Fatalf("unexpected optional fields: %+v", entry)
 	}
 	if entry.FrequencyRank != 1200 {
@@ -126,9 +126,9 @@ func TestValidateCoreEntriesRejectsSmallDistractorGroup(t *testing.T) {
 	t.Parallel()
 
 	err := ValidateCoreEntries([]Entry{
-		{Lemma: "accept", Pos: "verb", MeaningJA: "受け入れる", Level: "toeic600", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
-		{Lemma: "avoid", Pos: "verb", MeaningJA: "避ける", Level: "toeic600", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
-		{Lemma: "collect", Pos: "verb", MeaningJA: "収集する", Level: "toeic600", FrequencyRank: 140, DistractorGroup: "basic-verb-action"},
+		{Lemma: "accept", Pos: "verb", MeaningJA: "受け入れる", Level: "core-1", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "avoid", Pos: "verb", MeaningJA: "避ける", Level: "core-1", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
+		{Lemma: "collect", Pos: "verb", MeaningJA: "収集する", Level: "core-1", FrequencyRank: 140, DistractorGroup: "basic-verb-action"},
 	})
 	if err == nil {
 		t.Fatal("ValidateCoreEntries() error = nil, want distractor-group validation error")
@@ -140,9 +140,9 @@ func TestValidateCoreEntriesRejectsSmallDistractorGroup(t *testing.T) {
 
 func validCoreEntries() []Entry {
 	return []Entry{
-		{Lemma: "accept", Pos: "verb", MeaningJA: "受け入れる", Level: "toeic600", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
-		{Lemma: "avoid", Pos: "verb", MeaningJA: "避ける", Level: "toeic600", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
-		{Lemma: "collect", Pos: "verb", MeaningJA: "収集する", Level: "toeic600", FrequencyRank: 140, DistractorGroup: "basic-verb-action"},
-		{Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "toeic600", FrequencyRank: 160, DistractorGroup: "basic-verb-action"},
+		{Lemma: "accept", Pos: "verb", MeaningJA: "受け入れる", Level: "core-1", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "avoid", Pos: "verb", MeaningJA: "避ける", Level: "core-1", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
+		{Lemma: "collect", Pos: "verb", MeaningJA: "収集する", Level: "core-1", FrequencyRank: 140, DistractorGroup: "basic-verb-action"},
+		{Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "core-1", FrequencyRank: 160, DistractorGroup: "basic-verb-action"},
 	}
 }

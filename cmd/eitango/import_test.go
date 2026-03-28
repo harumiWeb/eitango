@@ -18,8 +18,8 @@ func TestImportCommandImportsCSVAndUsesDefaultSource(t *testing.T) {
 	csvPath := filepath.Join(dataDir, "travel-pack.csv")
 	if err := os.WriteFile(csvPath, []byte(strings.Join([]string{
 		"lemma,meaning_ja,pos,level,frequency_rank,distractor_group,example_en,example_ja",
-		"coordinate,調整する,verb,toeic700,4200,import-verb,They coordinate each release.,彼らは各リリースを調整する。",
-		"draft,下書きする,verb,toeic700,4300,import-verb,Please draft the reply.,返信の下書きをしてください。",
+		"coordinate,調整する,verb,core-2,4200,import-verb,They coordinate each release.,彼らは各リリースを調整する。",
+		"draft,下書きする,verb,core-2,4300,import-verb,Please draft the reply.,返信の下書きをしてください。",
 	}, "\n")), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -80,8 +80,8 @@ func TestImportCommandImportsJSONL(t *testing.T) {
 	dataDir := t.TempDir()
 	jsonlPath := filepath.Join(dataDir, "business-pack.jsonl")
 	if err := os.WriteFile(jsonlPath, []byte(strings.Join([]string{
-		`{"lemma":"coordinate","pos":"verb","meaning_ja":"調整する","level":"toeic700","frequency_rank":4200,"distractor_group":"import-verb"}`,
-		`{"lemma":"budget","pos":"noun","meaning_ja":"予算","level":"toeic700","frequency_rank":4300,"distractor_group":"import-noun"}`,
+		`{"lemma":"coordinate","pos":"verb","meaning_ja":"調整する","level":"core-2","frequency_rank":4200,"distractor_group":"import-verb"}`,
+		`{"lemma":"budget","pos":"noun","meaning_ja":"予算","level":"core-2","frequency_rank":4300,"distractor_group":"import-noun"}`,
 	}, "\n")), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}

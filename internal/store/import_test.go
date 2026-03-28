@@ -25,14 +25,14 @@ func TestImportWordsUpsertsWithinSourceAndAllowsCrossSourceDuplicates(t *testing
 			Lemma:           "apply",
 			Pos:             "verb",
 			MeaningJA:       "申し込む",
-			Level:           "toeic700",
+			Level:           "core-2",
 			DistractorGroup: "import-verb",
 		},
 		{
 			Lemma:           "coordinate",
 			Pos:             "verb",
 			MeaningJA:       "調整する",
-			Level:           "toeic700",
+			Level:           "core-2",
 			DistractorGroup: "import-verb",
 			ExampleEN:       "They coordinate each release.",
 			ExampleJA:       "彼らは各リリースを調整する。",
@@ -54,7 +54,7 @@ func TestImportWordsUpsertsWithinSourceAndAllowsCrossSourceDuplicates(t *testing
 			Lemma:           "apply",
 			Pos:             "verb",
 			MeaningJA:       "申請する",
-			Level:           "toeic800",
+			Level:           "core-3",
 			DistractorGroup: "import-verb-2",
 			ExampleEN:       "Apply for the updated permit.",
 			ExampleJA:       "更新された許可を申請する。",
@@ -73,7 +73,7 @@ func TestImportWordsUpsertsWithinSourceAndAllowsCrossSourceDuplicates(t *testing
 			Lemma:           "apply",
 			Pos:             "verb",
 			MeaningJA:       "適用する",
-			Level:           "toeic800",
+			Level:           "core-3",
 			DistractorGroup: "business-verb",
 		},
 	})
@@ -124,7 +124,7 @@ ORDER BY source ASC
 	if applyRows[1].source != "import:business-pack" || applyRows[1].meaningJA != "適用する" {
 		t.Fatalf("unexpected business-pack apply row: %+v", applyRows[1])
 	}
-	if applyRows[2].source != "import:travel-pack" || applyRows[2].meaningJA != "申請する" || applyRows[2].level != "toeic800" {
+	if applyRows[2].source != "import:travel-pack" || applyRows[2].meaningJA != "申請する" || applyRows[2].level != "core-3" {
 		t.Fatalf("unexpected travel-pack apply row: %+v", applyRows[2])
 	}
 	if applyRows[2].exampleEN != "Apply for the updated permit." {
@@ -146,7 +146,7 @@ func TestSeedWordsVersionChangePreservesImportedWords(t *testing.T) {
 			Lemma:           "coordinate",
 			Pos:             "verb",
 			MeaningJA:       "調整する",
-			Level:           "toeic700",
+			Level:           "core-2",
 			DistractorGroup: "import-verb",
 		},
 	}); err != nil {
@@ -157,7 +157,7 @@ func TestSeedWordsVersionChangePreservesImportedWords(t *testing.T) {
 		Lemma:           "coach",
 		Pos:             "verb",
 		MeaningJA:       "指導する",
-		Level:           "toeic600",
+		Level:           "core-1",
 		FrequencyRank:   400,
 		DistractorGroup: "basic-verb-action",
 	})
@@ -200,7 +200,7 @@ func TestResetReseedPreservesImportedWords(t *testing.T) {
 			Lemma:           "coordinate",
 			Pos:             "verb",
 			MeaningJA:       "調整する",
-			Level:           "toeic700",
+			Level:           "core-2",
 			DistractorGroup: "import-verb",
 		},
 	}); err != nil {
@@ -237,7 +237,7 @@ func TestResetReseedPreservesImportedWords(t *testing.T) {
 			Lemma:           "coach",
 			Pos:             "verb",
 			MeaningJA:       "指導する",
-			Level:           "toeic600",
+			Level:           "core-1",
 			FrequencyRank:   400,
 			DistractorGroup: "basic-verb-action",
 		},
@@ -245,7 +245,7 @@ func TestResetReseedPreservesImportedWords(t *testing.T) {
 			Lemma:           "demand",
 			Pos:             "verb",
 			MeaningJA:       "要求する",
-			Level:           "toeic600",
+			Level:           "core-1",
 			FrequencyRank:   500,
 			DistractorGroup: "basic-verb-action",
 		},

@@ -71,11 +71,12 @@ eitango doctor
 
 `eitango` のコードは [Apache License 2.0](LICENSE) です。ただし、配布物に含まれる `assets/words_core.jsonl` はコードとは別に出所を持つ語彙データであり、Apache-2.0 だけで完結するものとして扱っていません。
 
-このリポジトリには次の前提があります。
+このリポジトリでは、bundled core の語彙由来を Leipzig English News 2024 1M word list と Japanese WordNet (`wnjpn.db`) に限定しています。
 
 - `assets/words_core.jsonl` はプロジェクトが編集・整備した core 語彙データです
-- 語彙生成スクリプトは `wordfreq`、日本語WordNet (`wnjpn.db`) 、一部の補助処理で `nltk` を参照します
-- raw の `wnjpn.db`、NLTK コーパス、wordfreq の元データはこの配布物には含めていません
+- `frequency_rank` は Leipzig 由来の bundled-core ranking、`level` は `core-1` から `core-4` の内部バケットです
+- 語彙生成スクリプトはローカル入力の `tmp/eng_news_2024_1M-words.txt` と `tmp/wnjpn.db` を参照します
+- raw の Leipzig / WordNet 入力は配布物に含めず、生成条件は `scripts/vocab/source_manifest.json` に固定します
 
 再配布や派生利用の前に、必ず次を確認してください。
 
@@ -94,7 +95,7 @@ go test ./...
 go run ./cmd/eitango --help
 ```
 
-辞書生成スクリプトは `scripts/vocab/` にあり、`tmp/wnjpn.db` のような外部入力を前提とします。これらはエンドユーザーの通常利用には不要です。
+辞書生成スクリプトは `scripts/vocab/` にあり、`tmp/eng_news_2024_1M-words.txt` と `tmp/wnjpn.db` のようなローカル入力を前提とします。これらはエンドユーザーの通常利用には不要です。
 
 ## ライセンス
 

@@ -8,12 +8,12 @@ import (
 )
 
 func TestBuildChoices(t *testing.T) {
-	correct := store.Word{ID: 1, Lemma: "abandon", Pos: "verb", MeaningJA: "捨てる", Level: "toeic600", FrequencyRank: 3400, DistractorGroup: "basic-verb-action"}
+	correct := store.Word{ID: 1, Lemma: "abandon", Pos: "verb", MeaningJA: "捨てる", Level: "core-1", FrequencyRank: 3400, DistractorGroup: "basic-verb-action"}
 	pool := []store.Word{
-		{ID: 2, Lemma: "acquire", Pos: "verb", MeaningJA: "得る", Level: "toeic600", FrequencyRank: 3600, DistractorGroup: "basic-verb-action"},
-		{ID: 3, Lemma: "arrange", Pos: "verb", MeaningJA: "手配する", Level: "toeic600", FrequencyRank: 3900, DistractorGroup: "basic-verb-action"},
-		{ID: 4, Lemma: "avoid", Pos: "verb", MeaningJA: "避ける", Level: "toeic600", FrequencyRank: 3200, DistractorGroup: "basic-verb-action"},
-		{ID: 5, Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "toeic600", FrequencyRank: 3700, DistractorGroup: "basic-verb-action"},
+		{ID: 2, Lemma: "acquire", Pos: "verb", MeaningJA: "得る", Level: "core-1", FrequencyRank: 3600, DistractorGroup: "basic-verb-action"},
+		{ID: 3, Lemma: "arrange", Pos: "verb", MeaningJA: "手配する", Level: "core-1", FrequencyRank: 3900, DistractorGroup: "basic-verb-action"},
+		{ID: 4, Lemma: "avoid", Pos: "verb", MeaningJA: "避ける", Level: "core-1", FrequencyRank: 3200, DistractorGroup: "basic-verb-action"},
+		{ID: 5, Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "core-1", FrequencyRank: 3700, DistractorGroup: "basic-verb-action"},
 	}
 
 	choices, err := BuildChoices(correct, pool, 4, nil, rand.New(rand.NewSource(1)))

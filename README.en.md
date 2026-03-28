@@ -50,11 +50,12 @@ Set `EITANGO_DATA_DIR` to override the default location.
 
 The application code is licensed under [Apache License 2.0](LICENSE). The bundled `assets/words_core.jsonl` should not be treated as if it were covered only by Apache-2.0.
 
-The current repository policy is:
+The bundled core vocabulary in this repository is now sourced only from the Leipzig English News 2024 1M word list plus Japanese WordNet (`wnjpn.db`).
 
 - `words_core.jsonl` is a project-curated core vocabulary file
-- the generation pipeline consults `wordfreq`, Japanese WordNet (`wnjpn.db`), and some Python tooling such as `nltk`
-- raw upstream databases and corpora are not redistributed in the release artifacts
+- `frequency_rank` is a Leipzig-derived bundled-core ranking and `level` uses internal `core-1` through `core-4` buckets
+- the generation pipeline reads local inputs from `tmp/eng_news_2024_1M-words.txt` and `tmp/wnjpn.db`
+- raw upstream databases and corpora are not redistributed in the release artifacts; the reproducible source manifest lives at `scripts/vocab/source_manifest.json`
 
 Before redistributing the repository or packaged artifacts, review:
 
@@ -71,4 +72,4 @@ go test ./...
 go run ./cmd/eitango --help
 ```
 
-The scripts in `scripts/vocab/` expect external inputs such as `tmp/wnjpn.db`.
+The scripts in `scripts/vocab/` expect local inputs such as `tmp/eng_news_2024_1M-words.txt` and `tmp/wnjpn.db`.

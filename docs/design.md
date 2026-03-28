@@ -308,8 +308,10 @@ Go の `embed` は `//go:embed` でファイルやディレクトリをビルド
 ### JSONL の 1 行例
 
 ```json
-{"lemma":"abandon","pos":"verb","meaning_ja":"捨てる、断念する","level":"toeic600","frequency_rank":3500,"distractor_group":"basic-verb-action"}
+{"lemma":"abandon","pos":"verb","meaning_ja":"捨てる、断念する","level":"core-2","frequency_rank":3500,"distractor_group":"basic-verb-action"}
 ```
+
+`level` は `core-1` から `core-4` の内部バケットを維持し、`frequency_rank` は bundled core 内での Leipzig 由来ランキングとして扱います。
 
 ### 30k 拡張時の配布方針
 

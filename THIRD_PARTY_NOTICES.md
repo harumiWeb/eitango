@@ -25,32 +25,26 @@ These dependencies are part of the source distribution and linked binary builds.
 
 ## 3. Repository-Distributed Tooling for Vocabulary Generation
 
-The repository also ships Python tooling under `scripts/vocab/` and declares the following Python package dependencies in `pyproject.toml`:
-
-| Component | Role | Upstream license | Notes |
-| --- | --- | --- | --- |
-| `wordfreq` | frequency-based vocabulary seed generation | Apache-2.0 for code | upstream data lineage includes additional terms; see section 4 |
-| `nltk` | NLP helper library | Apache-2.0 | runtime app does not require NLTK |
+The repository also ships Python tooling under `scripts/vocab/`. The current pipeline uses only the Python standard library together with locally supplied corpus/database inputs and does not require third-party Python packages at runtime.
 
 These tools are for repository maintenance and are not required for normal end-user execution of the compiled CLI.
 
 ## 4. Bundled Vocabulary Data and Upstream Data Lineage
 
-The file `assets/words_core.jsonl` is bundled with the repository and seeded into the local database at runtime. It is a project-curated vocabulary file, but the current repository treats it conservatively as an edited dataset produced with help from upstream lexical resources.
+The file `assets/words_core.jsonl` is bundled with the repository and seeded into the local database at runtime. It is a project-curated vocabulary file, and the current repository treats it conservatively as an edited dataset produced from upstream lexical resources.
 
 Relevant upstream references:
 
 | Upstream source | How it is used here | License reference |
 | --- | --- | --- |
 | Japanese WordNet (`wnjpn.db`) | queried by scripts under `scripts/vocab/` for meanings and examples | `third_party/licenses/Japanese-WordNet.txt` |
-| `wordfreq` data sources | consulted for frequency-ranked seed generation | `third_party/licenses/CC-BY-SA-4.0.txt` |
+| Leipzig Corpora Collection English News 2024 1M word list | consulted for frequency-ranked seed generation and bundled-core ranking | `third_party/licenses/CC-BY-3.0.txt` |
 | Princeton WordNet / WordNet-family notices | relevant to WordNet-derived corpora and notices | `third_party/licenses/Princeton-WordNet.txt` |
 
 Important distribution note:
 
 - this repository does **not** ship raw `wnjpn.db`
-- this repository does **not** ship NLTK corpora as standalone data files
-- this repository does **not** ship raw `wordfreq` datasets separately from the Python package
+- this repository does **not** ship the raw Leipzig corpus files used during local regeneration
 - this repository **does** ship `assets/words_core.jsonl`, which should be redistributed together with this notice and the referenced upstream license materials
 
 If you redistribute `words_core.jsonl` or a derivative package that embeds it, keep this notice and review the referenced upstream terms before making additional licensing claims.

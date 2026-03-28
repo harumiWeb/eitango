@@ -241,10 +241,10 @@ func TestDoctorCommandRunsDiagnostics(t *testing.T) {
 		t.Fatalf("Migrate() error = %v", err)
 	}
 	if err := st.SeedWords(ctx, []dict.Entry{
-		{Lemma: "adopt", Pos: "verb", MeaningJA: "採用する", Level: "toeic600", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
-		{Lemma: "apply", Pos: "verb", MeaningJA: "応募する", Level: "toeic600", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
-		{Lemma: "cancel", Pos: "verb", MeaningJA: "取り消す", Level: "toeic600", FrequencyRank: 140, DistractorGroup: "basic-verb-action"},
-		{Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "toeic600", FrequencyRank: 160, DistractorGroup: "basic-verb-action"},
+		{Lemma: "adopt", Pos: "verb", MeaningJA: "採用する", Level: "core-1", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "apply", Pos: "verb", MeaningJA: "応募する", Level: "core-1", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
+		{Lemma: "cancel", Pos: "verb", MeaningJA: "取り消す", Level: "core-1", FrequencyRank: 140, DistractorGroup: "basic-verb-action"},
+		{Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "core-1", FrequencyRank: 160, DistractorGroup: "basic-verb-action"},
 	}, dict.CoreWordsVersion); err != nil {
 		t.Fatalf("SeedWords() error = %v", err)
 	}
@@ -286,9 +286,9 @@ func TestDoctorCommandReturnsExitCodeForIssues(t *testing.T) {
 		t.Fatalf("Migrate() error = %v", err)
 	}
 	if err := st.SeedWords(ctx, []dict.Entry{
-		{Lemma: "abandon", Pos: "verb", MeaningJA: "捨てる", Level: "toeic600", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
-		{Lemma: "apply", Pos: "verb", MeaningJA: "応募する", Level: "toeic600", FrequencyRank: 200, DistractorGroup: "basic-verb-action"},
-		{Lemma: "benefit", Pos: "noun", MeaningJA: "利益", Level: "toeic600", FrequencyRank: 300, DistractorGroup: "basic-noun-business"},
+		{Lemma: "abandon", Pos: "verb", MeaningJA: "捨てる", Level: "core-1", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "apply", Pos: "verb", MeaningJA: "応募する", Level: "core-1", FrequencyRank: 200, DistractorGroup: "basic-verb-action"},
+		{Lemma: "benefit", Pos: "noun", MeaningJA: "利益", Level: "core-1", FrequencyRank: 300, DistractorGroup: "basic-noun-business"},
 	}, dict.CoreWordsVersion); err != nil {
 		t.Fatalf("SeedWords() error = %v", err)
 	}
@@ -473,9 +473,9 @@ func seedResetFixture(t *testing.T, dataDir string, entries []dict.Entry, versio
 
 func resetTestEntries() []dict.Entry {
 	return []dict.Entry{
-		{Lemma: "accept", Pos: "verb", MeaningJA: "受け入れる", Level: "toeic600", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
-		{Lemma: "avoid", Pos: "verb", MeaningJA: "避ける", Level: "toeic600", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
-		{Lemma: "budget", Pos: "noun", MeaningJA: "予算", Level: "toeic600", FrequencyRank: 140, DistractorGroup: "basic-noun-business"},
+		{Lemma: "accept", Pos: "verb", MeaningJA: "受け入れる", Level: "core-1", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "avoid", Pos: "verb", MeaningJA: "避ける", Level: "core-1", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
+		{Lemma: "budget", Pos: "noun", MeaningJA: "予算", Level: "core-1", FrequencyRank: 140, DistractorGroup: "basic-noun-business"},
 	}
 }
 

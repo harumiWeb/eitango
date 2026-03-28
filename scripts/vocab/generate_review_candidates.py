@@ -66,52 +66,57 @@ def build_example_index(path: Path) -> dict[tuple[str, str], dict[str, str]]:
     return rows
 
 
+def load_seed_rows(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
 def main() -> None:
     args = parse_args()
     core_keys = load_core_keys(args.core)
     meaning_index = build_meaning_index(args.meaning_candidates)
     example_index = build_example_index(args.examples)
+    seed_rows = load_seed_rows(args.freq_seed)
+    seed_count = len(seed_rows)
     review_rows: list[dict[str, object]] = []
 
-    with args.freq_seed.open("r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle)
-        for seed_row in reader:
-            key = (seed_row["lemma"], seed_row["pos"])
-            if key in core_keys:
-                continue
-            if len(seed_row["lemma"]) < args.min_lemma_length:
-                continue
-            meaning_row = meaning_index.get(key)
-            if not meaning_row or not meaning_row["candidates"]:
-                continue
-            best = meaning_row["candidates"][0]
-            if int(best["score_hint"]) < args.min_score:
-                continue
-            if not looks_reasonable_japanese(best["ja"]):
-                continue
-            alternatives = [candidate["ja"] for candidate in meaning_row["candidates"][1:4]]
-            text_for_group = " ".join(best.get("en_defs", [])[:3] + best.get("ja_defs", [])[:2])
-            lowered_text = text_for_group.lower()
-            if any(keyword in lowered_text for keyword in BAD_DEFINITION_KEYWORDS):
-                continue
-            example = example_index.get(key, {})
-            review_rows.append(
-                {
-                    "status": "candidate",
-                    "lemma": seed_row["lemma"],
-                    "pos": seed_row["pos"],
-                    "source_frequency_rank": seed_row["frequency_rank"],
-                    "meaning_ja_candidate": best["ja"],
-                    "meaning_ja_alternatives": " / ".join(alternatives),
-                    "level_candidate": suggest_level(int(seed_row["frequency_rank"])),
-                    "distractor_group_candidate": suggest_group(seed_row["lemma"], seed_row["pos"], text_for_group),
-                    "example_en": example.get("example_en", ""),
-                    "example_ja": example.get("example_ja", ""),
-                    "confidence": best["score_hint"],
-                    "source_synsets": ",".join(best.get("synsets", [])[:6]),
-                    "notes": "; ".join(best.get("ja_defs", [])[:2] + best.get("en_defs", [])[:1]),
-                }
-            )
+    for seed_row in seed_rows:
+        key = (seed_row["lemma"], seed_row["pos"])
+        if key in core_keys:
+            continue
+        if len(seed_row["lemma"]) < args.min_lemma_length:
+            continue
+        meaning_row = meaning_index.get(key)
+        if not meaning_row or not meaning_row["candidates"]:
+            continue
+        best = meaning_row["candidates"][0]
+        if int(best["score_hint"]) < args.min_score:
+            continue
+        if not looks_reasonable_japanese(best["ja"]):
+            continue
+        alternatives = [candidate["ja"] for candidate in meaning_row["candidates"][1:4]]
+        text_for_group = " ".join(best.get("en_defs", [])[:3] + best.get("ja_defs", [])[:2])
+        lowered_text = text_for_group.lower()
+        if any(keyword in lowered_text for keyword in BAD_DEFINITION_KEYWORDS):
+            continue
+        example = example_index.get(key, {})
+        review_rows.append(
+            {
+                "status": "candidate",
+                "lemma": seed_row["lemma"],
+                "pos": seed_row["pos"],
+                "source_frequency_rank": seed_row["frequency_rank"],
+                "meaning_ja_candidate": best["ja"],
+                "meaning_ja_alternatives": " / ".join(alternatives),
+                "level_candidate": suggest_level(int(seed_row["frequency_rank"]), seed_count),
+                "distractor_group_candidate": suggest_group(seed_row["lemma"], seed_row["pos"], text_for_group),
+                "example_en": example.get("example_en", ""),
+                "example_ja": example.get("example_ja", ""),
+                "confidence": best["score_hint"],
+                "source_synsets": ",".join(best.get("synsets", [])[:6]),
+                "notes": "; ".join(best.get("ja_defs", [])[:2] + best.get("en_defs", [])[:1]),
+            }
+        )
 
     review_rows.sort(
         key=lambda item: (

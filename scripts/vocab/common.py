@@ -10,8 +10,10 @@ from typing import Iterable
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent.parent
 DEFAULT_DB_PATH = REPO_ROOT / "tmp" / "wnjpn.db"
+DEFAULT_WORDS_PATH = REPO_ROOT / "tmp" / "eng_news_2024_1M-words.txt"
 DEFAULT_CORE_PATH = REPO_ROOT / "assets" / "words_core.jsonl"
 DEFAULT_OUT_DIR = REPO_ROOT / "tmp" / "generated_vocab"
+LEIPZIG_SOURCE_CORPUS = "leipzig:eng_news_2024_1M"
 
 POS_TO_WN = {
     "noun": ("n",),
@@ -809,8 +811,19 @@ def sentence_mentions_lemma(sentence: str, lemma: str, pos: str) -> bool:
     return any(re.search(rf"\b{re.escape(variant)}\b", lowered) for variant in simple_variants(lemma, pos))
 
 
-def suggest_level(source_rank: int) -> str:
-    return "toeic600" if source_rank <= 2500 else "toeic800"
+def core_level_for_index(index: int, total: int) -> str:
+    if total <= 0:
+        raise ValueError("total must be positive")
+    if index < 0 or index >= total:
+        raise ValueError(f"index {index} out of range for total {total}")
+    bucket = min((index * 4) // total, 3)
+    return f"core-{bucket + 1}"
+
+
+def suggest_level(source_rank: int, total_ranks: int) -> str:
+    if source_rank <= 0:
+        raise ValueError("source_rank must be positive")
+    return core_level_for_index(source_rank - 1, total_ranks)
 
 
 def _has_keyword(lemma: str, text: str, keywords: tuple[str, ...]) -> bool:

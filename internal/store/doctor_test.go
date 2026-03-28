@@ -201,7 +201,7 @@ func TestRunDiagnosticsWarnsOnCrossSourceDuplicates(t *testing.T) {
 			Lemma:           "apply",
 			Pos:             "verb",
 			MeaningJA:       "申請する",
-			Level:           "toeic700",
+			Level:           "core-2",
 			DistractorGroup: "import-verb",
 		},
 	}); err != nil {
@@ -228,10 +228,10 @@ func TestRunDiagnosticsWarnsOnMissingWordMetadata(t *testing.T) {
 	ctx := context.Background()
 	st := newTestStore(t)
 	if err := st.SeedWords(ctx, []dict.Entry{
-		{Lemma: "adopt", Pos: "verb", MeaningJA: "採用する", Level: "toeic600", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
-		{Lemma: "apply", Pos: "verb", MeaningJA: "応募する", Level: "toeic600", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
+		{Lemma: "adopt", Pos: "verb", MeaningJA: "採用する", Level: "core-1", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "apply", Pos: "verb", MeaningJA: "応募する", Level: "core-1", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
 		{Lemma: "cancel", Pos: "verb", MeaningJA: "取り消す", Level: "", FrequencyRank: 0, DistractorGroup: ""},
-		{Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "toeic600", FrequencyRank: 160, DistractorGroup: "basic-verb-action"},
+		{Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "core-1", FrequencyRank: 160, DistractorGroup: "basic-verb-action"},
 	}, dict.CoreWordsVersion); err != nil {
 		t.Fatalf("SeedWords() error = %v", err)
 	}
@@ -285,7 +285,7 @@ func doctorTestEntries() []dict.Entry {
 			Lemma:           "adopt",
 			Pos:             "verb",
 			MeaningJA:       "採用する",
-			Level:           "toeic600",
+			Level:           "core-1",
 			FrequencyRank:   100,
 			DistractorGroup: "basic-verb-action",
 		},
@@ -293,7 +293,7 @@ func doctorTestEntries() []dict.Entry {
 			Lemma:           "apply",
 			Pos:             "verb",
 			MeaningJA:       "応募する",
-			Level:           "toeic600",
+			Level:           "core-1",
 			FrequencyRank:   120,
 			DistractorGroup: "basic-verb-action",
 		},
@@ -301,7 +301,7 @@ func doctorTestEntries() []dict.Entry {
 			Lemma:           "cancel",
 			Pos:             "verb",
 			MeaningJA:       "取り消す",
-			Level:           "toeic600",
+			Level:           "core-1",
 			FrequencyRank:   140,
 			DistractorGroup: "basic-verb-action",
 		},
@@ -309,7 +309,7 @@ func doctorTestEntries() []dict.Entry {
 			Lemma:           "deliver",
 			Pos:             "verb",
 			MeaningJA:       "届ける",
-			Level:           "toeic600",
+			Level:           "core-1",
 			FrequencyRank:   160,
 			DistractorGroup: "basic-verb-action",
 		},

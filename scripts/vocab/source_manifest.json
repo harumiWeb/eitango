@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "bundled_core_policy": {
+    "schema_stability": "Keep assets/words_core.jsonl fields stable while swapping provenance to Leipzig + Japanese WordNet.",
+    "raw_inputs_distributed": false
+  },
+  "sources": [
+    {
+      "name": "Leipzig Corpora Collection English News 2024 1M word list",
+      "local_input": "tmp/eng_news_2024_1M-words.txt",
+      "url": "https://corpora.wortschatz-leipzig.de/en?corpusId=eng_news_2024",
+      "download_hint": "https://downloads.wortschatz-leipzig.de/corpora/eng_news_2024_1M.tar.gz",
+      "license": "CC BY 3.0",
+      "license_reference": "third_party/licenses/CC-BY-3.0.txt",
+      "fields_used": [
+        "column 2: word",
+        "column 3: frequency"
+      ],
+      "filters": [
+        "lowercase",
+        "simple token only: ^[a-z]+(-[a-z]+)?$",
+        "minimum length 4",
+        "exclude CLOSED_CLASS_WORDS",
+        "first occurrence wins per normalized token"
+      ]
+    },
+    {
+      "name": "Japanese WordNet database",
+      "local_input": "tmp/wnjpn.db",
+      "url": "https://bond-lab.github.io/wnja/",
+      "license_reference": "third_party/licenses/Japanese-WordNet.txt",
+      "usage": [
+        "exact lemma+POS join for English lemma support",
+        "Japanese meaning candidates",
+        "example sentence lookup"
+      ]
+    }
+  ],
+  "intermediate_outputs": [
+    {
+      "path": "tmp/generated_vocab/freq_seed.csv",
+      "schema": [
+        "lemma",
+        "pos",
+        "frequency_rank",
+        "frequency_count",
+        "source_token",
+        "source_corpus"
+      ]
+    },
+    {
+      "path": "tmp/generated_vocab/core_rebuild_report.tsv",
+      "purpose": "retained/dropped diff for the bundled core rebuild"
+    }
+  ],
+  "generation_commands": [
+    "uv run python scripts\\vocab\\generate_freq_seed.py",
+    "uv run python scripts\\vocab\\rebuild_core_from_seed.py",
+    "uv run python scripts\\vocab\\generate_meaning_candidates.py",
+    "uv run python scripts\\vocab\\generate_examples.py",
+    "uv run python scripts\\vocab\\generate_review_candidates.py"
+  ]
+}
