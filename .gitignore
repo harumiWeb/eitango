@@ -13,3 +13,4 @@ uv.lock
 *.egg-info/
 *.egg
 build/
+.gocache/
