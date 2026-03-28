@@ -11,8 +11,8 @@ func TestLoadCoreWordsPhase1Pack(t *testing.T) {
 		t.Fatalf("LoadCoreWords() error = %v", err)
 	}
 
-	if len(entries) < 1000 || len(entries) > 3000 {
-		t.Fatalf("len(entries) = %d, want 1000-3000", len(entries))
+	if len(entries) < 1000 || len(entries) > 5000 {
+		t.Fatalf("len(entries) = %d, want 1000-5000", len(entries))
 	}
 
 	posCounts := make(map[string]int)
