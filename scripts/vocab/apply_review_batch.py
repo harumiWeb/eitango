@@ -34,7 +34,7 @@ def main() -> None:
     out_path = args.out or args.core
 
     approved_rows = []
-    with args.review_tsv.open("r", encoding="utf-8", newline="") as handle:
+    with args.review_tsv.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
         for row in reader:
             if row["status"] != args.status:
