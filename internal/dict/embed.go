@@ -3,7 +3,7 @@ package dict
 import (
 	"fmt"
 
-	projectassets "github.com/yourname/eitango/assets"
+	projectassets "github.com/harumiWeb/eitango/assets"
 )
 
 const CoreWordsVersion = "2026-03-28-wordfreq-review-gate-core-13"

@@ -1,4 +1,4 @@
-module github.com/yourname/eitango
+module github.com/harumiWeb/eitango
 
 go 1.26.1
 

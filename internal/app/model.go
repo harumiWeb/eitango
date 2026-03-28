@@ -5,13 +5,13 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/yourname/eitango/internal/config"
-	"github.com/yourname/eitango/internal/i18n"
-	"github.com/yourname/eitango/internal/quiz"
-	"github.com/yourname/eitango/internal/session"
-	"github.com/yourname/eitango/internal/stats"
-	"github.com/yourname/eitango/internal/store"
-	"github.com/yourname/eitango/internal/tui"
+	"github.com/harumiWeb/eitango/internal/config"
+	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/quiz"
+	"github.com/harumiWeb/eitango/internal/session"
+	"github.com/harumiWeb/eitango/internal/stats"
+	"github.com/harumiWeb/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/tui"
 )
 
 type Screen int

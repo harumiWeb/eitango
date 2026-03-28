@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/yourname/eitango/internal/dict"
+	"github.com/harumiWeb/eitango/internal/dict"
 )
 
 type ResetOptions struct {

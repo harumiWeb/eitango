@@ -6,12 +6,12 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/yourname/eitango/internal/config"
-	"github.com/yourname/eitango/internal/i18n"
-	"github.com/yourname/eitango/internal/quiz"
-	"github.com/yourname/eitango/internal/session"
-	"github.com/yourname/eitango/internal/srs"
-	"github.com/yourname/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/config"
+	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/quiz"
+	"github.com/harumiWeb/eitango/internal/session"
+	"github.com/harumiWeb/eitango/internal/srs"
+	"github.com/harumiWeb/eitango/internal/store"
 )
 
 type sessionRequest struct {

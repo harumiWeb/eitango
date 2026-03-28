@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/yourname/eitango/internal/i18n"
-	"github.com/yourname/eitango/internal/quiz"
-	"github.com/yourname/eitango/internal/stats"
-	"github.com/yourname/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/quiz"
+	"github.com/harumiWeb/eitango/internal/stats"
+	"github.com/harumiWeb/eitango/internal/store"
 )
 
 func TestRenderFeedbackShowsExamplesWhenAvailable(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/harumiWeb/eitango/internal/store"
 	"github.com/spf13/cobra"
-	"github.com/yourname/eitango/internal/store"
 )
 
 func TestImportCommandImportsCSVAndUsesDefaultSource(t *testing.T) {

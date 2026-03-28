@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/yourname/eitango/internal/i18n"
-	"github.com/yourname/eitango/internal/session"
+	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/session"
 )
 
 const appDirName = "eitango-cli"

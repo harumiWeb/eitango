@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/yourname/eitango/internal/config"
-	"github.com/yourname/eitango/internal/i18n"
-	"github.com/yourname/eitango/internal/session"
+	"github.com/harumiWeb/eitango/internal/config"
+	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/session"
 )
 
 func TestUpdateHomeConfirmWithoutActiveStartsSessionImmediately(t *testing.T) {

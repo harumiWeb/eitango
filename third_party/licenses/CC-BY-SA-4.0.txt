@@ -1,0 +1,11 @@
+Creative Commons Attribution-ShareAlike 4.0 International
+
+Canonical legal code:
+https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+Repository usage note:
+- this file is included as a reference for upstream data lineage associated
+  with wordfreq-derived frequency resources
+- CC BY-SA 4.0 is not the license of the eitango application code
+- redistributors of derived data should review the canonical legal code above
+  and keep attribution / share-alike obligations in mind

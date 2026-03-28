@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yourname/eitango/internal/dict"
+	"github.com/harumiWeb/eitango/internal/dict"
 )
 
 func BenchmarkSeedWordsEmbeddedCore(b *testing.B) {

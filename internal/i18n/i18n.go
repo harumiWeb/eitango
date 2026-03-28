@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/toml"
-	"github.com/yourname/eitango/assets"
+	"github.com/harumiWeb/eitango/assets"
 )
 
 const (

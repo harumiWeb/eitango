@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/harumiWeb/eitango/internal/dict"
+	"github.com/harumiWeb/eitango/internal/store"
 	"github.com/spf13/cobra"
-	"github.com/yourname/eitango/internal/dict"
-	"github.com/yourname/eitango/internal/store"
 )
 
 func newImportCommand() *cobra.Command {

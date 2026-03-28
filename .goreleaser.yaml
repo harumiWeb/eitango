@@ -33,6 +33,12 @@ archives:
       {{- .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - LICENSE
+      - README.md
+      - README.en.md
+      - THIRD_PARTY_NOTICES.md
+      - third_party/licenses/**
     format_overrides:
       - goos: windows
         formats: [zip]

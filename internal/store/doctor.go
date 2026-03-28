@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yourname/eitango/internal/dict"
+	"github.com/harumiWeb/eitango/internal/dict"
 )
 
 const (

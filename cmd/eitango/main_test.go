@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/harumiWeb/eitango/internal/config"
+	"github.com/harumiWeb/eitango/internal/dict"
+	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/session"
+	"github.com/harumiWeb/eitango/internal/srs"
+	"github.com/harumiWeb/eitango/internal/store"
 	"github.com/spf13/cobra"
-	"github.com/yourname/eitango/internal/config"
-	"github.com/yourname/eitango/internal/dict"
-	"github.com/yourname/eitango/internal/i18n"
-	"github.com/yourname/eitango/internal/session"
-	"github.com/yourname/eitango/internal/srs"
-	"github.com/yourname/eitango/internal/store"
 	_ "modernc.org/sqlite"
 )
 

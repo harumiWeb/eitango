@@ -1,0 +1,13 @@
+Princeton WordNet reference notice
+
+Project:
+https://wordnet.princeton.edu/
+
+Repository usage note:
+- WordNet-family notices are relevant when Japanese WordNet or NLTK-based
+  corpora are used as upstream lexical inputs
+- raw Princeton WordNet data is not bundled directly in this repository
+
+Before redistributing raw WordNet-family corpora, consult the upstream
+WordNet license text on the Princeton WordNet site and keep the required
+copyright and disclaimer notices.

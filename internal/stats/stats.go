@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yourname/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/i18n"
 )
 
 type Window struct {

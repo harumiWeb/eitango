@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/eitango/internal/srs"
+	"github.com/harumiWeb/eitango/internal/srs"
 )
 
 func TestListExportWordSnapshotsIncludesProgressAndReviewStats(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/yourname/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/store"
 )
 
 type WordStore interface {

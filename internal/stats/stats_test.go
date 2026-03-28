@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yourname/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/i18n"
 )
 
 func TestRenderTextIncludesWaitMinutes(t *testing.T) {

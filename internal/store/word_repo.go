@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yourname/eitango/internal/srs"
-	"github.com/yourname/eitango/internal/stats"
+	"github.com/harumiWeb/eitango/internal/srs"
+	"github.com/harumiWeb/eitango/internal/stats"
 )
 
 func (s *Store) LoadHomeSnapshot(ctx context.Context) (HomeSnapshot, error) {

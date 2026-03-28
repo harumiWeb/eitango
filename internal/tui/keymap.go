@@ -2,7 +2,7 @@ package tui
 
 import (
 	"charm.land/bubbles/v2/key"
-	"github.com/yourname/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/i18n"
 )
 
 type KeyMap struct {

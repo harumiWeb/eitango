@@ -3,7 +3,7 @@ package store
 import (
 	"time"
 
-	"github.com/yourname/eitango/internal/srs"
+	"github.com/harumiWeb/eitango/internal/srs"
 )
 
 const (

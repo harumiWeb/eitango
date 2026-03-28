@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/eitango/internal/dict"
+	"github.com/harumiWeb/eitango/internal/dict"
 )
 
 func TestEmbeddedCoreWordsPassDoctorDiagnostics(t *testing.T) {

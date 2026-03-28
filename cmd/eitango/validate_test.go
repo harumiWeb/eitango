@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yourname/eitango/internal/dict"
+	"github.com/harumiWeb/eitango/internal/dict"
 )
 
 func TestValidateCommandValidatesEmbeddedCore(t *testing.T) {

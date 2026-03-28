@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/yourname/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/store"
 )
 
 func TestBuildChoices(t *testing.T) {

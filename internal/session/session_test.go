@@ -3,7 +3,7 @@ package session
 import (
 	"testing"
 
-	"github.com/yourname/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/store"
 )
 
 func TestMakePlanLearn(t *testing.T) {

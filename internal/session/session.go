@@ -3,7 +3,7 @@ package session
 import (
 	"math"
 
-	"github.com/yourname/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/store"
 )
 
 const DefaultQuestionCount = 10

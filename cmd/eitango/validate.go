@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/harumiWeb/eitango/internal/dict"
 	"github.com/spf13/cobra"
-	"github.com/yourname/eitango/internal/dict"
 )
 
 const (

@@ -6,11 +6,11 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"github.com/yourname/eitango/internal/i18n"
-	"github.com/yourname/eitango/internal/quiz"
-	"github.com/yourname/eitango/internal/srs"
-	"github.com/yourname/eitango/internal/store"
-	"github.com/yourname/eitango/internal/tui"
+	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/quiz"
+	"github.com/harumiWeb/eitango/internal/srs"
+	"github.com/harumiWeb/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/tui"
 )
 
 func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

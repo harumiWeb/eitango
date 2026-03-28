@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/eitango/internal/dict"
+	"github.com/harumiWeb/eitango/internal/dict"
 )
 
 func TestRunDiagnosticsHealthyStore(t *testing.T) {

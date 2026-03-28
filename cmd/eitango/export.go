@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/harumiWeb/eitango/internal/config"
+	"github.com/harumiWeb/eitango/internal/store"
 	"github.com/spf13/cobra"
-	"github.com/yourname/eitango/internal/config"
-	"github.com/yourname/eitango/internal/store"
 )
 
 func newExportCommand() *cobra.Command {

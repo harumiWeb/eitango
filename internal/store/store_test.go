@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/eitango/internal/dict"
-	"github.com/yourname/eitango/internal/srs"
+	"github.com/harumiWeb/eitango/internal/dict"
+	"github.com/harumiWeb/eitango/internal/srs"
 )
 
 func TestMigrateSeedWordsAndHomeSnapshot(t *testing.T) {

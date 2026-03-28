@@ -1,6 +1,6 @@
 package quiz
 
-import "github.com/yourname/eitango/internal/store"
+import "github.com/harumiWeb/eitango/internal/store"
 
 type Choice struct {
 	WordID  int64

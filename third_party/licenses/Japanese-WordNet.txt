@@ -1,0 +1,17 @@
+Japanese WordNet reference notice
+
+Project:
+https://bond-lab.github.io/wnja/
+
+Repository usage note:
+- vocabulary generation scripts in `scripts/vocab/` consult a local
+  `wnjpn.db` copy during data preparation
+- the raw Japanese WordNet database is not redistributed in this repository
+- the project treats bundled `assets/words_core.jsonl` conservatively as an
+  edited dataset influenced by Japanese WordNet output
+
+License guidance summary used by this repository:
+- upstream documentation describes Japanese WordNet data as reusable with
+  retention of copyright / disclaimer notices in copies and redistributions
+- before redistributing raw Japanese WordNet data, consult the upstream
+  project pages and keep the original notices intact

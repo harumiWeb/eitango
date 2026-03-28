@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/yourname/eitango/internal/srs"
+	"github.com/harumiWeb/eitango/internal/srs"
 )
 
 func (s *Store) ListExportWordSnapshots(ctx context.Context) ([]ExportWordSnapshot, error) {

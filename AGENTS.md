@@ -1,8 +1,8 @@
-# AI Agents Guide
+# AIエージェント向けガイド
 
-## 0. Overview
+## 0. 概要
 
-This repository is organized around the following top-level directories:
+このリポジトリは、以下のトップレベルディレクトリ構成を前提に整理されています。
 
 ```text
 eitango/
@@ -28,83 +28,90 @@ eitango/
 └─ go.mod
 ```
 
-## 1. Workflow Design
+## 1. ワークフロー設計
 
-### 1. Use Plan mode by default
+### 1. 基本は Plan モードで進める
 
-- Always start tasks with 3 or more steps, or tasks that affect architecture, in Plan mode
-- If things stop going well partway through, do not force it; stop immediately and replan
-- Use Plan mode not only for implementation, but also for verification steps
-- Write detailed specifications before implementation to reduce ambiguity
+- 3ステップ以上に分かれる作業、またはアーキテクチャに影響する作業は、必ず Plan モードから開始すること
+- 途中で進行がうまくいかなくなった場合は、無理に続行せず、いったん止めて計画を立て直すこと
+- Plan モードは実装時だけでなく、検証手順の設計にも使うこと
+- 実装前に仕様をできるだけ具体化し、曖昧さを減らすこと
 
-### 2. Multi-Agent Strategy
+### 2. マルチエージェント戦略
 
-- Actively use sub-agents to keep the main context window clean
-- Delegate research, investigation, and parallel analysis to sub-agents
-- For complex problems, use sub-agents to apply more compute resources
-- To keep execution focused, assign one task per sub-agent
-- Use explorer for read-heavy codebase exploration
-- Use worker for implementation and fixes
-- Use reviewer for reviews
+- メインのコンテキストを汚さないために、サブエージェントを積極的に活用すること
+- 調査、確認、並列分析はサブエージェントへ委譲すること
+- 複雑な問題では、計算資源を多く使う目的でもサブエージェントを活用すること
+- 実行を集中させるため、サブエージェントには1つのタスクだけを割り当てること
+- 読み取り中心のコードベース探索には explorer を使うこと
+- 実装や修正には worker を使うこと
+- レビューには reviewer を使うこと
 
-### 3. Self-Improvement Loop
+### 3. 自己改善ループ
 
-- Whenever you receive a correction from the user, record that pattern in `tasks/lessons.md`
-- Write rules for yourself so you do not repeat the same mistake
-- Keep improving those rules thoroughly until the error rate goes down
-- At the start of each session, review the lessons relevant to the project
+- ユーザーから修正指示を受けたら、そのパターンを `tasks/lessons.md` に記録すること
+- 同じミスを繰り返さないためのルールを、自分向けに明文化すること
+- エラー率が下がるまで、そのルールを継続的に改善すること
+- 各セッションの開始時には、そのプロジェクトに関係する lesson を見直すこと
 
-### 4. Always verify before completion
+### 4. 完了前に必ず検証する
 
-- Do not mark a task as complete until you can prove that it works
-- Compare the main branch and your changes when necessary
-- Ask yourself, "Would a staff engineer approve this?"
-- Run tests, review logs, and show that it works correctly
+- 動作を証明できるまでは、タスクを完了扱いにしないこと
+- 必要に応じて main ブランチと変更内容を比較すること
+- 「これを staff engineer が見て承認するか？」を自問すること
+- テスト実行、ログ確認、正しく動くことの提示まで行うこと
 
-### 5. Pursue elegance (with balance)
+### 5. バランスを保ちながら、よりエレガントな解決を目指す
 
-- Before making an important change, pause and ask, "Is there a more elegant way to do this?"
-- If a fix feels hacky, think, "Based on everything I know now, implement an elegant solution"
-- Skip this process for simple and obvious fixes (do not over-engineer)
-- Question your own work before presenting it
+- 重要な変更の前には、「もっとエレガントなやり方はないか？」と一度立ち止まって考えること
+- 修正が場当たり的に感じられる場合は、「今わかっている情報を踏まえて、より洗練された形で実装する」と考え直すこと
+- ただし、単純で明白な修正にまでこの手順を持ち込まないこと。過剰設計は避けること
+- 成果物を出す前に、自分の実装を自分で疑って見直すこと
 
-### 6. Autonomous bug fixing
+### 6. バグ修正は自律的に進める
 
-- When you receive a bug report, fix it directly without needing step-by-step guidance
-- Use logs, errors, and failing tests to solve it yourself
-- Eliminate context switching for the user
-- Even without being asked, go fix failing CI tests
-
----
-
-## 2. Documentation Retention Policy
-
-### Separation of Roles
-
-- `tasks/todo.md` may temporarily hold not only session-specific progress tracking, but also verification results, unresolved items, and summaries of decision rationale.
-- `tasks/feature_spec.md` may be used as a pre-implementation working spec draft, but do not treat it as disposable if it contains specifications, constraints, or validation conditions that will be referenced in the future.
-- `tasks/lessons.md` is where recurrence-prevention rules are stored, and should not be used to store design decisions or the specification itself.
-- Move design decisions and trade-offs to `docs/adr/`, current internal specifications and constraints to `docs/specs/`.
-
-### Information to Keep
-
-- Decision rationale that future implementers may encounter again on the same issue
-- Chosen policies adopted after comparing multiple options
-- Permanent rules established through review, CI, or incident response
-- Contracts related to CLI, validation, and compatibility
-- Specification context behind added regression tests where forgetting the reason could cause the issue to recur
-
-### Information You May Discard
-
-- One-off notes about work order
-- Rejected hypotheses or interim notes that ended midway
-- Progress logs with no reference value after completion
-- Simple lists of steps with no decision rationale
+- バグ報告を受けたら、逐一指示を待たずに自分で調査し、そのまま修正まで進めること
+- ログ、エラー、失敗しているテストを使って、自力で原因を特定し解決すること
+- ユーザーに不要なコンテキストスイッチを発生させないこと
+- 指示がなくても、CI が落ちているなら修正に取り組むこと
 
 ---
 
-## 3. Core Principles
+## 2. ドキュメント保持ポリシー
 
-- **Simplicity first**: Keep every change as simple as possible. Minimize the code affected.
-- **No cutting corners**: Find the root cause. Avoid temporary fixes. Maintain senior engineer standards.
-- **Minimize impact**: Limit changes to only what is necessary. Do not introduce new bugs.
+### 役割の分離
+
+- `tasks/todo.md` には、セッション単位の進捗管理だけでなく、検証結果、未解決事項、判断理由の要約などを一時的に記録してよい
+- `tasks/feature_spec.md` は実装前の作業用仕様書として使ってよいが、将来参照する仕様、制約、検証条件が含まれる場合は使い捨てにしないこと
+- `tasks/lessons.md` は再発防止ルールを記録する場所であり、設計判断や仕様そのものを置く場所として使わないこと
+- 設計判断やトレードオフは `docs/adr/` に、現行の内部仕様や制約は `docs/specs/` に移すこと
+
+### ADR と仕様書の使い分け
+
+- ADR には、将来の実装者が同じ問題に再び直面したときに役立つ、判断の背景や複数案を比較したうえで採用した方針を記録すること
+  - ADR を編集する場合は `adr-manager` skill　を使うこと
+- 仕様書には、レビュー、CI、障害対応を通じて確立された恒久的なルールや、CLI、バリデーション、互換性に関わる契約事項を記録すること
+- 追加した回帰テストについて、理由を忘れると再発につながるような仕様上の文脈がある場合は、仕様書に記録すること
+
+### 残すべき情報
+
+- 将来の実装者が同じ問題に再び直面したときに役立つ、判断の背景
+- 複数案を比較したうえで採用した方針
+- レビュー、CI、障害対応を通じて確立された恒久的なルール
+- CLI、バリデーション、互換性に関わる契約事項
+- 追加した回帰テストについて、理由を忘れると再発につながるような仕様上の文脈
+
+### 捨ててよい情報
+
+- 単発の作業順メモ
+- 途中で終わった仮説や中間メモ
+- 完了後に参照価値のない進捗ログ
+- 判断理由を伴わない単純な手順一覧
+
+---
+
+## 3. コア原則
+
+- **まずはシンプルに**: すべての変更は、可能な限りシンプルに保つこと。影響範囲を最小限にすること
+- **手を抜かない**: 根本原因を特定すること。場当たり的な修正は避けること。シニアエンジニア水準を保つこと
+- **影響を最小化する**: 必要な部分だけを変更すること。新たなバグを持ち込まないこと

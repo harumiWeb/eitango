@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sort"
 
-	projectassets "github.com/yourname/eitango/assets"
-	"github.com/yourname/eitango/internal/dict"
+	projectassets "github.com/harumiWeb/eitango/assets"
+	"github.com/harumiWeb/eitango/internal/dict"
 )
 
 func (s *Store) Migrate(ctx context.Context) error {
