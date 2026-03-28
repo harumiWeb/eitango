@@ -655,9 +655,9 @@ WHERE p.word_id IS NULL OR p.state = 'new'
 
 func (s *Store) countStreakDays(ctx context.Context) (int, error) {
 	rows, err := s.db.QueryContext(ctx, `
-SELECT DISTINCT DATE(answered_at)
+SELECT DISTINCT SUBSTR(answered_at, 1, 10) AS review_day
 FROM reviews
-ORDER BY DATE(answered_at) DESC
+ORDER BY review_day DESC
 `)
 	if err != nil {
 		return 0, fmt.Errorf("query streak days: %w", err)

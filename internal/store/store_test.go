@@ -157,7 +157,7 @@ func TestSaveAnswerCreatesRetryCompletesSessionAndUpdatesStats(t *testing.T) {
 		t.Fatalf("unexpected active items: %+v", activeItems)
 	}
 
-	firstAnsweredAt := time.Now().UTC()
+	firstAnsweredAt := stableUTCNoon()
 	record, items, err = st.SaveAnswer(ctx, ReviewEvent{
 		SessionID:      record.ID,
 		ItemOrdinal:    1,
@@ -304,6 +304,73 @@ func TestSaveAnswerCreatesRetryCompletesSessionAndUpdatesStats(t *testing.T) {
 	}
 	if activeRecord != nil || activeItems != nil {
 		t.Fatalf("active runtime after completion = %+v / %+v, want nil", activeRecord, activeItems)
+	}
+}
+
+func TestLoadStatsSnapshotCountsConsecutiveReviewDays(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+
+	if err := st.SeedWords(ctx, testEntries(), "test-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+	if len(words) < 2 {
+		t.Fatalf("len(ListNewWords()) = %d, want at least 2", len(words))
+	}
+
+	yesterday := stableUTCNoon().AddDate(0, 0, -1)
+	today := yesterday.AddDate(0, 0, 1)
+
+	for _, review := range []struct {
+		wordID     int64
+		answeredAt time.Time
+	}{
+		{wordID: words[0].ID, answeredAt: yesterday},
+		{wordID: words[1].ID, answeredAt: today},
+	} {
+		record, _, err := st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+			{WordID: review.wordID, Kind: ItemKindNew},
+		})
+		if err != nil {
+			t.Fatalf("CreateSession() error = %v", err)
+		}
+		if _, _, err := st.SaveAnswer(ctx, ReviewEvent{
+			SessionID:      record.ID,
+			ItemOrdinal:    1,
+			WordID:         review.wordID,
+			Kind:           ItemKindNew,
+			SelectedChoice: 1,
+			CorrectChoice:  1,
+			IsCorrect:      true,
+			Rating:         srs.Good,
+			AnsweredAt:     review.answeredAt,
+			ResponseMS:     800,
+		}); err != nil {
+			t.Fatalf("SaveAnswer() error = %v", err)
+		}
+	}
+
+	homeSnapshot, err := st.LoadHomeSnapshot(ctx)
+	if err != nil {
+		t.Fatalf("LoadHomeSnapshot() error = %v", err)
+	}
+	if homeSnapshot.StreakDays != 2 {
+		t.Fatalf("HomeSnapshot streak = %d, want 2", homeSnapshot.StreakDays)
+	}
+
+	statsSnapshot, err := st.LoadStatsSnapshot(ctx)
+	if err != nil {
+		t.Fatalf("LoadStatsSnapshot() error = %v", err)
+	}
+	if statsSnapshot.StreakDays != 2 {
+		t.Fatalf("StatsSnapshot streak = %d, want 2", statsSnapshot.StreakDays)
 	}
 }
 
@@ -658,4 +725,9 @@ func mustLoadProgress(t *testing.T, st *Store, wordID int64) Progress {
 		t.Fatalf("loadProgressTx() error = %v", err)
 	}
 	return progress
+}
+
+func stableUTCNoon() time.Time {
+	now := time.Now().UTC()
+	return time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.UTC)
 }
