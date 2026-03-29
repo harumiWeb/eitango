@@ -165,8 +165,17 @@ func applyComparison(result *Result, shouldNotify bool) {
 	if result == nil || strings.TrimSpace(result.Latest.TagName) == "" || result.Latest.Prerelease {
 		return
 	}
+	if _, err := parseVersion(result.Latest.TagName); err != nil {
+		return
+	}
 	newer, err := IsNewer(result.Latest.TagName, result.CurrentVersion)
 	if err != nil {
+		if _, currentErr := parseVersion(result.CurrentVersion); currentErr == nil {
+			return
+		}
+		result.Compared = true
+		result.UpdateAvailable = true
+		result.ShouldNotify = shouldNotify
 		return
 	}
 	result.Compared = true

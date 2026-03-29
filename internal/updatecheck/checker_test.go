@@ -50,6 +50,28 @@ func TestCompareVersions(t *testing.T) {
 	}
 }
 
+func TestCheckedResultNonSemverCurrentVersionReportsUpdate(t *testing.T) {
+	t.Parallel()
+
+	result := checkedResult("dev", ReleaseInfo{
+		TagName: "v1.2.0",
+		HTMLURL: "https://example.com/eitango/v1.2.0",
+	}, true)
+
+	if !result.Checked {
+		t.Fatal("Checked = false, want true")
+	}
+	if !result.Compared {
+		t.Fatal("Compared = false, want true")
+	}
+	if !result.UpdateAvailable {
+		t.Fatal("UpdateAvailable = false, want true for non-semver current version")
+	}
+	if !result.ShouldNotify {
+		t.Fatal("ShouldNotify = false, want true after a prior successful check")
+	}
+}
+
 func TestCheckerFirstSuccessfulCheckSuppressesNotice(t *testing.T) {
 	var hits int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
