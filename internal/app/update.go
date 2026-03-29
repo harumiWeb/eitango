@@ -59,7 +59,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case updateCheckedMsg:
 		if msg.Result.ShouldNotify {
 			m.updateLatestTag = msg.Result.Latest.TagName
-		} else if !msg.Result.UpdateAvailable {
+		} else {
 			m.updateLatestTag = ""
 		}
 		return m, nil

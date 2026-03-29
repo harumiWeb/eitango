@@ -151,6 +151,43 @@ func TestCheckerUsesCachedLatestWithinTTL(t *testing.T) {
 	}
 }
 
+func TestCheckerClockSkewForcesFetch(t *testing.T) {
+	var hits int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		if err := json.NewEncoder(w).Encode(ReleaseInfo{
+			TagName: "v1.2.0",
+			HTMLURL: "https://example.com/eitango/v1.2.0",
+		}); err != nil {
+			t.Fatalf("Encode() error = %v", err)
+		}
+	}))
+	defer server.Close()
+
+	now := time.Date(2026, 3, 29, 10, 0, 0, 0, time.UTC)
+	checker := New(filepath.Join(t.TempDir(), "update-check.json"))
+	checker.LatestReleaseURL = server.URL
+	checker.Now = func() time.Time { return now }
+
+	if _, err := checker.Check(context.Background(), "v1.1.0"); err != nil {
+		t.Fatalf("first Check() error = %v", err)
+	}
+	if hits != 1 {
+		t.Fatalf("hits = %d after first check, want 1", hits)
+	}
+
+	// Simulate clock going backwards (skew): now is before LastCheckedAt.
+	now = now.Add(-time.Hour)
+	checker.Now = func() time.Time { return now }
+
+	if _, err := checker.Check(context.Background(), "v1.1.0"); err != nil {
+		t.Fatalf("second Check() error = %v", err)
+	}
+	if hits != 2 {
+		t.Fatalf("hits = %d after clock-skew check, want 2 (cache should be bypassed)", hits)
+	}
+}
+
 func TestCheckerCheckNowBypassesTTL(t *testing.T) {
 	var hits int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

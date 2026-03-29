@@ -426,6 +426,9 @@ func shouldUseCachedState(saved state, now time.Time, ttl time.Duration) bool {
 	if saved.LastCheckedAt.IsZero() || ttl <= 0 {
 		return false
 	}
+	if now.Before(saved.LastCheckedAt) {
+		return false
+	}
 	return now.Sub(saved.LastCheckedAt) < ttl
 }
 
