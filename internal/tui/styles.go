@@ -16,6 +16,7 @@ type Styles struct {
 	Status         lipgloss.Style
 	Error          lipgloss.Style
 	Muted          lipgloss.Style
+	QuizMeta       lipgloss.Style
 	Accent         lipgloss.Style
 }
 
@@ -35,6 +36,7 @@ func NewStyles() Styles {
 		Status:         lipgloss.NewStyle().Foreground(lipgloss.Color("243")),
 		Error:          lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true),
 		Muted:          lipgloss.NewStyle().Foreground(lipgloss.Color("245")),
+		QuizMeta:       lipgloss.NewStyle().Foreground(lipgloss.Color("241")),
 		Accent:         lipgloss.NewStyle().Foreground(lipgloss.Color("81")),
 	}
 }

@@ -35,7 +35,7 @@ func (m RootModel) View() tea.View {
 	if m.loading {
 		body += "\n\n" + m.styles.Muted.Render(i18n.T(i18n.StatusLoading))
 	}
-	body += "\n\n" + m.renderStatusLine()
+	body += "\n" + m.renderStatusLine()
 	return tea.NewView(body)
 }
 
@@ -44,10 +44,10 @@ func (m RootModel) renderHome() string {
 		m.styles.Title.Render(tui.Logo),
 		m.styles.Muted.Render(i18n.T(i18n.HomeSubtitle)),
 		"",
-		fmt.Sprintf("%-14s: %d", i18n.T(i18n.HomeDue), m.home.DueCount),
-		fmt.Sprintf("%-14s: %d", i18n.T(i18n.HomeNew), m.home.NewCount),
-		fmt.Sprintf("%-14s: %d", i18n.T(i18n.HomeStreak), m.home.StreakDays),
-		fmt.Sprintf("%-14s: %.1f min", i18n.T(i18n.HomeWait), m.stats.Today.WaitMinutes),
+		fmt.Sprintf("%s: %d", tui.AlignLabel(i18n.T(i18n.HomeDue), 14), m.home.DueCount),
+		fmt.Sprintf("%s: %d", tui.AlignLabel(i18n.T(i18n.HomeNew), 14), m.home.NewCount),
+		fmt.Sprintf("%s: %d", tui.AlignLabel(i18n.T(i18n.HomeStreak), 14), m.home.StreakDays),
+		fmt.Sprintf("%s: %.1f min", tui.AlignLabel(i18n.T(i18n.HomeWait), 14), m.stats.Today.WaitMinutes),
 	}
 	if m.home.ActiveSession != nil {
 		lines = append(lines,
@@ -89,13 +89,16 @@ func (m RootModel) renderQuiz() string {
 
 	lines := []string{
 		m.styles.Title.Render(m.currentQ.Word.Lemma),
-		m.styles.Muted.Render(fmt.Sprintf("%s  •  %s  •  %d/%d", m.currentQ.Word.Pos, kindLabel(m.currentQ.Kind), m.currentQ.Ordinal, m.currentQ.Total)),
+		"",
+		m.styles.QuizMeta.Render(fmt.Sprintf("%s  •  %s  •  %d/%d", m.currentQ.Word.Pos, kindLabel(m.currentQ.Kind), m.currentQ.Ordinal, m.currentQ.Total)),
+		"",
 	}
 	for i, choice := range m.currentQ.Choices {
-		text := fmt.Sprintf("%d. %s", i+1, choice.Meaning)
 		if i == m.cursor {
+			text := fmt.Sprintf("▸ %d. %s", i+1, choice.Meaning)
 			lines = append(lines, m.styles.ChoiceSelected.Render(text))
 		} else {
+			text := fmt.Sprintf("  %d. %s", i+1, choice.Meaning)
 			lines = append(lines, m.styles.Choice.Render(text))
 		}
 	}
@@ -123,24 +126,24 @@ func (m RootModel) renderFeedback() string {
 
 	lines = append(lines,
 		"",
-		fmt.Sprintf("%-14s: %s", i18n.T(i18n.FbWord), m.feedback.Question.Word.Lemma),
-		fmt.Sprintf("%-14s: %s", i18n.T(i18n.FbCorrectAnswer), m.feedback.Question.CorrectChoice().Meaning),
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.FbWord), 14), m.feedback.Question.Word.Lemma),
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.FbCorrectAnswer), 14), m.feedback.Question.CorrectChoice().Meaning),
 	)
 
 	if !m.feedback.Correct {
 		selected := m.feedback.Question.Choices[m.feedback.SelectedIndex].Meaning
-		lines = append(lines, fmt.Sprintf("%-14s: %s", i18n.T(i18n.FbYourAnswer), selected))
+		lines = append(lines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.FbYourAnswer), 14), selected))
 	}
 
-	lines = append(lines, fmt.Sprintf("%-14s: %d ms", i18n.T(i18n.FbResponseTime), m.feedback.ResponseMS))
+	lines = append(lines, fmt.Sprintf("%s: %d ms", tui.AlignLabel(i18n.T(i18n.FbResponseTime), 14), m.feedback.ResponseMS))
 
 	if m.feedback.Question.Word.ExampleEN != "" || m.feedback.Question.Word.ExampleJA != "" {
 		lines = append(lines, "")
 		if m.feedback.Question.Word.ExampleEN != "" {
-			lines = append(lines, fmt.Sprintf("%-14s: %s", i18n.T(i18n.FbExampleEN), m.feedback.Question.Word.ExampleEN))
+			lines = append(lines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.FbExampleEN), 14), m.feedback.Question.Word.ExampleEN))
 		}
 		if m.feedback.Question.Word.ExampleJA != "" {
-			lines = append(lines, fmt.Sprintf("%-14s: %s", i18n.T(i18n.FbExampleJA), m.feedback.Question.Word.ExampleJA))
+			lines = append(lines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.FbExampleJA), 14), m.feedback.Question.Word.ExampleJA))
 		}
 	}
 	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.FbKeys)))
@@ -154,9 +157,9 @@ func (m RootModel) renderResults() string {
 
 	lines := []string{
 		m.styles.Title.Render(i18n.T(i18n.ResultsTitle)),
-		fmt.Sprintf("%-10s: %.1f%%", i18n.T(i18n.ResultsAccuracy), m.summary.Accuracy),
-		fmt.Sprintf("%-10s: %d/%d", i18n.T(i18n.ResultsCorrect), m.summary.CorrectAnswers, m.summary.TotalQuestions),
-		fmt.Sprintf("%-10s: %s", i18n.T(i18n.ResultsMix), i18n.Tf(i18n.ResultsMixDetail, m.summary.NewCount, m.summary.ReviewCount, m.summary.RetryCount)),
+		fmt.Sprintf("%s: %.1f%%", tui.AlignLabel(i18n.T(i18n.ResultsAccuracy), 14), m.summary.Accuracy),
+		fmt.Sprintf("%s: %d/%d", tui.AlignLabel(i18n.T(i18n.ResultsCorrect), 14), m.summary.CorrectAnswers, m.summary.TotalQuestions),
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.ResultsMix), 14), i18n.Tf(i18n.ResultsMixDetail, m.summary.NewCount, m.summary.ReviewCount, m.summary.RetryCount)),
 	}
 	if len(m.summary.HardWords) > 0 {
 		lines = append(lines, "", m.styles.Subtitle.Render(i18n.T(i18n.ResultsHardWords)))
@@ -188,13 +191,14 @@ func (m RootModel) renderHelp() string {
 }
 
 func (m RootModel) renderStatusLine() string {
+	msg := m.status
+	if msg == "" {
+		msg = i18n.T(i18n.StatusReady)
+	}
 	if m.err != nil {
-		return m.styles.Error.Render(m.status)
+		return m.styles.Error.Render("status: " + msg)
 	}
-	if m.status == "" {
-		return m.styles.Status.Render(i18n.T(i18n.StatusReady))
-	}
-	return m.styles.Status.Render(m.status)
+	return m.styles.Status.Render("status: " + msg)
 }
 
 func kindLabel(kind string) string {
@@ -209,7 +213,7 @@ func kindLabel(kind string) string {
 }
 
 func (m RootModel) renderSettingsRow(index int, label, value string) string {
-	text := fmt.Sprintf("%-16s: %s", label, value)
+	text := fmt.Sprintf("%s: %s", tui.AlignLabel(label, 18), value)
 	if m.settingsCursor == index {
 		return m.styles.ChoiceSelected.Render(text)
 	}
