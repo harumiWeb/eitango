@@ -1,3 +1,13 @@
+<p align="center">
+    <img width="600" alt="logo" src="assets/logo.png" />
+</p>
+
+<p align="center">
+  <em>eitango - TUI English Vocabulary Tool</em>
+</p>
+
+---
+
 # eitango
 
 `eitango` is an offline English vocabulary trainer with a terminal UI. It uses Bubble Tea for the interactive interface and a local SQLite database for progress tracking.

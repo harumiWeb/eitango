@@ -1,10 +1,12 @@
 <p align="center">
-    <img width="600" alt="logo" src="https://github.com/user-attachments/assets/ab4d0cb7-d415-427f-9026-5b2faac52b11" />
+    <img width="600" alt="logo" src="assets/logo.png" />
 </p>
 
 <p align="center">
   <em>eitango - TUI English Vocabulary Tool</em>
 </p>
+
+---
 
 # eitango
 
