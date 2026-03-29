@@ -17,6 +17,7 @@ import (
 	"github.com/harumiWeb/eitango/internal/session"
 	"github.com/harumiWeb/eitango/internal/srs"
 	"github.com/harumiWeb/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/updatecheck"
 	"github.com/spf13/cobra"
 	_ "modernc.org/sqlite"
 )
@@ -124,6 +125,10 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 	if cmd.PersistentFlags().Lookup("license") == nil {
 		t.Fatal("root license flag not found")
 	}
+	versionCmd := findSubcommand(cmd, "version")
+	if versionCmd == nil {
+		t.Fatal("version command not found")
+	}
 }
 
 func TestNewRootCommandVersionFlag(t *testing.T) {
@@ -203,6 +208,75 @@ func TestFormatBuildVersion(t *testing.T) {
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("formatBuildVersion() = %q, want substring %q", got, want)
+		}
+	}
+}
+
+func TestFormatVersionReportIncludesLatestRelease(t *testing.T) {
+	t.Parallel()
+
+	got := formatVersionReport(updatecheck.Result{
+		Latest: updatecheck.ReleaseInfo{
+			TagName: "v1.2.4",
+			HTMLURL: "https://example.com/eitango/v1.2.4",
+		},
+		UpdateAvailable: true,
+		Compared:        true,
+	})
+
+	for _, want := range []string{
+		"latest: v1.2.4",
+		"release: https://example.com/eitango/v1.2.4",
+		"status: update available",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("formatVersionReport() = %q, want substring %q", got, want)
+		}
+	}
+}
+
+func TestVersionCommandShowsLatestRelease(t *testing.T) {
+	service := &mainStubUpdateService{
+		checkNowResult: updatecheck.Result{
+			Latest: updatecheck.ReleaseInfo{
+				TagName: "v1.2.4",
+				HTMLURL: "https://example.com/eitango/v1.2.4",
+			},
+			UpdateAvailable: true,
+			Compared:        true,
+		},
+	}
+	original := newUpdateService
+	newUpdateService = func(string) updatecheck.Service {
+		return service
+	}
+	defer func() {
+		newUpdateService = original
+	}()
+
+	t.Setenv("EITANGO_DATA_DIR", t.TempDir())
+
+	var out bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"version"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	if service.checkNowCalls != 1 {
+		t.Fatalf("checkNowCalls = %d, want 1", service.checkNowCalls)
+	}
+	output := out.String()
+	for _, want := range []string{
+		"latest: v1.2.4",
+		"release: https://example.com/eitango/v1.2.4",
+		"status: update available",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("version output = %q, want substring %q", output, want)
 		}
 	}
 }
@@ -558,4 +632,19 @@ func mustMetaValue(t *testing.T, dbPath, key string) string {
 		t.Fatalf("load app_meta %s: %v", key, err)
 	}
 	return value
+}
+
+type mainStubUpdateService struct {
+	checkNowResult updatecheck.Result
+	checkNowErr    error
+	checkNowCalls  int
+}
+
+func (s *mainStubUpdateService) Check(context.Context, string) (updatecheck.Result, error) {
+	return updatecheck.Result{}, nil
+}
+
+func (s *mainStubUpdateService) CheckNow(context.Context, string) (updatecheck.Result, error) {
+	s.checkNowCalls++
+	return s.checkNowResult, s.checkNowErr
 }

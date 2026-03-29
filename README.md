@@ -27,6 +27,7 @@
 - `eitango learn` で通常学習セッションを開始
 - `eitango review` で due-only の復習セッションを開始
 - `eitango stats` で学習統計を表示
+- `eitango version` で現在のビルド情報と最新 release を確認
 - `eitango doctor` で DB と辞書の read-only 診断を実行
 - `eitango validate` で組み込み辞書や外部 CSV / JSONL を検証
 - `eitango import` / `eitango export` / `eitango reset` で辞書と進捗を保守
@@ -57,6 +58,7 @@ eitango
 eitango learn
 eitango review --focus-mode
 eitango stats
+eitango version
 eitango doctor
 ```
 
@@ -73,13 +75,31 @@ eitango doctor
 - `user.db`
 - `config.toml`
 - `logs/`
+- `update-check.json`
 
 保存先は `EITANGO_DATA_DIR` で上書きできます。
+
+## 更新通知
+
+`eitango` / `eitango learn` / `eitango review` / `eitango version` は、GitHub Releases の latest release を確認できます。
+
+- 更新確認は 24 時間に 1 回までです
+- 初回の成功確認では通知せず、次回以降の起動で差分があればホーム画面に軽く表示します
+- `eitango version` は現在の build info に加えて latest release URL も表示します
+- タイムアウトやオフライン時は黙ってスキップし、学習体験を止めません
+- `EITANGO_DISABLE_UPDATE_CHECK=1` で完全に無効化できます
+
+更新自体は自動化していません。必要に応じて GitHub Releases の最新成果物を取り直すか、Go インストールなら次を再実行してください。
+
+```bash
+go install github.com/harumiWeb/eitango/cmd/eitango@latest
+```
 
 ## コマンド一覧
 
 | コマンド | 役割 |
 | --- | --- |
+| `eitango version` | 現在の build info と latest release を表示 |
 | `eitango learn [--focus-mode] [--questions N]` | 通常学習セッションを開始 |
 | `eitango review [--focus-mode] [--questions N] [--restart]` | due-only 復習を開始 |
 | `eitango stats` | 統計を表示 |

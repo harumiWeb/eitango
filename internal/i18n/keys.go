@@ -12,6 +12,9 @@ const (
 	HomeWait         = "home.wait"
 	HomeActive       = "home.active"
 	HomeActiveDetail = "home.active_detail"
+	HomeUpdate       = "home.update"
+	HomeUpdateDetail = "home.update_detail"
+	HomeUpdateHint   = "home.update_hint"
 	HomeKeys         = "home.keys"
 )
 

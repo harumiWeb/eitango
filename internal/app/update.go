@@ -56,6 +56,13 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = i18n.T(i18n.StatusSettingsSaved)
 		}
 		return m, nil
+	case updateCheckedMsg:
+		if msg.Result.ShouldNotify {
+			m.updateLatestTag = msg.Result.Latest.TagName
+		} else if !msg.Result.UpdateAvailable {
+			m.updateLatestTag = ""
+		}
+		return m, nil
 	case sessionLoadedMsg:
 		m.runtime = msg.Runtime
 		m.currentQ = &msg.Question

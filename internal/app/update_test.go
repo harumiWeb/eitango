@@ -2,12 +2,14 @@ package app
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
 	"github.com/harumiWeb/eitango/internal/session"
+	"github.com/harumiWeb/eitango/internal/updatecheck"
 )
 
 func TestUpdateHomeConfirmWithoutActiveStartsSessionImmediately(t *testing.T) {
@@ -171,5 +173,45 @@ func TestUpdateHomeSettingsSaveDisablesFocusModeDefaultOnQuestionChange(t *testi
 	}
 	if final.status != i18n.T(i18n.StatusSettingsSavedFocus) {
 		t.Fatalf("status = %q, want focus-disabled save status", final.status)
+	}
+}
+
+func TestUpdateCheckedMsgStoresLatestVersionForHomeNotice(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{CurrentVersion: "v1.1.0"})
+
+	next, _ := model.Update(updateCheckedMsg{Result: updatecheck.Result{
+		Latest:          updatecheck.ReleaseInfo{TagName: "v1.2.0"},
+		UpdateAvailable: true,
+		ShouldNotify:    true,
+	}})
+	updated := next.(RootModel)
+
+	if updated.updateLatestTag != "v1.2.0" {
+		t.Fatalf("updateLatestTag = %q, want v1.2.0", updated.updateLatestTag)
+	}
+}
+
+func TestRenderHomeShowsUpdateNotice(t *testing.T) {
+	if err := i18n.Load(i18n.LangEN); err != nil {
+		t.Fatalf("Load(en) error = %v", err)
+	}
+	defer func() {
+		if err := i18n.Load(i18n.LangJA); err != nil {
+			t.Fatalf("restore Load(ja) error = %v", err)
+		}
+	}()
+
+	model := NewModel(nil, Options{CurrentVersion: "v1.1.0"})
+	model.loading = false
+	model.updateLatestTag = "v1.2.0"
+
+	rendered := model.renderHome()
+	if !strings.Contains(rendered, i18n.T(i18n.HomeUpdate)) {
+		t.Fatalf("renderHome() = %q, want update title", rendered)
+	}
+	if !strings.Contains(rendered, "v1.2.0") {
+		t.Fatalf("renderHome() = %q, want latest version", rendered)
 	}
 }

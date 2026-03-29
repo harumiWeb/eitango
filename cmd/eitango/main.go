@@ -16,6 +16,7 @@ import (
 	"github.com/harumiWeb/eitango/internal/session"
 	"github.com/harumiWeb/eitango/internal/stats"
 	"github.com/harumiWeb/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/updatecheck"
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +25,10 @@ var (
 	version = "dev"
 	commit  = "unknown"
 	date    = "unknown"
+
+	newUpdateService = func(dataDir string) updatecheck.Service {
+		return updatecheck.New(updatecheck.DefaultStatePath(dataDir))
+	}
 )
 
 func main() {
@@ -54,8 +59,16 @@ func newRootCommand() *cobra.Command {
 	}
 	cmd.SetVersionTemplate("{{ .Version }}\n")
 	cmd.PersistentFlags().Bool("license", false, "Print bundled license information and exit")
-	cmd.AddCommand(newLearnCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand(), newImportCommand(), newExportCommand(), newResetCommand(), newValidateCommand())
+	cmd.AddCommand(newVersionCommand(), newLearnCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand(), newImportCommand(), newExportCommand(), newResetCommand(), newValidateCommand())
 	return cmd
+}
+
+func newVersionCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Show build and release version information",
+		RunE:  runVersion,
+	}
 }
 
 func newLearnCommand() *cobra.Command {
@@ -94,9 +107,11 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 	}
 
 	program := tea.NewProgram(app.NewModel(st, app.Options{
-		Plan:       mustSessionOptions(settings, nil, nil),
-		Settings:   settings,
-		ConfigPath: paths.ConfigPath,
+		Plan:           mustSessionOptions(settings, nil, nil),
+		Settings:       settings,
+		ConfigPath:     paths.ConfigPath,
+		CurrentVersion: version,
+		UpdateService:  newUpdateService(paths.DataDir),
 	}))
 	_, err = program.Run()
 	return err
@@ -130,9 +145,11 @@ func runLearn(cmd *cobra.Command, args []string) error {
 	}
 
 	program := tea.NewProgram(app.NewModel(st, app.Options{
-		Plan:       options,
-		Settings:   settings,
-		ConfigPath: paths.ConfigPath,
+		Plan:           options,
+		Settings:       settings,
+		ConfigPath:     paths.ConfigPath,
+		CurrentVersion: version,
+		UpdateService:  newUpdateService(paths.DataDir),
 	}))
 	_, err = program.Run()
 	return err
@@ -170,9 +187,11 @@ func runReview(cmd *cobra.Command, args []string) error {
 	}
 
 	program := tea.NewProgram(app.NewModel(st, app.Options{
-		Plan:       options,
-		Settings:   settings,
-		ConfigPath: paths.ConfigPath,
+		Plan:           options,
+		Settings:       settings,
+		ConfigPath:     paths.ConfigPath,
+		CurrentVersion: version,
+		UpdateService:  newUpdateService(paths.DataDir),
 		Startup: &app.StartupRequest{
 			Mode:          store.ModeReview,
 			ReplaceActive: restart,
@@ -203,6 +222,17 @@ func newStatsCommand() *cobra.Command {
 			return err
 		},
 	}
+}
+
+func runVersion(cmd *cobra.Command, args []string) error {
+	result := updatecheck.Result{}
+	if paths, err := config.Resolve(); err == nil {
+		if service := newUpdateService(paths.DataDir); service != nil {
+			result, _ = service.CheckNow(commandContext(cmd), version)
+		}
+	}
+	_, err := fmt.Fprint(cmd.OutOrStdout(), formatVersionReport(result))
+	return err
 }
 
 func newDoctorCommand() *cobra.Command {
@@ -433,6 +463,28 @@ func maybePrintLicense(cmd *cobra.Command) error {
 
 func buildVersionText() string {
 	return formatBuildVersion("eitango", version, commit, date)
+}
+
+func formatVersionReport(result updatecheck.Result) string {
+	var b strings.Builder
+	b.WriteString(buildVersionText())
+	if result.Disabled {
+		fmt.Fprintf(&b, "\nlatest: disabled (%s=1)", updatecheck.DisableEnv)
+		return b.String()
+	}
+	if tag := strings.TrimSpace(result.Latest.TagName); tag != "" {
+		fmt.Fprintf(&b, "\nlatest: %s", tag)
+		if url := strings.TrimSpace(result.Latest.HTMLURL); url != "" {
+			fmt.Fprintf(&b, "\nrelease: %s", url)
+		}
+		switch {
+		case result.UpdateAvailable:
+			fmt.Fprint(&b, "\nstatus: update available")
+		case result.Compared:
+			fmt.Fprint(&b, "\nstatus: up to date")
+		}
+	}
+	return b.String()
 }
 
 func formatBuildVersion(name, version, commit, date string) string {
