@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/harumiWeb/eitango/internal/dict"
@@ -38,11 +38,11 @@ func NormalizeImportSource(name string) (string, error) {
 }
 
 func DefaultImportSource(filePath string) (string, error) {
-	base := filepath.Base(strings.TrimSpace(filePath))
+	base := path.Base(strings.ReplaceAll(strings.TrimSpace(filePath), `\`, `/`))
 	if base == "" || base == "." {
 		return "", fmt.Errorf("derive import source: file path is required")
 	}
-	name := strings.TrimSuffix(base, filepath.Ext(base))
+	name := strings.TrimSuffix(base, path.Ext(base))
 	if name == "" {
 		return "", fmt.Errorf("derive import source from %q: base name is empty", filePath)
 	}

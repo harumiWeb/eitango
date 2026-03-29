@@ -279,12 +279,36 @@ func TestResetReseedPreservesImportedWords(t *testing.T) {
 func TestDefaultImportSourceDerivesFromFileName(t *testing.T) {
 	t.Parallel()
 
-	source, err := DefaultImportSource(`C:\tmp\My Words.csv`)
-	if err != nil {
-		t.Fatalf("DefaultImportSource() error = %v", err)
+	testCases := []struct {
+		name     string
+		filePath string
+		want     string
+	}{
+		{
+			name:     "windows separators",
+			filePath: `C:\tmp\My Words.csv`,
+			want:     "import:My Words",
+		},
+		{
+			name:     "unix separators",
+			filePath: "/tmp/My Words.csv",
+			want:     "import:My Words",
+		},
 	}
-	if source != "import:My Words" {
-		t.Fatalf("DefaultImportSource() = %q, want import:My Words", source)
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			source, err := DefaultImportSource(tc.filePath)
+			if err != nil {
+				t.Fatalf("DefaultImportSource() error = %v", err)
+			}
+			if source != tc.want {
+				t.Fatalf("DefaultImportSource() = %q, want %s", source, tc.want)
+			}
+		})
 	}
 }
 
