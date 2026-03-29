@@ -67,6 +67,7 @@ eitango doctor
 | `eitango learn [--focus-mode] [--questions N]` | 通常学習セッションを開始 |
 | `eitango review [--focus-mode] [--questions N] [--restart]` | due-only 復習を開始 |
 | `eitango stats` | 統計を表示 |
+| `eitango --license` | 同梱ライセンスと notice を表示 |
 | `eitango doctor` | DB / 辞書の診断 |
 | `eitango validate --embedded-core` | 組み込み core 辞書を検証 |
 | `eitango validate --file words.csv --format csv --kind import` | import 用辞書を検証 |

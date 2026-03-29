@@ -121,6 +121,9 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 	if reset.Flags().Lookup("reseed") == nil {
 		t.Fatal("reset reseed flag not found")
 	}
+	if cmd.PersistentFlags().Lookup("license") == nil {
+		t.Fatal("root license flag not found")
+	}
 }
 
 func TestNewRootCommandVersionFlag(t *testing.T) {
@@ -143,6 +146,48 @@ func TestNewRootCommandVersionFlag(t *testing.T) {
 	}
 	if !strings.Contains(output, "date: ") {
 		t.Fatalf("version output = %q, want date line", output)
+	}
+}
+
+func TestNewRootCommandLicenseFlag(t *testing.T) {
+	var out bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--license"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	output := out.String()
+	for _, want := range []string{
+		"===== LICENSE =====",
+		"Apache License",
+		"===== THIRD_PARTY_NOTICES.md =====",
+		"Third-Party Notices",
+		"Japanese Wordnet (v1.1)",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("license output = %q, want substring %q", output, want)
+		}
+	}
+}
+
+func TestNewRootCommandHelpIncludesLicenseFlag(t *testing.T) {
+	var out bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--help"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "--license") {
+		t.Fatalf("help output = %q, want --license", output)
 	}
 }
 

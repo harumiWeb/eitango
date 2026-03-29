@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/harumiWeb/eitango"
 	"github.com/harumiWeb/eitango/internal/app"
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/dict"
@@ -47,8 +48,12 @@ func newRootCommand() *cobra.Command {
 		SilenceUsage:  true,
 		Version:       buildVersionText(),
 		RunE:          runDashboard,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return maybePrintLicense(cmd)
+		},
 	}
 	cmd.SetVersionTemplate("{{ .Version }}\n")
+	cmd.PersistentFlags().Bool("license", false, "Print bundled license information and exit")
 	cmd.AddCommand(newLearnCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand(), newImportCommand(), newExportCommand(), newResetCommand(), newValidateCommand())
 	return cmd
 }
@@ -403,6 +408,27 @@ func commandContext(cmd *cobra.Command) context.Context {
 		return context.Background()
 	}
 	return ctx
+}
+
+func maybePrintLicense(cmd *cobra.Command) error {
+	showLicense, err := cmd.Flags().GetBool("license")
+	if err != nil {
+		return fmt.Errorf("get license flag: %w", err)
+	}
+	if !showLicense {
+		return nil
+	}
+
+	text, err := eitango.LicenseText()
+	if err != nil {
+		return fmt.Errorf("load embedded licenses: %w", err)
+	}
+	if _, err := fmt.Fprintln(cmd.OutOrStdout(), text); err != nil {
+		return err
+	}
+	cmd.Run = func(*cobra.Command, []string) {}
+	cmd.RunE = func(*cobra.Command, []string) error { return nil }
+	return nil
 }
 
 func buildVersionText() string {

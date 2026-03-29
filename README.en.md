@@ -33,6 +33,7 @@ go install github.com/harumiWeb/eitango/cmd/eitango@latest
 eitango learn
 eitango review --focus-mode
 eitango stats
+eitango --license
 eitango doctor
 ```
 
