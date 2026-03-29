@@ -33,6 +33,12 @@ These tools are for repository maintenance and are not required for normal end-u
 
 The file `assets/words_core.jsonl` is bundled with the repository and seeded into the local database at runtime. It is a project-curated vocabulary file, and the current repository treats it conservatively as an edited dataset produced from upstream lexical resources.
 
+Field-level provenance summary for `assets/words_core.jsonl`:
+
+- `meaning_ja` contains Japanese meaning text curated with Japanese WordNet as an upstream lexical source.
+- `frequency_rank` is derived from the Leipzig Corpora Collection English News 2024 1M word list.
+- `level` is an `eitango`-specific `core-1` to `core-4` bucket, not an upstream source label.
+
 Relevant upstream references:
 
 | Upstream source | How it is used here | License reference |
@@ -47,6 +53,18 @@ Important distribution note:
 - this repository does **not** ship the raw Leipzig corpus files used during local regeneration
 - this repository **does** ship `assets/words_core.jsonl`, which should be redistributed together with this notice and the referenced upstream license materials
 - redistributions that publish or embed Japanese-WordNet-influenced data should also keep the version-appropriate attribution link wording documented in `third_party/licenses/Japanese-WordNet.txt`
+
+Recommended public attribution example for the current expected Japanese WordNet input:
+
+```text
+Japanese Wordnet (v1.1) © 2009-2011 NICT, 2012-2015 Francis Bond and 2016-2024 Francis Bond, Takayuki Kuribayashi
+https://bond-lab.github.io/wnja/index.en.html
+```
+
+```text
+日本語ワードネット（1.1版）© 2009-2011 NICT, 2012-2015 Francis Bond and 2016-2024 Francis Bond, Takayuki Kuribayashi
+https://bond-lab.github.io/wnja/index.ja.html
+```
 
 If you redistribute `words_core.jsonl` or a derivative package that embeds it, keep this notice, the referenced upstream license materials, and the Japanese WordNet attribution guidance before making additional licensing claims.
 

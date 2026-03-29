@@ -79,13 +79,27 @@ eitango doctor
 
 `eitango` のコードは [Apache License 2.0](LICENSE) です。ただし、配布物に含まれる `assets/words_core.jsonl` はコードとは別に出所を持つ語彙データであり、Apache-2.0 だけで完結するものとして扱っていません。
 
-このリポジトリでは、bundled core の語彙由来を Leipzig English News 2024 1M word list と Japanese WordNet (`wnjpn.db`) に限定しています。
+このリポジトリでは、bundled core の語彙由来を Leipzig Corpora Collection English News 2024 1M word list と Japanese WordNet (`wnjpn.db`) に限定しています。
 
 - `assets/words_core.jsonl` はプロジェクトが編集・整備した core 語彙データです
-- `frequency_rank` は Leipzig 由来の bundled-core ranking、`level` は `core-1` から `core-4` の内部バケットです
+- `meaning_ja` は Japanese WordNet を参照して整備した日本語意味データです
+- `frequency_rank` は Leipzig Corpora Collection English News 2024 1M word list 由来の bundled-core ranking です
+- `level` は `core-1` から `core-4` の内部バケットであり、上流データセットのラベルではありません
 - 語彙生成スクリプトはローカル入力の `tmp/eng_news_2024_1M-words.txt` と `tmp/wnjpn.db` を参照します
 - raw の Leipzig / WordNet 入力は配布物に含めず、生成条件は `scripts/vocab/source_manifest.json` に固定します
 - Japanese WordNet を直接・間接に使った成果公開や再配布では、`third_party/licenses/Japanese-WordNet.txt` にまとめた上流推奨のクレジット文言・リンク・ライセンス案内を保持してください
+
+公開成果物での Japanese WordNet 帰属表示は、少なくとも次のような文言を含める想定です（ローカル入力を別版に差し替えた場合は版番号も合わせて更新してください）。
+
+```text
+Japanese Wordnet (v1.1) © 2009-2011 NICT, 2012-2015 Francis Bond and 2016-2024 Francis Bond, Takayuki Kuribayashi
+https://bond-lab.github.io/wnja/index.en.html
+```
+
+```text
+日本語ワードネット（1.1版）© 2009-2011 NICT, 2012-2015 Francis Bond and 2016-2024 Francis Bond, Takayuki Kuribayashi
+https://bond-lab.github.io/wnja/index.ja.html
+```
 
 再配布や派生利用の前に、必ず次を確認してください。
 

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "bundled_core_policy": {
-    "schema_stability": "Keep assets/words_core.jsonl fields stable while swapping provenance to Leipzig + Japanese WordNet.",
+    "schema_stability": "Keep assets/words_core.jsonl fields stable while swapping provenance to Leipzig Corpora Collection English News 2024 1M word list + Japanese WordNet.",
     "raw_inputs_distributed": false
   },
   "sources": [
@@ -31,6 +31,8 @@
       "downloads_page": "https://bond-lab.github.io/wnja/jpn/downloads.html",
       "license_url": "https://bond-lab.github.io/wnja/license.txt",
       "license_reference": "third_party/licenses/Japanese-WordNet.txt",
+      "attribution_example_en": "Japanese Wordnet (v1.1) © 2009-2011 NICT, 2012-2015 Francis Bond and 2016-2024 Francis Bond, Takayuki Kuribayashi",
+      "attribution_example_ja": "日本語ワードネット（1.1版）© 2009-2011 NICT, 2012-2015 Francis Bond and 2016-2024 Francis Bond, Takayuki Kuribayashi",
       "attribution_guidance": "Published results that directly or indirectly use Japanese WordNet data should keep the version-appropriate attribution link wording documented in third_party/licenses/Japanese-WordNet.txt.",
       "usage": [
         "exact lemma+POS join for English lemma support",
