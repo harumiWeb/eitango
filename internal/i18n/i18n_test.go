@@ -79,7 +79,8 @@ func TestAllJAKeysExistInEN(t *testing.T) {
 	// Ensure every defined key constant returns a non-key value for both languages.
 	keys := []string{
 		i18n.HomeSubtitle, i18n.HomeDue, i18n.HomeNew, i18n.HomeStreak,
-		i18n.HomeWait, i18n.HomeActive, i18n.HomeActiveDetail, i18n.HomeKeys,
+		i18n.HomeWait, i18n.HomeActive, i18n.HomeActiveDetail, i18n.HomeUpdate,
+		i18n.HomeUpdateDetail, i18n.HomeUpdateHint, i18n.HomeKeys,
 		i18n.QuizNoQuestion, i18n.QuizKeys,
 		i18n.KindReview, i18n.KindRetry, i18n.KindNew,
 		i18n.FbNoFeedback, i18n.FbCorrect, i18n.FbIncorrect,

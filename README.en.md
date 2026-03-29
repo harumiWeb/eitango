@@ -27,6 +27,7 @@
 - `eitango learn` starts a standard learning session
 - `eitango review` starts a due-only review session
 - `eitango stats` shows learning statistics
+- `eitango version` shows the current build info and the latest release
 - `eitango doctor` runs read-only diagnostics on the DB and dictionary
 - `eitango validate` validates the embedded dictionary or external CSV / JSONL files
 - `eitango import` / `eitango export` / `eitango reset` maintain dictionaries and learning progress
@@ -57,6 +58,7 @@ You can also start directly in a specific mode.
 eitango learn
 eitango review --focus-mode
 eitango stats
+eitango version
 eitango doctor
 ```
 
@@ -73,13 +75,32 @@ The following files and directories are created there:
 - `user.db`
 - `config.toml`
 - `logs/`
+- `update-check.json`
 
 Set `EITANGO_DATA_DIR` to override the default location.
+
+## Update Checks
+
+`eitango`, `eitango learn`, `eitango review`, and `eitango version` can check the latest GitHub Release.
+
+- checks run at most once every 24 hours
+- the first successful check seeds the cache without showing a notice
+- later launches show a lightweight home-screen notice when a newer version is available
+- `eitango version` prints the current build info plus the latest release URL when available
+- timeouts and offline failures are skipped silently so they do not interrupt study sessions
+- set `EITANGO_DISABLE_UPDATE_CHECK=1` to disable the feature completely
+
+Updates are still manual. Download the latest GitHub Release artifact, or rerun the Go install command if that is how you installed `eitango`.
+
+```bash
+go install github.com/harumiWeb/eitango/cmd/eitango@latest
+```
 
 ## Command Reference
 
 | Command | Purpose |
 | --- | --- |
+| `eitango version` | Show the current build info and the latest release |
 | `eitango learn [--focus-mode] [--questions N]` | Start a standard learning session |
 | `eitango review [--focus-mode] [--questions N] [--restart]` | Start a due-only review session |
 | `eitango stats` | Show learning statistics |

@@ -8,6 +8,9 @@ streak = "連続日数"
 wait = "今日の学習時間"
 active = "進行中のセッション"
 active_detail = "%d/%d 問回答済み (%s)"
+update = "更新があります"
+update_detail = "%s を利用できます (現在: %s)"
+update_hint = "`eitango version` でリリース情報を確認できます"
 keys = "Enter=開始/再開  n=新規  r=復習  s=統計  c=設定  q=終了"
 
 [settings]

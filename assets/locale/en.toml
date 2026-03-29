@@ -8,6 +8,9 @@ streak = "Streak days"
 wait = "Wait today"
 active = "Active session"
 active_detail = "%d/%d answered (%s)"
+update = "Update available"
+update_detail = "%s is available (current: %s)"
+update_hint = "Run `eitango version` to see release details"
 keys = "Enter=start/resume  n=new  r=review  s=stats  c=settings  q=quit"
 
 [settings]

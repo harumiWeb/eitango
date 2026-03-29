@@ -2,6 +2,7 @@ package app
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -12,6 +13,7 @@ import (
 	"github.com/harumiWeb/eitango/internal/stats"
 	"github.com/harumiWeb/eitango/internal/store"
 	"github.com/harumiWeb/eitango/internal/tui"
+	"github.com/harumiWeb/eitango/internal/updatecheck"
 )
 
 type Screen int
@@ -51,6 +53,10 @@ type settingsSavedMsg struct {
 	FocusModeDisabled bool
 }
 
+type updateCheckedMsg struct {
+	Result updatecheck.Result
+}
+
 type errMsg struct {
 	err error
 }
@@ -61,10 +67,12 @@ type StartupRequest struct {
 }
 
 type Options struct {
-	Plan       session.PlanOptions
-	Startup    *StartupRequest
-	Settings   config.Settings
-	ConfigPath string
+	Plan           session.PlanOptions
+	Startup        *StartupRequest
+	Settings       config.Settings
+	ConfigPath     string
+	CurrentVersion string
+	UpdateService  updatecheck.Service
 }
 
 type RootModel struct {
@@ -74,6 +82,9 @@ type RootModel struct {
 	startup          *StartupRequest
 	settings         config.Settings
 	configPath       string
+	currentVersion   string
+	updateService    updatecheck.Service
+	updateLatestTag  string
 	screen           Screen
 	keymap           tui.KeyMap
 	styles           tui.Styles
@@ -113,32 +124,40 @@ func NewModel(store *store.Store, options Options) RootModel {
 	}
 
 	return RootModel{
-		store:       store,
-		quiz:        quiz.NewService(store),
-		planOptions: planOptions,
-		startup:     options.Startup,
-		settings:    settings,
-		configPath:  options.ConfigPath,
-		screen:      ScreenHome,
-		keymap:      tui.NewKeyMap(),
-		styles:      tui.NewStyles(),
-		loading:     true,
-		status:      i18n.T(i18n.StatusLoading),
+		store:          store,
+		quiz:           quiz.NewService(store),
+		planOptions:    planOptions,
+		startup:        options.Startup,
+		settings:       settings,
+		configPath:     options.ConfigPath,
+		currentVersion: strings.TrimSpace(options.CurrentVersion),
+		updateService:  options.UpdateService,
+		screen:         ScreenHome,
+		keymap:         tui.NewKeyMap(),
+		styles:         tui.NewStyles(),
+		loading:        true,
+		status:         i18n.T(i18n.StatusLoading),
 	}
 }
 
 func (m RootModel) Init() tea.Cmd {
+	cmds := make([]tea.Cmd, 0, 2)
+	if cmd := updateCheckCmd(m.updateService, m.currentVersion); cmd != nil {
+		cmds = append(cmds, cmd)
+	}
 	if m.startup != nil {
-		return tea.Sequence(
+		cmds = append(cmds, tea.Sequence(
 			loadHomeCmd(m.store),
 			sessionCmd(m.store, m.quiz, sessionRequest{
 				Mode:          m.startup.Mode,
 				ReplaceActive: m.startup.ReplaceActive,
 				Plan:          m.planOptions,
 			}, m.recentDistracts),
-		)
+		))
+		return tea.Batch(cmds...)
 	}
-	return loadHomeCmd(m.store)
+	cmds = append(cmds, loadHomeCmd(m.store))
+	return tea.Batch(cmds...)
 }
 
 func (m RootModel) sessionRequest(mode string, replaceActive bool) sessionRequest {

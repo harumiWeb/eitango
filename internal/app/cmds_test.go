@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/harumiWeb/eitango/internal/session"
 	"github.com/harumiWeb/eitango/internal/srs"
 	"github.com/harumiWeb/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/updatecheck"
 )
 
 func TestSessionCmdReviewResumesActiveSession(t *testing.T) {
@@ -165,6 +167,31 @@ func TestSessionCmdLearnUsesPlanOptions(t *testing.T) {
 	}
 }
 
+func TestUpdateCheckCmdReturnsResultEvenWhenServiceErrors(t *testing.T) {
+	t.Parallel()
+
+	service := &stubUpdateService{
+		checkResult: updatecheck.Result{
+			Latest:          updatecheck.ReleaseInfo{TagName: "v1.2.0"},
+			UpdateAvailable: true,
+			ShouldNotify:    true,
+		},
+		checkErr: errors.New("timeout"),
+	}
+
+	msg := updateCheckCmd(service, "v1.1.0")()
+	checked, ok := msg.(updateCheckedMsg)
+	if !ok {
+		t.Fatalf("updateCheckCmd() returned %T, want updateCheckedMsg", msg)
+	}
+	if service.checkCalls != 1 {
+		t.Fatalf("checkCalls = %d, want 1", service.checkCalls)
+	}
+	if !checked.Result.ShouldNotify {
+		t.Fatal("ShouldNotify = false, want true")
+	}
+}
+
 func newTestStore(t *testing.T) *store.Store {
 	t.Helper()
 
@@ -185,6 +212,25 @@ func newTestStore(t *testing.T) *store.Store {
 	}
 
 	return st
+}
+
+type stubUpdateService struct {
+	checkResult    updatecheck.Result
+	checkErr       error
+	checkCalls     int
+	checkNowResult updatecheck.Result
+	checkNowErr    error
+	checkNowCalls  int
+}
+
+func (s *stubUpdateService) Check(context.Context, string) (updatecheck.Result, error) {
+	s.checkCalls++
+	return s.checkResult, s.checkErr
+}
+
+func (s *stubUpdateService) CheckNow(context.Context, string) (updatecheck.Result, error) {
+	s.checkNowCalls++
+	return s.checkNowResult, s.checkNowErr
 }
 
 func markWordDue(t *testing.T, st *store.Store, wordID int64, answeredAt time.Time) {

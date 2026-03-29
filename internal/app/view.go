@@ -56,6 +56,18 @@ func (m RootModel) renderHome() string {
 			i18n.Tf(i18n.HomeActiveDetail, m.home.ActiveSession.AnsweredQuestions, m.home.ActiveSession.TotalQuestions, m.home.ActiveSession.Mode),
 		)
 	}
+	if strings.TrimSpace(m.updateLatestTag) != "" {
+		currentVersion := m.currentVersion
+		if strings.TrimSpace(currentVersion) == "" {
+			currentVersion = "dev"
+		}
+		lines = append(lines,
+			"",
+			m.styles.Subtitle.Render(i18n.T(i18n.HomeUpdate)),
+			i18n.Tf(i18n.HomeUpdateDetail, m.updateLatestTag, currentVersion),
+			m.styles.Muted.Render(i18n.T(i18n.HomeUpdateHint)),
+		)
+	}
 	lines = append(lines,
 		"",
 		m.styles.Muted.Render(i18n.T(i18n.HomeKeys)),

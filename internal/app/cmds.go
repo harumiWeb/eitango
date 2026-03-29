@@ -12,6 +12,7 @@ import (
 	"github.com/harumiWeb/eitango/internal/session"
 	"github.com/harumiWeb/eitango/internal/srs"
 	"github.com/harumiWeb/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/updatecheck"
 )
 
 type sessionRequest struct {
@@ -42,6 +43,16 @@ func loadStatsCmd(st *store.Store) tea.Cmd {
 			return errMsg{err: err}
 		}
 		return statsLoadedMsg{Snapshot: snapshot}
+	}
+}
+
+func updateCheckCmd(service updatecheck.Service, currentVersion string) tea.Cmd {
+	if service == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		result, _ := service.Check(context.Background(), currentVersion)
+		return updateCheckedMsg{Result: result}
 	}
 }
 
