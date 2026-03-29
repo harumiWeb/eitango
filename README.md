@@ -1,5 +1,5 @@
 <p align="center">
-    <img width="600" alt="logo" src="assets/logo.png" />
+    <img width="600" alt="logo" src="assets/images/logo.png" />
 </p>
 
 <p align="center">
@@ -14,7 +14,15 @@
 
 [English README](README.en.md)
 
+<img alt="home" src="assets/images/home.png" />
+
 ## 現在できること
+
+- `eitango` でホーム画面を表示し、TUIでモード選択や設定変更が可能
+
+<p align="center">
+  <img alt="プレイしている様子" src="assets/images/playing.gif" />
+</p>
 
 - `eitango learn` で通常学習セッションを開始
 - `eitango review` で due-only の復習セッションを開始
@@ -38,6 +46,12 @@ go install github.com/harumiWeb/eitango/cmd/eitango@latest
 ```
 
 ## クイックスタート
+
+```bash
+eitango
+```
+
+モード指定で起動することもできます。
 
 ```bash
 eitango learn
