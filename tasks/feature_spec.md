@@ -94,12 +94,13 @@
 - `--version` 未指定時だけ GitHub Releases API の latest を参照する。
 - installer は archive と同じ release の `checksums.txt` を取得し、SHA256 が一致しない限り install root を置き換えない。
 - installer は `~/.eitango/bin/eitango`, `~/.eitango/version`, `~/.eitango/share/` を管理し、法務ファイルを `share/` に保持する。
-- `--uninstall` は installer 管理下の `~/.eitango` を削除し、学習 data は既定で保持する。
+- `--uninstall` は installer 管理下の `~/.eitango` を削除し、学習 data は既定で保持する。対話確認で purge を有効化しない。
 - `--purge-data` 指定時だけ data dir も削除し、`EITANGO_DATA_DIR` がその実行で渡されていればその path を優先する。
+- install root 置換に失敗した場合、旧 install の rollback copy を削除せず、復元または backup path に残す。
 - PATH は自動変更しない。
 
 ## Acceptance
 
-- `go test ./...` で installer の latest install / pinned install / checksum failure / uninstall の回帰が通る。
+- `go test ./...` で installer の latest install / pinned install / checksum failure / uninstall / failed replace の回帰が通る。
 - Ubuntu CI で `shellcheck install.sh` が通る。
 - README に latest install, version pin, uninstall, purge-data の例が揃う。

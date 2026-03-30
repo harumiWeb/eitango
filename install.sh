@@ -52,9 +52,6 @@ cleanup() {
 	if [ -n "${STAGE_DIR}" ] && [ -d "${STAGE_DIR}" ]; then
 		rm -rf "${STAGE_DIR}"
 	fi
-	if [ -n "${BACKUP_DIR}" ] && [ -d "${BACKUP_DIR}" ]; then
-		rm -rf "${BACKUP_DIR}"
-	fi
 	if [ -n "${DOWNLOAD_DIR}" ] && [ -d "${DOWNLOAD_DIR}" ]; then
 		rm -rf "${DOWNLOAD_DIR}"
 	fi
@@ -214,7 +211,11 @@ replace_install_root() {
 		return
 	fi
 	if [ -n "${BACKUP_DIR}" ] && [ -d "${BACKUP_DIR}" ]; then
-		mv "${BACKUP_DIR}" "${INSTALL_ROOT}" || true
+		if mv "${BACKUP_DIR}" "${INSTALL_ROOT}"; then
+			BACKUP_DIR=""
+			die "failed to replace ${INSTALL_ROOT}; restored previous install"
+		fi
+		die "failed to replace ${INSTALL_ROOT}; previous install kept at ${BACKUP_DIR}"
 	fi
 	die "failed to replace ${INSTALL_ROOT}"
 }
@@ -233,26 +234,9 @@ maybe_warn_shadowed_binary() {
 	fi
 }
 
-maybe_prompt_purge() {
-	data_dir="$1"
-	if [ "${PURGE_DATA}" -eq 1 ]; then
-		return 0
-	fi
-	if [ -t 1 ] && [ -r /dev/tty ]; then
-		printf 'Remove learning data at %s as well? [y/N] ' "$data_dir" > /dev/tty
-		if IFS= read -r answer < /dev/tty; then
-			case "$answer" in
-				y|Y|yes|YES) PURGE_DATA=1 ;;
-			esac
-		fi
-	fi
-	return 0
-}
-
 run_uninstall() {
 	os_name="$(resolve_os)"
 	data_dir="$(default_data_dir "$os_name")"
-	maybe_prompt_purge "$data_dir"
 	if [ -d "${INSTALL_ROOT}" ]; then
 		rm -rf "${INSTALL_ROOT}"
 		say "Removed ${INSTALL_ROOT}"

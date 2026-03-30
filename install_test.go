@@ -262,6 +262,84 @@ func TestInstallScriptUninstallKeepsAndPurgesData(t *testing.T) {
 	}
 }
 
+func TestInstallScriptUninstallPurgesCustomDataDir(t *testing.T) {
+	skipOnWindows(t)
+
+	home := t.TempDir()
+	customDataDir := filepath.Join(home, "custom data")
+
+	mustWriteFile(t, filepath.Join(home, ".eitango", "bin", "eitango"), "#!/bin/sh\n", 0o755)
+	mustWriteFile(t, filepath.Join(customDataDir, "user.db"), "fixture-db", 0o644)
+
+	env := append(installTestEnv("http://127.0.0.1.invalid", nil), "EITANGO_DATA_DIR="+customDataDir)
+	runInstallScript(t, home, []string{"--uninstall", "--purge-data"}, env...)
+
+	if _, err := os.Stat(customDataDir); !os.IsNotExist(err) {
+		t.Fatalf("custom data dir still exists after purge uninstall: %v", err)
+	}
+}
+
+func TestInstallScriptFailedReplaceKeepsBackup(t *testing.T) {
+	skipOnWindows(t)
+
+	realMVPath, err := exec.LookPath("mv")
+	if err != nil {
+		t.Fatalf("lookpath mv: %v", err)
+	}
+
+	const (
+		oldVersion = "v0.9.0"
+		newVersion = "v1.3.0"
+	)
+	archiveName := releaseArchiveName(newVersion, runtimeGOOS(t), runtimeGOARCH(t))
+	archiveBytes := makeArchive(t)
+	checksums := fmt.Sprintf("%s  %s\n", sha256Hex(archiveBytes), archiveName)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/test/eitango/releases/latest":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, fmt.Sprintf(`{"tag_name":"%s"}`, newVersion))
+		case fmt.Sprintf("/test/eitango/releases/download/%s/%s", newVersion, archiveName):
+			_, _ = w.Write(archiveBytes)
+		case fmt.Sprintf("/test/eitango/releases/download/%s/checksums.txt", newVersion):
+			_, _ = io.WriteString(w, checksums)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	wrappers := map[string]string{
+		"mv": fmt.Sprintf("#!/bin/sh\nif [ \"$2\" = \"$HOME/.eitango\" ]; then exit 1; fi\nexec %s \"$@\"\n", shellQuoteForScript(realMVPath)),
+	}
+
+	home := t.TempDir()
+	mustWriteFile(t, filepath.Join(home, ".eitango", "bin", "eitango"), "#!/bin/sh\necho old\n", 0o755)
+	mustWriteFile(t, filepath.Join(home, ".eitango", "version"), oldVersion+"\n", 0o644)
+
+	err = runInstallScriptErr(home, []string{}, installTestEnv(server.URL, wrappers)...)
+	if err == nil {
+		t.Fatal("install.sh succeeded, want replace failure")
+	}
+	if !strings.Contains(err.Error(), "previous install kept at") {
+		t.Fatalf("install.sh error = %v, want backup preservation failure", err)
+	}
+
+	backupDirs, globErr := filepath.Glob(filepath.Join(home, ".eitango.backup.*"))
+	if globErr != nil {
+		t.Fatalf("glob backup dirs: %v", globErr)
+	}
+	if len(backupDirs) != 1 {
+		t.Fatalf("backup dirs = %v, want 1 preserved backup", backupDirs)
+	}
+
+	assertFileContains(t, filepath.Join(backupDirs[0], "version"), oldVersion)
+	if _, statErr := os.Stat(filepath.Join(home, ".eitango")); !os.IsNotExist(statErr) {
+		t.Fatalf("install root exists after failed replace: %v", statErr)
+	}
+}
+
 func installTestEnv(serverURL string, wrappers map[string]string) []string {
 	env := []string{
 		"EITANGO_INSTALL_REPO=test/eitango",
