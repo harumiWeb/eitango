@@ -169,7 +169,8 @@ verify_archive() {
 }
 
 prepare_stage() {
-	parent="$(dirname "$INSTALL_ROOT")"
+	parent="${INSTALL_ROOT%/*}"
+	[ -n "${parent}" ] || parent="/"
 	mkdir -p "$parent"
 	STAGE_DIR="$(mktemp -d "${parent}/.eitango-install.XXXXXX")" || die "failed to create install staging directory"
 	mkdir -p "${STAGE_DIR}/bin" "${STAGE_DIR}/share"
@@ -284,25 +285,26 @@ done
 
 [ "$MODE" = "uninstall" ] || [ "${PURGE_DATA}" -eq 0 ] || die "--purge-data requires --uninstall"
 
-require_cmd curl
-require_cmd tar
-require_cmd mktemp
-require_cmd cp
-require_cmd mv
+require_cmd uname
 require_cmd rm
-require_cmd mkdir
-require_cmd chmod
-require_cmd awk
-require_cmd sed
-require_cmd grep
-require_cmd head
-require_cmd wc
-require_cmd tr
 
 if [ "$MODE" = "uninstall" ]; then
 	run_uninstall
 	exit 0
 fi
+
+require_cmd curl
+require_cmd tar
+require_cmd mktemp
+require_cmd cp
+require_cmd mv
+require_cmd mkdir
+require_cmd chmod
+require_cmd awk
+require_cmd sed
+require_cmd head
+require_cmd wc
+require_cmd tr
 
 OS_NAME="$(resolve_os)"
 ARCH_NAME="$(resolve_arch)"

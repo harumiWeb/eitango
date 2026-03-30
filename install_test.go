@@ -279,6 +279,44 @@ func TestInstallScriptUninstallPurgesCustomDataDir(t *testing.T) {
 	}
 }
 
+func TestInstallScriptUninstallWithoutInstallOnlyTools(t *testing.T) {
+	skipOnWindows(t)
+
+	osName := runtimeGOOS(t)
+	home := t.TempDir()
+
+	mustWriteFile(t, filepath.Join(home, ".eitango", "bin", "eitango"), "#!/bin/sh\n", 0o755)
+	defaultDataDir := filepath.Join(home, ".local", "share", "eitango-cli")
+	if osName == "darwin" {
+		defaultDataDir = filepath.Join(home, "Library", "Application Support", "eitango-cli")
+	}
+	mustWriteFile(t, filepath.Join(defaultDataDir, "user.db"), "fixture-db", 0o644)
+
+	minimalPathDir := filepath.Join(home, "minimal-bin")
+	if err := os.MkdirAll(minimalPathDir, 0o755); err != nil {
+		t.Fatalf("mkdir minimal path dir: %v", err)
+	}
+	for _, name := range []string{"rm", "uname"} {
+		realPath, err := exec.LookPath(name)
+		if err != nil {
+			t.Fatalf("lookpath %s: %v", name, err)
+		}
+		if err := os.Symlink(realPath, filepath.Join(minimalPathDir, name)); err != nil {
+			t.Fatalf("symlink %s: %v", name, err)
+		}
+	}
+
+	env := append(installTestEnv("http://127.0.0.1.invalid", nil), "PATH="+minimalPathDir)
+	runInstallScript(t, home, []string{"--uninstall", "--purge-data"}, env...)
+
+	if _, err := os.Stat(filepath.Join(home, ".eitango")); !os.IsNotExist(err) {
+		t.Fatalf("install root still exists after uninstall with minimal PATH: %v", err)
+	}
+	if _, err := os.Stat(defaultDataDir); !os.IsNotExist(err) {
+		t.Fatalf("default data dir still exists after purge uninstall with minimal PATH: %v", err)
+	}
+}
+
 func TestInstallScriptFailedReplaceKeepsBackup(t *testing.T) {
 	skipOnWindows(t)
 
@@ -367,8 +405,9 @@ func runInstallScriptErr(home string, args []string, env ...string) error {
 
 	cmd := exec.Command("sh", append([]string{scriptPath}, args...)...)
 	cmd.Dir = filepath.Clean(".")
-	cmd.Env = append(os.Environ(), env...)
-	cmd.Env = append(cmd.Env, "HOME="+home)
+	cmd.Env = append([]string{}, os.Environ()...)
+	cmd.Env = append(cmd.Env, env...)
+	cmd.Env = setEnvValue(cmd.Env, "HOME", home)
 
 	wrappers := wrapperScripts(env)
 	if len(wrappers) > 0 {
@@ -376,7 +415,7 @@ func runInstallScriptErr(home string, args []string, env ...string) error {
 		if err != nil {
 			return err
 		}
-		cmd.Env = append(cmd.Env, "PATH="+wrapperDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+		cmd.Env = setEnvValue(cmd.Env, "PATH", wrapperDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	}
 
 	output, err := cmd.CombinedOutput()
@@ -384,6 +423,50 @@ func runInstallScriptErr(home string, args []string, env ...string) error {
 		return nil
 	}
 	return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
+}
+
+func setEnvValue(env []string, key, value string) []string {
+	prefix := key + "="
+	filtered := make([]string, 0, len(env))
+	for _, entry := range env {
+		if !strings.HasPrefix(entry, prefix) {
+			filtered = append(filtered, entry)
+		}
+	}
+	return append(filtered, prefix+value)
+}
+
+func TestSetEnvValueReplacesDuplicates(t *testing.T) {
+	env := []string{
+		"HOME=/real-home",
+		"PATH=/usr/bin",
+		"OTHER=1",
+		"HOME=/other-home",
+		"PATH=/bin",
+	}
+
+	env = setEnvValue(env, "HOME", "/tmp/home")
+	env = setEnvValue(env, "PATH", "/tmp/bin")
+
+	var homeValues, pathValues []string
+	for _, entry := range env {
+		switch {
+		case strings.HasPrefix(entry, "HOME="):
+			homeValues = append(homeValues, entry)
+		case strings.HasPrefix(entry, "PATH="):
+			pathValues = append(pathValues, entry)
+		}
+	}
+
+	if len(homeValues) != 1 || homeValues[0] != "HOME=/tmp/home" {
+		t.Fatalf("HOME entries = %v, want [HOME=/tmp/home]", homeValues)
+	}
+	if len(pathValues) != 1 || pathValues[0] != "PATH=/tmp/bin" {
+		t.Fatalf("PATH entries = %v, want [PATH=/tmp/bin]", pathValues)
+	}
+	if !containsString(env, "OTHER=1") {
+		t.Fatalf("OTHER entry missing from env: %v", env)
+	}
 }
 
 func writeInstallScript(home string) (string, error) {
@@ -489,6 +572,15 @@ func mustWriteFile(t *testing.T, path string, content string, mode os.FileMode) 
 	if err := os.WriteFile(path, []byte(content), mode); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func assertFileContains(t *testing.T, path string, want string) {
