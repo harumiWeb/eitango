@@ -52,6 +52,8 @@ Go 1.26 or newer is required.
 go install github.com/harumiWeb/eitango/cmd/eitango@latest
 ```
 
+Builds installed with `go install` also report the embedded module version in `eitango version`.
+
 ## Quick Start
 
 ```bash

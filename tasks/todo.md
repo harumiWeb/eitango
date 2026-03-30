@@ -3,6 +3,15 @@
 このファイルは、初回 OSS リリースに向けた active backlog だけを管理する。
 完了済みの長い履歴、旧 30k ロードマップ、設計との差分棚卸しはここには残さない。
 
+## 2026-03-30 issue #3: go install version 表示
+
+- [x] `dev` のときだけ build info の `Main.Version` を使う解決ロジックを追加する
+- [x] `--version` / `version` / update check の参照 version を統一する
+- [x] `go install @latest` 相当の回帰テストを追加する
+- [x] README の install / update 説明を最小限補足する
+- [x] `go test ./...` を通す
+- [ ] 公開 release 更新後に `go install github.com/harumiWeb/eitango/cmd/eitango@latest` 実機で `dev` 解消を再確認する
+
 ## 2026-03-29 ドキュメント再編
 
 - [x] 旧設計書のうち current code に効いている判断だけを抽出する
