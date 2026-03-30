@@ -427,7 +427,7 @@ func runInstallScriptErr(home string, args []string, env ...string) error {
 
 func setEnvValue(env []string, key, value string) []string {
 	prefix := key + "="
-	filtered := env[:0]
+	filtered := make([]string, 0, len(env))
 	for _, entry := range env {
 		if !strings.HasPrefix(entry, prefix) {
 			filtered = append(filtered, entry)
