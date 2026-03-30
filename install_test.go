@@ -555,6 +555,7 @@ func makeArchive(t *testing.T) []byte {
 }
 
 func releaseArchiveName(version, goos, arch string) string {
+	version = strings.TrimPrefix(strings.TrimPrefix(version, "v"), "V")
 	return fmt.Sprintf("eitango_%s_%s_%s.tar.gz", version, goos, arch)
 }
 

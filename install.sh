@@ -113,6 +113,8 @@ resolve_latest_version() {
 
 archive_name() {
 	version="$1"
+	version="${version#v}"
+	version="${version#V}"
 	printf '%s\n' "${APP_NAME}_${version}_$2_$3.tar.gz"
 }
 
