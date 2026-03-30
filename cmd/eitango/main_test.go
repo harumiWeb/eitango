@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -132,6 +133,19 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 }
 
 func TestNewRootCommandVersionFlag(t *testing.T) {
+	originalVersion := version
+	originalReadBuildInfo := readBuildInfo
+	version = "dev"
+	readBuildInfo = func() (*debug.BuildInfo, bool) {
+		return &debug.BuildInfo{
+			Main: debug.Module{Version: "v1.2.3"},
+		}, true
+	}
+	t.Cleanup(func() {
+		version = originalVersion
+		readBuildInfo = originalReadBuildInfo
+	})
+
 	var out bytes.Buffer
 	cmd := newRootCommand()
 	cmd.SetOut(&out)
@@ -143,8 +157,8 @@ func TestNewRootCommandVersionFlag(t *testing.T) {
 	}
 
 	output := out.String()
-	if !strings.Contains(output, "eitango ") {
-		t.Fatalf("version output = %q, want app name", output)
+	if !strings.Contains(output, "eitango v1.2.3") {
+		t.Fatalf("version output = %q, want resolved module version", output)
 	}
 	if !strings.Contains(output, "commit: ") {
 		t.Fatalf("version output = %q, want commit line", output)
@@ -212,6 +226,42 @@ func TestFormatBuildVersion(t *testing.T) {
 	}
 }
 
+func TestResolvedVersionUsesBuildInfoWhenLdflagsUnset(t *testing.T) {
+	originalVersion := version
+	originalReadBuildInfo := readBuildInfo
+	version = "dev"
+	readBuildInfo = func() (*debug.BuildInfo, bool) {
+		return &debug.BuildInfo{
+			Main: debug.Module{Version: "v1.2.3"},
+		}, true
+	}
+	t.Cleanup(func() {
+		version = originalVersion
+		readBuildInfo = originalReadBuildInfo
+	})
+
+	if got := resolvedVersion(); got != "v1.2.3" {
+		t.Fatalf("resolvedVersion() = %q, want v1.2.3", got)
+	}
+}
+
+func TestResolvedVersionFallsBackToDevWithoutBuildInfo(t *testing.T) {
+	originalVersion := version
+	originalReadBuildInfo := readBuildInfo
+	version = "dev"
+	readBuildInfo = func() (*debug.BuildInfo, bool) {
+		return nil, false
+	}
+	t.Cleanup(func() {
+		version = originalVersion
+		readBuildInfo = originalReadBuildInfo
+	})
+
+	if got := resolvedVersion(); got != "dev" {
+		t.Fatalf("resolvedVersion() = %q, want dev", got)
+	}
+}
+
 func TestFormatVersionReportIncludesLatestRelease(t *testing.T) {
 	t.Parallel()
 
@@ -236,6 +286,19 @@ func TestFormatVersionReportIncludesLatestRelease(t *testing.T) {
 }
 
 func TestVersionCommandShowsLatestRelease(t *testing.T) {
+	originalVersion := version
+	originalReadBuildInfo := readBuildInfo
+	version = "dev"
+	readBuildInfo = func() (*debug.BuildInfo, bool) {
+		return &debug.BuildInfo{
+			Main: debug.Module{Version: "v1.2.3"},
+		}, true
+	}
+	t.Cleanup(func() {
+		version = originalVersion
+		readBuildInfo = originalReadBuildInfo
+	})
+
 	service := &mainStubUpdateService{
 		checkNowResult: updatecheck.Result{
 			Latest: updatecheck.ReleaseInfo{
@@ -269,8 +332,12 @@ func TestVersionCommandShowsLatestRelease(t *testing.T) {
 	if service.checkNowCalls != 1 {
 		t.Fatalf("checkNowCalls = %d, want 1", service.checkNowCalls)
 	}
+	if service.checkNowVersion != "v1.2.3" {
+		t.Fatalf("checkNowVersion = %q, want v1.2.3", service.checkNowVersion)
+	}
 	output := out.String()
 	for _, want := range []string{
+		"eitango v1.2.3",
 		"latest: v1.2.4",
 		"release: https://example.com/eitango/v1.2.4",
 		"status: update available",
@@ -635,16 +702,18 @@ func mustMetaValue(t *testing.T, dbPath, key string) string {
 }
 
 type mainStubUpdateService struct {
-	checkNowResult updatecheck.Result
-	checkNowErr    error
-	checkNowCalls  int
+	checkNowResult  updatecheck.Result
+	checkNowErr     error
+	checkNowCalls   int
+	checkNowVersion string
 }
 
 func (s *mainStubUpdateService) Check(context.Context, string) (updatecheck.Result, error) {
 	return updatecheck.Result{}, nil
 }
 
-func (s *mainStubUpdateService) CheckNow(context.Context, string) (updatecheck.Result, error) {
+func (s *mainStubUpdateService) CheckNow(_ context.Context, currentVersion string) (updatecheck.Result, error) {
 	s.checkNowCalls++
+	s.checkNowVersion = currentVersion
 	return s.checkNowResult, s.checkNowErr
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -26,6 +27,8 @@ var (
 	commit  = "unknown"
 	date    = "unknown"
 
+	readBuildInfo = debug.ReadBuildInfo
+
 	newUpdateService = func(dataDir string) updatecheck.Service {
 		return updatecheck.New(updatecheck.DefaultStatePath(dataDir))
 	}
@@ -46,12 +49,13 @@ func main() {
 }
 
 func newRootCommand() *cobra.Command {
+	currentVersion := resolvedVersion()
 	cmd := &cobra.Command{
 		Use:           "eitango",
 		Short:         i18n.T(i18n.CLIRootShort),
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		Version:       buildVersionText(),
+		Version:       formatBuildVersion("eitango", currentVersion, commit, date),
 		RunE:          runDashboard,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return maybePrintLicense(cmd)
@@ -94,6 +98,7 @@ func newReviewCommand() *cobra.Command {
 
 func runDashboard(cmd *cobra.Command, args []string) error {
 	ctx := commandContext(cmd)
+	currentVersion := resolvedVersion()
 	st, settings, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -110,7 +115,7 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 		Plan:           mustSessionOptions(settings, nil, nil),
 		Settings:       settings,
 		ConfigPath:     paths.ConfigPath,
-		CurrentVersion: version,
+		CurrentVersion: currentVersion,
 		UpdateService:  newUpdateService(paths.DataDir),
 	}))
 	_, err = program.Run()
@@ -119,6 +124,7 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 
 func runLearn(cmd *cobra.Command, args []string) error {
 	ctx := commandContext(cmd)
+	currentVersion := resolvedVersion()
 	st, settings, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -148,7 +154,7 @@ func runLearn(cmd *cobra.Command, args []string) error {
 		Plan:           options,
 		Settings:       settings,
 		ConfigPath:     paths.ConfigPath,
-		CurrentVersion: version,
+		CurrentVersion: currentVersion,
 		UpdateService:  newUpdateService(paths.DataDir),
 	}))
 	_, err = program.Run()
@@ -157,6 +163,7 @@ func runLearn(cmd *cobra.Command, args []string) error {
 
 func runReview(cmd *cobra.Command, args []string) error {
 	ctx := commandContext(cmd)
+	currentVersion := resolvedVersion()
 	st, settings, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -190,7 +197,7 @@ func runReview(cmd *cobra.Command, args []string) error {
 		Plan:           options,
 		Settings:       settings,
 		ConfigPath:     paths.ConfigPath,
-		CurrentVersion: version,
+		CurrentVersion: currentVersion,
 		UpdateService:  newUpdateService(paths.DataDir),
 		Startup: &app.StartupRequest{
 			Mode:          store.ModeReview,
@@ -225,10 +232,11 @@ func newStatsCommand() *cobra.Command {
 }
 
 func runVersion(cmd *cobra.Command, args []string) error {
+	currentVersion := resolvedVersion()
 	result := updatecheck.Result{}
 	if paths, err := config.Resolve(); err == nil {
 		if service := newUpdateService(paths.DataDir); service != nil {
-			result, _ = service.CheckNow(commandContext(cmd), version)
+			result, _ = service.CheckNow(commandContext(cmd), currentVersion)
 		}
 	}
 	_, err := fmt.Fprint(cmd.OutOrStdout(), formatVersionReport(result))
@@ -462,7 +470,7 @@ func maybePrintLicense(cmd *cobra.Command) error {
 }
 
 func buildVersionText() string {
-	return formatBuildVersion("eitango", version, commit, date)
+	return formatBuildVersion("eitango", resolvedVersion(), commit, date)
 }
 
 func formatVersionReport(result updatecheck.Result) string {
@@ -485,6 +493,32 @@ func formatVersionReport(result updatecheck.Result) string {
 		}
 	}
 	return b.String()
+}
+
+func resolvedVersion() string {
+	currentVersion := strings.TrimSpace(version)
+	if currentVersion != "" && currentVersion != "dev" {
+		return currentVersion
+	}
+	if buildVersion := moduleBuildVersion(); buildVersion != "" {
+		return buildVersion
+	}
+	return defaultBuildValue(currentVersion, "dev")
+}
+
+func moduleBuildVersion() string {
+	info, ok := readBuildInfo()
+	if !ok || info == nil {
+		return ""
+	}
+
+	buildVersion := strings.TrimSpace(info.Main.Version)
+	switch buildVersion {
+	case "", "(devel)":
+		return ""
+	default:
+		return buildVersion
+	}
 }
 
 func formatBuildVersion(name, version, commit, date string) string {

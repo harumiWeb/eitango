@@ -52,6 +52,8 @@ Go 1.26 以降を前提にしています。
 go install github.com/harumiWeb/eitango/cmd/eitango@latest
 ```
 
+`go install` で導入した build でも、`eitango version` は埋め込まれた module version を表示します。
+
 ## クイックスタート
 
 ```bash
