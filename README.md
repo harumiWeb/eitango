@@ -40,11 +40,58 @@
 
 ## インストール
 
-### 1. GitHub Releases から使う
+### 1. macOS / Linux は `curl | sh` を使う
+
+`install.sh` は GitHub Releases の archive と `checksums.txt` だけを取得し、SHA256 検証が通ったときだけ `~/.eitango/` へ展開します。shell rc は自動変更しません。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh
+```
+
+特定 version を入れるときは次を使ってください。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh -s -- --version v0.2.0
+```
+
+インストール後は次が配置されます。
+
+- `~/.eitango/bin/eitango`
+- `~/.eitango/version`
+- `~/.eitango/share/`
+
+法務ファイルと notice は `~/.eitango/share/` に保持されます。PATH に `~/.eitango/bin` が無い場合は次を shell 設定へ追加してください。
+
+```bash
+export PATH="$HOME/.eitango/bin:$PATH"
+```
+
+script を pipe せず確認してから実行したい場合は次でも同じです。
+
+```bash
+curl -fsSLo install.sh https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh
+sh install.sh --version v0.2.0
+```
+
+アンインストールは次です。既定では学習データを残します。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh -s -- --uninstall
+```
+
+学習データも消す場合は `--purge-data` を付けます。`EITANGO_DATA_DIR` を使っている場合は、同じ env を付けて実行してください。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh -s -- --uninstall --purge-data
+```
+
+必要ツールは `sh`, `curl`, `tar`, `mktemp` と、`sha256sum` / `shasum` / `openssl` のいずれか 1 つです。Windows は今回の installer 対象外なので、release zip を使ってください。
+
+### 2. GitHub Releases から使う
 
 公開アーカイブにはバイナリに加えて `LICENSE`、`THIRD_PARTY_NOTICES.md`、`third_party/licenses/` が同梱されます。自分のOS向けの成果物を展開して `eitango` を実行してください。
 
-### 2. Go からインストールする
+### 3. Go からインストールする
 
 Go 1.26 以降を前提にしています。
 
@@ -101,6 +148,12 @@ eitango doctor
 
 ```bash
 go install github.com/harumiWeb/eitango/cmd/eitango@latest
+```
+
+`curl | sh` で入れた場合も self-update はしません。最新版へ上げるときは installer を再実行してください。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh
 ```
 
 ## コマンド一覧

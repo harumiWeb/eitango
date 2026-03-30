@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- macOS / Linux 向けの `curl | sh` installer を追加しました。
+- installer に `--version`, `--uninstall`, `--purge-data` を追加しました。
+
+### Changed
+
+- installer は GitHub Releases の `checksums.txt` を使って archive の SHA256 を必須検証するようにしました。
+- README / README.en に curl installer、version pin、uninstall の導線を追記しました。
+
 ## [0.2.0] - 2026-03-29
 
 ### Added

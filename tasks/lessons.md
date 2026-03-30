@@ -8,3 +8,4 @@
 - `people-noun` は人そのものを指す名詞に限定し、活動名詞や身体部位を入れない。人物でない語を混ぜると誤答候補が人物語へ偏り、出題品質を崩す。
 - 同じ生成物を読む後段コマンドを、前段の書き込みコマンドと並列で走らせない。`merge_parallel_reviews.py` の出力 TSV を `apply_review_batch.py` が読むような producer/consumer 関係は必ず直列にする。
 - ローカルビルドで生成した `eitango.exe` や `bin/` 配下の実行ファイルはリポジトリへ含めない。配布用バイナリは Git ではなく release artifact で管理する。
+- installer や配布補助スクリプトで release asset 名を組み立てるときは、推測した tag 文字列をそのまま埋め込まず、実際の GoReleaser naming と `checksums.txt` を基準に fixture も含めて一致確認する。

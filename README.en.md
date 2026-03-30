@@ -40,11 +40,58 @@
 
 ## Installation
 
-### 1. Use GitHub Releases
+### 1. Use `curl | sh` on macOS / Linux
+
+`install.sh` downloads only GitHub Release archives and `checksums.txt`, then installs into `~/.eitango/` only after the SHA256 check passes. It never edits shell rc files automatically.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh
+```
+
+To pin a specific version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh -s -- --version v0.2.0
+```
+
+The installer writes:
+
+- `~/.eitango/bin/eitango`
+- `~/.eitango/version`
+- `~/.eitango/share/`
+
+Legal notices are kept under `~/.eitango/share/`. If `~/.eitango/bin` is not already on PATH, add:
+
+```bash
+export PATH="$HOME/.eitango/bin:$PATH"
+```
+
+If you want to inspect the script before running it:
+
+```bash
+curl -fsSLo install.sh https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh
+sh install.sh --version v0.2.0
+```
+
+To uninstall the installer-managed files while keeping study data:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh -s -- --uninstall
+```
+
+To also delete the data directory, add `--purge-data`. If you use `EITANGO_DATA_DIR`, pass the same env var when uninstalling.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh -s -- --uninstall --purge-data
+```
+
+Required tools are `sh`, `curl`, `tar`, `mktemp`, and one of `sha256sum`, `shasum`, or `openssl`. Windows is out of scope for this installer, so use the release zip there.
+
+### 2. Use GitHub Releases
 
 Published archives include the executable plus `LICENSE`, `THIRD_PARTY_NOTICES.md`, and `third_party/licenses/`. Extract the artifact for your OS and run `eitango`.
 
-### 2. Install with Go
+### 3. Install with Go
 
 Go 1.26 or newer is required.
 
@@ -102,6 +149,12 @@ Updates are still manual. Download the latest GitHub Release artifact, or rerun 
 
 ```bash
 go install github.com/harumiWeb/eitango/cmd/eitango@latest
+```
+
+If you installed via `curl | sh`, rerun the installer to move to the latest release.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh
 ```
 
 ## Command Reference

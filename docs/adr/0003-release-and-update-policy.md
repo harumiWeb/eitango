@@ -12,6 +12,8 @@
 
 - 正規の配布チャネルは GitHub Releases とし、GoReleaser で darwin / linux / windows 向け archive を生成する。
 - release artifact には実行バイナリに加えて `LICENSE`, `README.md`, `README.en.md`, `THIRD_PARTY_NOTICES.md`, `third_party/licenses/**` を同梱する。
+- macOS / linux では `install.sh` を bootstrap 導線として許可するが、installer 自体は GitHub Releases の archive と `checksums.txt` を取得する薄い wrapper に留める。
+- `install.sh` は `checksums.txt` で SHA256 を必須検証し、法務ファイルを `~/.eitango/share/` へ保持する。
 - 更新は自動適用しない。新しい版の取得は release archive の再取得か `go install ...@latest` の再実行で行う。
 - update check は GitHub Releases の latest を参照する補助機能とし、学習フローを止めない best-effort 動作に限定する。
 - update check の state は data dir の `update-check.json` に保存し、既定値は TTL 24 時間、HTTP timeout 1.5 秒とする。
@@ -22,6 +24,8 @@
 ## Consequences
 
 - release artifact の再配布条件と notice の同梱要件を、ビルド設定と文書で一貫して維持できる。
+- `curl | sh` の最短導線を追加しても、配布物の単一ソースは GitHub Releases のまま保てる。
+- SHA256 検証で download 途中の破損や取り違えは防ぎやすくなるが、署名付き provenance ではないため `install.sh` 本体の信頼境界は依然として HTTPS / GitHub 側にある。
 - 自動更新を持たないため、更新失敗が学習データを壊す経路を増やさずに済む。
 - update check は起動体験を阻害しにくいが、最新情報の反映には TTL 分の遅延があり、更新作業は常に手動になる。
 - GitHub Releases が update metadata の単一ソースになるため、別チャネルを増やす場合は新しい判断が必要になる。
@@ -31,10 +35,12 @@
 - Tests:
   - `internal/updatecheck/checker_test.go`
   - `cmd/eitango/main_test.go`
+  - `install_test.go`
 - Code:
   - `internal/updatecheck/checker.go`
   - `cmd/eitango/main.go`
   - `.goreleaser.yaml`
+  - `install.sh`
 - Related specs:
   - なし。コード、README、CHANGELOG、tests を正本とする。
 

@@ -37,5 +37,15 @@ jobs:
       - name: Run tests
         run: go test ./...
 
+      - name: Install shellcheck
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Lint install.sh
+        if: matrix.os == 'ubuntu-latest'
+        run: shellcheck install.sh
+
       - name: Build packages
         run: go build ./...
