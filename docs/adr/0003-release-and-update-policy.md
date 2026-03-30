@@ -1,0 +1,47 @@
+# ADR-0003: 配布物と Update Check の運用方針
+
+## Status
+
+`accepted`
+
+## Background
+
+初期リリース後の保守では、ユーザーへ何を配るか、更新導線をどこまで自動化するか、ライセンスと notice をどう同梱するかを固定しておく必要がある。現行実装は GitHub Releases と GoReleaser を前提にし、update check は best-effort の補助機能として分離されている。この方針を ADR にしておかないと、将来の配布や更新 UX が機能追加のたびにぶれやすい。
+
+## Decision
+
+- 正規の配布チャネルは GitHub Releases とし、GoReleaser で darwin / linux / windows 向け archive を生成する。
+- release artifact には実行バイナリに加えて `LICENSE`, `README.md`, `README.en.md`, `THIRD_PARTY_NOTICES.md`, `third_party/licenses/**` を同梱する。
+- 更新は自動適用しない。新しい版の取得は release archive の再取得か `go install ...@latest` の再実行で行う。
+- update check は GitHub Releases の latest を参照する補助機能とし、学習フローを止めない best-effort 動作に限定する。
+- update check の state は data dir の `update-check.json` に保存し、既定値は TTL 24 時間、HTTP timeout 1.5 秒とする。
+- 初回の successful check では通知を出さず、2 回目以降に新しい版が確認されたときだけ通知対象にする。
+- `EITANGO_DISABLE_UPDATE_CHECK=1` で update check を完全に無効化できるように保つ。
+- オフライン、タイムアウト、API failure 時は黙って失敗し、通常の学習や CLI 実行は継続させる。
+
+## Consequences
+
+- release artifact の再配布条件と notice の同梱要件を、ビルド設定と文書で一貫して維持できる。
+- 自動更新を持たないため、更新失敗が学習データを壊す経路を増やさずに済む。
+- update check は起動体験を阻害しにくいが、最新情報の反映には TTL 分の遅延があり、更新作業は常に手動になる。
+- GitHub Releases が update metadata の単一ソースになるため、別チャネルを増やす場合は新しい判断が必要になる。
+
+## Rationale
+
+- Tests:
+  - `internal/updatecheck/checker_test.go`
+  - `cmd/eitango/main_test.go`
+- Code:
+  - `internal/updatecheck/checker.go`
+  - `cmd/eitango/main.go`
+  - `.goreleaser.yaml`
+- Related specs:
+  - なし。コード、README、CHANGELOG、tests を正本とする。
+
+## Supersedes
+
+- None
+
+## Superseded by
+
+- None

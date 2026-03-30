@@ -3,6 +3,13 @@
 このファイルは、初回 OSS リリースに向けた active backlog だけを管理する。
 完了済みの長い履歴、旧 30k ロードマップ、設計との差分棚卸しはここには残さない。
 
+## 2026-03-29 ドキュメント再編
+
+- [x] 旧設計書のうち current code に効いている判断だけを抽出する
+- [x] `docs/adr/` に runtime / core dictionary / release-update policy の ADR を追加する
+- [x] `docs/specs/` は空のまま維持し、コード正本の方針で固定する
+- [x] 削除済み設計書への参照を整理し、検証手順を更新する
+
 ## 固定方針
 
 - 初回リリースの bundled core は約 5k 語で固定する
@@ -28,7 +35,7 @@
 - [x] `frequency_rank` を Leipzig 由来で再採番する
 - [x] `level` を `core-1` / `core-2` / `core-3` / `core-4` に再計算する
 - [x] retained row について既存の `meaning_ja`, `distractor_group`, `example_*` を保持したまま `assets/words_core.jsonl` を clean rebuild する
-- [x] `README.md`, `README.en.md`, `THIRD_PARTY_NOTICES.md`, `docs/design.md` から `wordfreq`, `nltk`, `toeic600`, `toeic800` 前提の記述を除去する
+- [x] `README.md`, `README.en.md`, `THIRD_PARTY_NOTICES.md`, 旧設計書から `wordfreq`, `nltk`, `toeic600`, `toeic800` 前提の記述を除去する
 - [x] `third_party/licenses/` に Leipzig 用のライセンス参照を追加し、bundled data の notice を Leipzig + Japanese WordNet ベースへ更新する
 - [x] `scripts/vocab/` に source manifest を追加し、使用 corpus、入力ファイル名、ライセンス、生成コマンドを固定する
 - [x] `pyproject.toml` から `wordfreq` と `nltk` を削除する

@@ -9,7 +9,7 @@ This repository contains project code, bundled vocabulary data, and development 
 
 ## 2. Runtime Dependencies Distributed with the App
 
-The Go application is built from modules that use permissive upstream licenses. The main direct dependencies currently referenced in `go.mod` are:
+The Go application is built from modules that use permissive upstream licenses. The runtime dependency set currently referenced in `go.mod` includes:
 
 | Component | Role | Upstream license | Reference |
 | --- | --- | --- | --- |
@@ -19,6 +19,7 @@ The Go application is built from modules that use permissive upstream licenses. 
 | `github.com/BurntSushi/toml` | TOML parsing | MIT | `third_party/licenses/MIT.txt` |
 | `github.com/spf13/cobra` | CLI framework | Apache-2.0 | `third_party/licenses/Apache-2.0.txt` |
 | `github.com/google/uuid` | UUID generation | BSD-3-Clause style | `third_party/licenses/BSD-3-Clause.txt` |
+| `github.com/mattn/go-runewidth` | rune/string display width handling | MIT | `third_party/licenses/MIT.txt` |
 | `modernc.org/sqlite` | pure Go SQLite driver | BSD-style | `third_party/licenses/BSD-3-Clause.txt` |
 
 These dependencies are part of the source distribution and linked binary builds. Retain the accompanying license texts when redistributing release artifacts.
