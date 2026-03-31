@@ -134,3 +134,38 @@
 - wrapped archive fixture で既存 install 系 test が通る。
 - unwrapped archive fixture でも install success の回帰が通る。
 - `go test ./...` が通る。
+
+---
+
+# 2026-03-31 issue #8: update 通知の stale latest tag
+
+## Goal
+
+- 新しい release 公開直後でも、ホーム画面の update 通知が前回 release tag を長時間表示し続けないようにする。
+
+## Scope
+
+- TUI 起動時の update check 呼び出し
+- update check の forced refresh / cached fallback 回帰テスト
+- README / README.en / CHANGELOG の update 通知説明
+- 配布・update policy ADR の整合更新
+
+## Non-Goals
+
+- semver 比較ロジックの変更
+- `install.sh` の latest release 解決方式変更
+- GitHub Releases API を `/releases/latest` から全件走査へ切り替えること
+
+## Required Behavior
+
+- ホーム画面の update 通知は起動ごとに非同期で最新 release を再検証する。
+- network request が timeout / offline / API failure になった場合だけ、保存済み `update-check.json` の latest 情報へ fallback する。
+- 初回の successful check では通知を出さず、2 回目以降に新しい版が確認されたときだけ通知対象にする既存仕様は維持する。
+- `eitango version` の latest release 表示と、manual update フローは従来どおり維持する。
+
+## Acceptance
+
+- ホーム画面の update check が `CheckNow` 経由で forced refresh を使うことを unit test で確認できる。
+- cached `v0.2.0` が存在しても forced refresh 成功時は `v0.2.1` が返る回帰 test が通る。
+- forced refresh 失敗時は cached latest 情報へ fallback する回帰 test が通る。
+- `go test ./...` が通る。

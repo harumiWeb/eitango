@@ -51,7 +51,7 @@ func updateCheckCmd(service updatecheck.Service, currentVersion string) tea.Cmd 
 		return nil
 	}
 	return func() tea.Msg {
-		result, _ := service.Check(context.Background(), currentVersion)
+		result, _ := service.CheckNow(context.Background(), currentVersion)
 		return updateCheckedMsg{Result: result}
 	}
 }

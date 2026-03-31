@@ -167,16 +167,16 @@ func TestSessionCmdLearnUsesPlanOptions(t *testing.T) {
 	}
 }
 
-func TestUpdateCheckCmdReturnsResultEvenWhenServiceErrors(t *testing.T) {
+func TestUpdateCheckCmdUsesCheckNowAndReturnsResultEvenWhenServiceErrors(t *testing.T) {
 	t.Parallel()
 
 	service := &stubUpdateService{
-		checkResult: updatecheck.Result{
+		checkNowResult: updatecheck.Result{
 			Latest:          updatecheck.ReleaseInfo{TagName: "v1.2.0"},
 			UpdateAvailable: true,
 			ShouldNotify:    true,
 		},
-		checkErr: errors.New("timeout"),
+		checkNowErr: errors.New("timeout"),
 	}
 
 	msg := updateCheckCmd(service, "v1.1.0")()
@@ -184,8 +184,11 @@ func TestUpdateCheckCmdReturnsResultEvenWhenServiceErrors(t *testing.T) {
 	if !ok {
 		t.Fatalf("updateCheckCmd() returned %T, want updateCheckedMsg", msg)
 	}
-	if service.checkCalls != 1 {
-		t.Fatalf("checkCalls = %d, want 1", service.checkCalls)
+	if service.checkCalls != 0 {
+		t.Fatalf("checkCalls = %d, want 0", service.checkCalls)
+	}
+	if service.checkNowCalls != 1 {
+		t.Fatalf("checkNowCalls = %d, want 1", service.checkNowCalls)
 	}
 	if !checked.Result.ShouldNotify {
 		t.Fatal("ShouldNotify = false, want true")
