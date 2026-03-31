@@ -442,12 +442,13 @@ func setEnvValue(env []string, key, value string) []string {
 
 func envValue(env []string, key string) string {
 	prefix := key + "="
-	for i := len(env) - 1; i >= 0; i-- {
-		if strings.HasPrefix(env[i], prefix) {
-			return strings.TrimPrefix(env[i], prefix)
+	value := ""
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			value = strings.TrimPrefix(entry, prefix)
 		}
 	}
-	return ""
+	return value
 }
 
 func TestSetEnvValueReplacesDuplicates(t *testing.T) {
