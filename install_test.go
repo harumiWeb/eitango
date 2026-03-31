@@ -650,6 +650,9 @@ func runtimeGOARCH(t *testing.T) string {
 func skipOnWindows(t *testing.T) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
-		t.Skip("install.sh integration tests are unix-only")
+		t.Skip("install.sh integration tests are macOS/Linux-only")
+	}
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skipf("install.sh integration tests are macOS/Linux-only (got %s)", runtime.GOOS)
 	}
 }
