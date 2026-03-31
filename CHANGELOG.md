@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-03-31
+
 ### Added
 
 - macOS / Linux 向けの `curl | sh` installer を追加しました。
@@ -34,5 +36,6 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/harumiWeb/eitango/compare/v0.2.1...v0.2.2
 [0.2.0]: https://github.com/harumiWeb/eitango/compare/v0.1.1...v0.2.0

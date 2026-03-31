@@ -3,12 +3,44 @@ package updatecheck
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
 	"time"
 )
+
+func newReleaseTestServer(t *testing.T, handler func(http.ResponseWriter, *http.Request, chan<- error)) *httptest.Server {
+	t.Helper()
+
+	errs := make(chan error, 1)
+	t.Cleanup(func() {
+		select {
+		case err := <-errs:
+			t.Fatalf("httptest handler error: %v", err)
+		default:
+		}
+	})
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler(w, r, errs)
+	}))
+}
+
+func reportHandlerError(errs chan<- error, format string, args ...any) {
+	select {
+	case errs <- fmt.Errorf(format, args...):
+	default:
+	}
+}
+
+func writeReleaseInfo(w http.ResponseWriter, errs chan<- error, release ReleaseInfo) {
+	if err := json.NewEncoder(w).Encode(release); err != nil {
+		reportHandlerError(errs, "encode release response: %w", err)
+		http.Error(w, "encode failure", http.StatusInternalServerError)
+	}
+}
 
 func TestCompareVersions(t *testing.T) {
 	t.Parallel()
@@ -74,21 +106,23 @@ func TestCheckedResultNonSemverCurrentVersionReportsUpdate(t *testing.T) {
 
 func TestCheckerFirstSuccessfulCheckSuppressesNotice(t *testing.T) {
 	var hits int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newReleaseTestServer(t, func(w http.ResponseWriter, r *http.Request, errs chan<- error) {
 		hits++
 		if r.Method != http.MethodGet {
-			t.Fatalf("method = %s, want GET", r.Method)
+			reportHandlerError(errs, "method = %s, want GET", r.Method)
+			http.Error(w, "unexpected method", http.StatusMethodNotAllowed)
+			return
 		}
 		if got := r.Header.Get("Accept"); got != "application/vnd.github+json" {
-			t.Fatalf("Accept = %q, want GitHub media type", got)
+			reportHandlerError(errs, "Accept = %q, want GitHub media type", got)
+			http.Error(w, "unexpected Accept header", http.StatusBadRequest)
+			return
 		}
-		if err := json.NewEncoder(w).Encode(ReleaseInfo{
+		writeReleaseInfo(w, errs, ReleaseInfo{
 			TagName: "v1.2.0",
 			HTMLURL: "https://example.com/eitango/v1.2.0",
-		}); err != nil {
-			t.Fatalf("Encode() error = %v", err)
-		}
-	}))
+		})
+	})
 	defer server.Close()
 
 	now := time.Date(2026, 3, 29, 10, 0, 0, 0, time.UTC)
@@ -130,15 +164,13 @@ func TestCheckerFirstSuccessfulCheckSuppressesNotice(t *testing.T) {
 
 func TestCheckerUsesCachedLatestWithinTTL(t *testing.T) {
 	var hits int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newReleaseTestServer(t, func(w http.ResponseWriter, r *http.Request, errs chan<- error) {
 		hits++
-		if err := json.NewEncoder(w).Encode(ReleaseInfo{
+		writeReleaseInfo(w, errs, ReleaseInfo{
 			TagName: "v1.2.0",
 			HTMLURL: "https://example.com/eitango/v1.2.0",
-		}); err != nil {
-			t.Fatalf("Encode() error = %v", err)
-		}
-	}))
+		})
+	})
 	defer server.Close()
 
 	now := time.Date(2026, 3, 29, 10, 0, 0, 0, time.UTC)
@@ -175,15 +207,13 @@ func TestCheckerUsesCachedLatestWithinTTL(t *testing.T) {
 
 func TestCheckerClockSkewForcesFetch(t *testing.T) {
 	var hits int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newReleaseTestServer(t, func(w http.ResponseWriter, r *http.Request, errs chan<- error) {
 		hits++
-		if err := json.NewEncoder(w).Encode(ReleaseInfo{
+		writeReleaseInfo(w, errs, ReleaseInfo{
 			TagName: "v1.2.0",
 			HTMLURL: "https://example.com/eitango/v1.2.0",
-		}); err != nil {
-			t.Fatalf("Encode() error = %v", err)
-		}
-	}))
+		})
+	})
 	defer server.Close()
 
 	now := time.Date(2026, 3, 29, 10, 0, 0, 0, time.UTC)
@@ -212,15 +242,13 @@ func TestCheckerClockSkewForcesFetch(t *testing.T) {
 
 func TestCheckerCheckNowBypassesTTL(t *testing.T) {
 	var hits int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newReleaseTestServer(t, func(w http.ResponseWriter, r *http.Request, errs chan<- error) {
 		hits++
-		if err := json.NewEncoder(w).Encode(ReleaseInfo{
+		writeReleaseInfo(w, errs, ReleaseInfo{
 			TagName: "v1.2.0",
 			HTMLURL: "https://example.com/eitango/v1.2.0",
-		}); err != nil {
-			t.Fatalf("Encode() error = %v", err)
-		}
-	}))
+		})
+	})
 	defer server.Close()
 
 	now := time.Date(2026, 3, 29, 10, 0, 0, 0, time.UTC)
@@ -250,7 +278,7 @@ func TestCheckerCheckNowBypassesTTL(t *testing.T) {
 
 func TestCheckerCheckNowRefreshesLatestTagEvenWithinTTL(t *testing.T) {
 	var hits int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newReleaseTestServer(t, func(w http.ResponseWriter, r *http.Request, errs chan<- error) {
 		hits++
 		release := ReleaseInfo{
 			TagName: "v1.2.0",
@@ -262,10 +290,8 @@ func TestCheckerCheckNowRefreshesLatestTagEvenWithinTTL(t *testing.T) {
 				HTMLURL: "https://example.com/eitango/v1.2.1",
 			}
 		}
-		if err := json.NewEncoder(w).Encode(release); err != nil {
-			t.Fatalf("Encode() error = %v", err)
-		}
-	}))
+		writeReleaseInfo(w, errs, release)
+	})
 	defer server.Close()
 
 	now := time.Date(2026, 3, 30, 12, 35, 0, 0, time.UTC)
@@ -307,19 +333,17 @@ func TestCheckerCheckNowRefreshesLatestTagEvenWithinTTL(t *testing.T) {
 
 func TestCheckerCheckNowFallsBackToCachedLatestOnFetchError(t *testing.T) {
 	var hits int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newReleaseTestServer(t, func(w http.ResponseWriter, r *http.Request, errs chan<- error) {
 		hits++
 		if hits == 1 {
-			if err := json.NewEncoder(w).Encode(ReleaseInfo{
+			writeReleaseInfo(w, errs, ReleaseInfo{
 				TagName: "v1.2.0",
 				HTMLURL: "https://example.com/eitango/v1.2.0",
-			}); err != nil {
-				t.Fatalf("Encode() error = %v", err)
-			}
+			})
 			return
 		}
 		http.Error(w, "timeout", http.StatusGatewayTimeout)
-	}))
+	})
 	defer server.Close()
 
 	now := time.Date(2026, 3, 30, 12, 35, 0, 0, time.UTC)
