@@ -22,6 +22,13 @@
 - [x] README / README.en / CHANGELOG を curl installer 導線へ更新する
 - [x] 配布ポリシー ADR を installer 前提へ更新する
 
+## 2026-03-31 PR #7 unresolved review follow-up
+
+- [x] `gh` で PR #7 の未解決 review thread を取得し、妥当性を確認する
+- [x] `install.sh` が wrapped / unwrapped archive layout の両方を扱えるようにする
+- [x] `install_test.go` に wrapped / unwrapped layout の回帰を反映する
+- [x] `go test ./...` を通す
+
 ## 2026-03-29 ドキュメント再編
 
 - [x] 旧設計書のうち current code に効いている判断だけを抽出する

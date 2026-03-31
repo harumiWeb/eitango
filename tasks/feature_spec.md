@@ -104,3 +104,33 @@
 - `go test ./...` で installer の latest install / pinned install / checksum failure / uninstall / failed replace の回帰が通る。
 - Ubuntu CI で `shellcheck install.sh` が通る。
 - README に latest install, version pin, uninstall, purge-data の例が揃う。
+
+---
+
+# 2026-03-31 PR #7 review follow-up: installer archive layout
+
+## Goal
+
+- `install.sh` が release archive の layout を root 直下前提にせず、単一トップディレクトリで包まれた archive でも展開できるようにする。
+
+## Scope
+
+- `install.sh` の展開後 source dir 解決
+- `install_test.go` の archive fixture と回帰テスト
+
+## Non-Goals
+
+- `.goreleaser.yaml` の artifact naming や archive 生成ポリシーの変更
+- installer の checksum / uninstall / rollback 契約の変更
+
+## Required Behavior
+
+- 展開先に単一のトップディレクトリだけが存在する場合は、そのディレクトリ配下を release contents として扱う。
+- 展開先に複数エントリがある場合は、従来どおり展開先 root を release contents として扱う。
+- installer regression test は wrapped / unwrapped の両方の archive layout を検証する。
+
+## Acceptance
+
+- wrapped archive fixture で既存 install 系 test が通る。
+- unwrapped archive fixture でも install success の回帰が通る。
+- `go test ./...` が通る。

@@ -197,6 +197,27 @@ build_stage() {
 	printf '%s\n' "$2" > "${STAGE_DIR}/version"
 }
 
+resolve_archive_root() {
+	extracted="$1"
+	first_path=""
+	entry_count=0
+	for path in "${extracted}"/*; do
+		if [ ! -e "$path" ]; then
+			break
+		fi
+		entry_count=$((entry_count + 1))
+		first_path="$path"
+		if [ "$entry_count" -gt 1 ]; then
+			break
+		fi
+	done
+	if [ "$entry_count" -eq 1 ] && [ -d "$first_path" ]; then
+		printf '%s\n' "$first_path"
+		return
+	fi
+	printf '%s\n' "$extracted"
+}
+
 replace_install_root() {
 	if [ -e "${INSTALL_ROOT}" ]; then
 		BACKUP_DIR="${INSTALL_ROOT}.backup.$$"
@@ -332,8 +353,9 @@ verify_archive "${CHECKSUM_PATH}" "${ARCHIVE_NAME}" "${ARCHIVE_PATH}"
 
 tar -xzf "${ARCHIVE_PATH}" -C "${EXTRACT_DIR}" || die "failed to extract ${ARCHIVE_NAME}"
 
+SOURCE_DIR="$(resolve_archive_root "${EXTRACT_DIR}")"
 prepare_stage
-build_stage "${EXTRACT_DIR}" "${VERSION}"
+build_stage "${SOURCE_DIR}" "${VERSION}"
 replace_install_root
 
 say "Installed to ${BIN_PATH}"

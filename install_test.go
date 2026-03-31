@@ -28,7 +28,7 @@ func TestInstallScriptInstallsLatestRelease(t *testing.T) {
 
 	const version = "v9.8.7"
 	archiveName := releaseArchiveName(version, runtimeGOOS(t), runtimeGOARCH(t))
-	archiveBytes := makeArchive(t)
+	archiveBytes := makeArchive(t, true)
 	checksums := fmt.Sprintf("%s  %s\n", sha256Hex(archiveBytes), archiveName)
 
 	var latestHits int32
@@ -70,7 +70,7 @@ func TestInstallScriptPinnedVersionSkipsLatestLookup(t *testing.T) {
 
 	const version = "v1.2.3"
 	archiveName := releaseArchiveName(version, runtimeGOOS(t), runtimeGOARCH(t))
-	archiveBytes := makeArchive(t)
+	archiveBytes := makeArchive(t, true)
 	checksums := fmt.Sprintf("%s  %s\n", sha256Hex(archiveBytes), archiveName)
 
 	var latestHits int32
@@ -106,7 +106,7 @@ func TestInstallScriptChecksumMismatchKeepsExistingInstall(t *testing.T) {
 		newVersion = "v1.0.0"
 	)
 	archiveName := releaseArchiveName(newVersion, runtimeGOOS(t), runtimeGOARCH(t))
-	archiveBytes := makeArchive(t)
+	archiveBytes := makeArchive(t, true)
 	checksums := fmt.Sprintf("%s  %s\n", strings.Repeat("0", 64), archiveName)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -146,7 +146,7 @@ func TestInstallScriptFailsWithoutChecksumTool(t *testing.T) {
 
 	const version = "v2.0.0"
 	archiveName := releaseArchiveName(version, runtimeGOOS(t), runtimeGOARCH(t))
-	archiveBytes := makeArchive(t)
+	archiveBytes := makeArchive(t, true)
 	checksums := fmt.Sprintf("%s  %s\n", sha256Hex(archiveBytes), archiveName)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -185,7 +185,7 @@ func TestInstallScriptFailsWhenChecksumEntryIsMissing(t *testing.T) {
 
 	const version = "v2.1.0"
 	archiveName := releaseArchiveName(version, runtimeGOOS(t), runtimeGOARCH(t))
-	archiveBytes := makeArchive(t)
+	archiveBytes := makeArchive(t, true)
 	checksums := fmt.Sprintf("%s  %s\n", sha256Hex(archiveBytes), "eitango_other.tar.gz")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -330,7 +330,7 @@ func TestInstallScriptFailedReplaceKeepsBackup(t *testing.T) {
 		newVersion = "v1.3.0"
 	)
 	archiveName := releaseArchiveName(newVersion, runtimeGOOS(t), runtimeGOARCH(t))
-	archiveBytes := makeArchive(t)
+	archiveBytes := makeArchive(t, true)
 	checksums := fmt.Sprintf("%s  %s\n", sha256Hex(archiveBytes), archiveName)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -376,6 +376,39 @@ func TestInstallScriptFailedReplaceKeepsBackup(t *testing.T) {
 	if _, statErr := os.Stat(filepath.Join(home, ".eitango")); !os.IsNotExist(statErr) {
 		t.Fatalf("install root exists after failed replace: %v", statErr)
 	}
+}
+
+func TestInstallScriptInstallsUnwrappedArchive(t *testing.T) {
+	skipOnWindows(t)
+
+	const version = "v9.8.8"
+	archiveName := releaseArchiveName(version, runtimeGOOS(t), runtimeGOARCH(t))
+	archiveBytes := makeArchive(t, false)
+	checksums := fmt.Sprintf("%s  %s\n", sha256Hex(archiveBytes), archiveName)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/test/eitango/releases/latest":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, fmt.Sprintf(`{"tag_name":"%s"}`, version))
+		case fmt.Sprintf("/test/eitango/releases/download/%s/%s", version, archiveName):
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(archiveBytes)
+		case fmt.Sprintf("/test/eitango/releases/download/%s/checksums.txt", version):
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(w, checksums)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	home := t.TempDir()
+	runInstallScript(t, home, []string{}, installTestEnv(server.URL, nil)...)
+
+	assertFileContains(t, filepath.Join(home, ".eitango", "version"), version)
+	assertExecutableExists(t, filepath.Join(home, ".eitango", "bin", "eitango"))
+	assertFileContains(t, filepath.Join(home, ".eitango", "share", "LICENSE"), "fixture license")
 }
 
 func installTestEnv(serverURL string, wrappers map[string]string) []string {
@@ -525,15 +558,19 @@ func shellQuoteForScript(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", `'"'"'`) + "'"
 }
 
-func makeArchive(t *testing.T) []byte {
+func makeArchive(t *testing.T, wrapInDirectory bool) []byte {
 	t.Helper()
 	tempDir := t.TempDir()
-	mustWriteFile(t, filepath.Join(tempDir, "eitango"), "#!/bin/sh\necho fixture\n", 0o755)
-	mustWriteFile(t, filepath.Join(tempDir, "LICENSE"), "fixture license\n", 0o644)
-	mustWriteFile(t, filepath.Join(tempDir, "README.md"), "fixture readme\n", 0o644)
-	mustWriteFile(t, filepath.Join(tempDir, "README.en.md"), "fixture english readme\n", 0o644)
-	mustWriteFile(t, filepath.Join(tempDir, "THIRD_PARTY_NOTICES.md"), "fixture notices\n", 0o644)
-	mustWriteFile(t, filepath.Join(tempDir, "third_party", "licenses", "fixture.txt"), "fixture third-party license\n", 0o644)
+	archiveRoot := tempDir
+	if wrapInDirectory {
+		archiveRoot = filepath.Join(tempDir, "eitango-fixture")
+	}
+	mustWriteFile(t, filepath.Join(archiveRoot, "eitango"), "#!/bin/sh\necho fixture\n", 0o755)
+	mustWriteFile(t, filepath.Join(archiveRoot, "LICENSE"), "fixture license\n", 0o644)
+	mustWriteFile(t, filepath.Join(archiveRoot, "README.md"), "fixture readme\n", 0o644)
+	mustWriteFile(t, filepath.Join(archiveRoot, "README.en.md"), "fixture english readme\n", 0o644)
+	mustWriteFile(t, filepath.Join(archiveRoot, "THIRD_PARTY_NOTICES.md"), "fixture notices\n", 0o644)
+	mustWriteFile(t, filepath.Join(archiveRoot, "third_party", "licenses", "fixture.txt"), "fixture third-party license\n", 0o644)
 
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
