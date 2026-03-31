@@ -17,7 +17,7 @@
 - 更新は自動適用しない。新しい版の取得は release archive の再取得か `go install ...@latest` の再実行で行う。
 - update check は GitHub Releases の latest を参照する補助機能とし、学習フローを止めない best-effort 動作に限定する。
 - update check の state は data dir の `update-check.json` に保存し、ホーム画面の通知は起動ごとに latest release を非同期で再検証する。HTTP timeout は 1.5 秒とし、保存 state は request failure 時の fallback に使う。
-- cache を尊重する helper は TTL 24 時間を維持するが、ホーム画面の鮮度判定には使わない。
+- cache を尊重する helper（例: `Check`）は TTL 24 時間を維持するが、TUI ホーム画面や `eitango version` などの対話 UI からは常に非 cache な `CheckNow` を呼び出し、鮮度判定には TTL を使わない。TTL 付き helper は将来のバッチ系 / 非対話コマンド向けに残すが、現状では呼び出し元を持たない前提とする。
 - 初回の successful check では通知を出さず、2 回目以降に新しい版が確認されたときだけ通知対象にする。
 - `EITANGO_DISABLE_UPDATE_CHECK=1` で update check を完全に無効化できるように保つ。
 - オフライン、タイムアウト、API failure 時は黙って失敗し、通常の学習や CLI 実行は継続させる。
