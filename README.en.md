@@ -42,7 +42,7 @@
 
 ### 1. Use `curl | sh` on macOS / Linux
 
-`install.sh` downloads only GitHub Release archives and `checksums.txt`, then installs into `~/.eitango/` only after the SHA256 check passes. It never edits shell rc files automatically.
+`install.sh` calls the GitHub Releases API (`/releases/latest`) when `--version` is omitted to resolve the latest version, then downloads the matching GitHub Release archive and `checksums.txt`. It installs into `~/.eitango/` only after the SHA256 check passes, and it never edits shell rc files automatically.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh

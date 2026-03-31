@@ -415,7 +415,11 @@ func runInstallScriptErr(home string, args []string, env ...string) error {
 		if err != nil {
 			return err
 		}
-		cmd.Env = setEnvValue(cmd.Env, "PATH", wrapperDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+		pathValue := envValue(cmd.Env, "PATH")
+		if pathValue == "" {
+			pathValue = os.Getenv("PATH")
+		}
+		cmd.Env = setEnvValue(cmd.Env, "PATH", wrapperDir+string(os.PathListSeparator)+pathValue)
 	}
 
 	output, err := cmd.CombinedOutput()
@@ -434,6 +438,16 @@ func setEnvValue(env []string, key, value string) []string {
 		}
 	}
 	return append(filtered, prefix+value)
+}
+
+func envValue(env []string, key string) string {
+	prefix := key + "="
+	for i := len(env) - 1; i >= 0; i-- {
+		if strings.HasPrefix(env[i], prefix) {
+			return strings.TrimPrefix(env[i], prefix)
+		}
+	}
+	return ""
 }
 
 func TestSetEnvValueReplacesDuplicates(t *testing.T) {
@@ -466,6 +480,21 @@ func TestSetEnvValueReplacesDuplicates(t *testing.T) {
 	}
 	if !containsString(env, "OTHER=1") {
 		t.Fatalf("OTHER entry missing from env: %v", env)
+	}
+}
+
+func TestEnvValueReturnsLastMatch(t *testing.T) {
+	env := []string{
+		"PATH=/usr/bin",
+		"OTHER=1",
+		"PATH=/custom/bin",
+	}
+
+	if got := envValue(env, "PATH"); got != "/custom/bin" {
+		t.Fatalf("envValue(PATH) = %q, want %q", got, "/custom/bin")
+	}
+	if got := envValue(env, "MISSING"); got != "" {
+		t.Fatalf("envValue(MISSING) = %q, want empty string", got)
 	}
 }
 

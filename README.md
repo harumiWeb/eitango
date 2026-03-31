@@ -42,7 +42,7 @@
 
 ### 1. macOS / Linux は `curl | sh` を使う
 
-`install.sh` は GitHub Releases の archive と `checksums.txt` だけを取得し、SHA256 検証が通ったときだけ `~/.eitango/` へ展開します。shell rc は自動変更しません。
+`install.sh` は `--version` を省略した場合に GitHub Releases API (`/releases/latest`) へアクセスして最新 version を解決し、そのうえで対応する archive と `checksums.txt` を取得します。SHA256 検証が通ったときだけ `~/.eitango/` へ展開し、shell rc は自動変更しません。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh
