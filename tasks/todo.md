@@ -12,6 +12,23 @@
 - [x] `go test ./...` を通す
 - [ ] 公開 release 更新後に `go install github.com/harumiWeb/eitango/cmd/eitango@latest` 実機で `dev` 解消を再確認する
 
+## 2026-03-30 issue #4: curl installer
+
+- [x] `install.sh` を追加し、latest install / `--version` / `--uninstall` / `--purge-data` を実装する
+- [x] installer が archive と同じ release の `checksums.txt` を使って SHA256 を必須検証する
+- [x] release 同梱の `LICENSE`, `README*`, `THIRD_PARTY_NOTICES.md`, `third_party/licenses/` を `~/.eitango/share/` へ保持する
+- [x] Go integration test で install / checksum failure / uninstall の回帰を追加する
+- [x] Ubuntu CI に `shellcheck install.sh` を追加する
+- [x] README / README.en / CHANGELOG を curl installer 導線へ更新する
+- [x] 配布ポリシー ADR を installer 前提へ更新する
+
+## 2026-03-31 PR #7 unresolved review follow-up
+
+- [x] `gh` で PR #7 の未解決 review thread を取得し、妥当性を確認する
+- [x] `install.sh` が wrapped / unwrapped archive layout の両方を扱えるようにする
+- [x] `install_test.go` に wrapped / unwrapped layout の回帰を反映する
+- [x] `go test ./...` を通す
+
 ## 2026-03-29 ドキュメント再編
 
 - [x] 旧設計書のうち current code に効いている判断だけを抽出する

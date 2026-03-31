@@ -62,3 +62,75 @@
 - `go install github.com/harumiWeb/eitango/cmd/eitango@latest` 由来の build info を模したテストで `dev` ではなく `vX.Y.Z` が表示される。
 - build info がないケースでは従来どおり `dev` が表示される。
 - `go test ./...` が通る。
+
+---
+
+# 2026-03-30 issue #4: curl installer / uninstall / version pin
+
+## Goal
+
+- macOS / Linux ユーザー向けに `curl | sh` の最短 install 導線を追加する。
+- installer から特定 release tag の導入と uninstall を実行できるようにする。
+- download した archive は GitHub Releases の `checksums.txt` で SHA256 検証してから展開する。
+
+## Scope
+
+- ルート `install.sh`
+- release archive を前提にした installer integration test
+- README / README.en / CHANGELOG の install 説明
+- 配布ポリシー ADR の更新
+
+## Non-Goals
+
+- Windows PowerShell installer の追加
+- Go 本体への self-update サブコマンド追加
+- update check の TTL / 表示仕様変更
+- `.goreleaser.yaml` の artifact naming 変更
+
+## Required Behavior
+
+- `install.sh` は macOS / Linux のみを対象にし、`x86_64|arm64` を release archive 名へ正規化する。
+- `install.sh --version 0.2.0` と `install.sh --version v0.2.0` は同じ release tag `v0.2.0` を解決する。
+- `--version` 未指定時だけ GitHub Releases API の latest を参照する。
+- installer は archive と同じ release の `checksums.txt` を取得し、SHA256 が一致しない限り install root を置き換えない。
+- installer は `~/.eitango/bin/eitango`, `~/.eitango/version`, `~/.eitango/share/` を管理し、法務ファイルを `share/` に保持する。
+- `--uninstall` は installer 管理下の `~/.eitango` を削除し、学習 data は既定で保持する。対話確認で purge を有効化しない。
+- `--purge-data` 指定時だけ data dir も削除し、`EITANGO_DATA_DIR` がその実行で渡されていればその path を優先する。
+- install root 置換に失敗した場合、旧 install の rollback copy を削除せず、復元または backup path に残す。
+- PATH は自動変更しない。
+
+## Acceptance
+
+- `go test ./...` で installer の latest install / pinned install / checksum failure / uninstall / failed replace の回帰が通る。
+- Ubuntu CI で `shellcheck install.sh` が通る。
+- README に latest install, version pin, uninstall, purge-data の例が揃う。
+
+---
+
+# 2026-03-31 PR #7 review follow-up: installer archive layout
+
+## Goal
+
+- `install.sh` が release archive の layout を root 直下前提にせず、単一トップディレクトリで包まれた archive でも展開できるようにする。
+
+## Scope
+
+- `install.sh` の展開後 source dir 解決
+- `install_test.go` の archive fixture と回帰テスト
+
+## Non-Goals
+
+- `.goreleaser.yaml` の artifact naming や archive 生成ポリシーの変更
+- installer の checksum / uninstall / rollback 契約の変更
+
+## Required Behavior
+
+- 展開先に単一のトップディレクトリだけが存在する場合は、そのディレクトリ配下を release contents として扱う。
+- 展開先に複数エントリがある場合は、従来どおり展開先 root を release contents として扱う。
+- installer regression test は wrapped / unwrapped の両方の archive layout を検証する。
+
+## Acceptance
+
+- wrapped archive fixture で既存 install 系 test が通る。
+- unwrapped archive fixture でも install success の回帰が通る。
+- `go test ./...` が通る。
