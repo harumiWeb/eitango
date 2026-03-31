@@ -37,5 +37,5 @@
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
 [Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.2.2...HEAD
-[0.2.2]: https://github.com/harumiWeb/eitango/compare/v0.2.1...v0.2.2
+[0.2.2]: https://github.com/harumiWeb/eitango/compare/v0.2.0...v0.2.2
 [0.2.0]: https://github.com/harumiWeb/eitango/compare/v0.1.1...v0.2.0
