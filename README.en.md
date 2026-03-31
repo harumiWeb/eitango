@@ -138,8 +138,9 @@ Set `EITANGO_DATA_DIR` to override the default location.
 
 `eitango`, `eitango learn`, `eitango review`, and `eitango version` can check the latest GitHub Release.
 
-- checks run at most once every 24 hours
+- the home-screen notice revalidates the latest release asynchronously on every launch
 - the first successful check seeds the cache without showing a notice
+- `update-check.json` stores the most recent successful result and is used as a fallback when the request times out or fails
 - later launches show a lightweight home-screen notice when a newer version is available
 - `eitango version` prints the current build info plus the latest release URL when available
 - timeouts and offline failures are skipped silently so they do not interrupt study sessions

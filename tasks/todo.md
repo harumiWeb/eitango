@@ -29,6 +29,14 @@
 - [x] `install_test.go` に wrapped / unwrapped layout の回帰を反映する
 - [x] `go test ./...` を通す
 
+## 2026-03-31 issue #8: update 通知 stale tag
+
+- [x] ホーム画面の update check を cached `Check` ではなく forced `CheckNow` に切り替える
+- [x] forced refresh 成功時に cached latest tag を更新する回帰 test を追加する
+- [x] forced refresh 失敗時に cached latest tag へ fallback する回帰 test を追加する
+- [x] README / README.en / CHANGELOG / ADR の update 通知説明を整合更新する
+- [x] `go test ./...` を通す
+
 ## 2026-03-29 ドキュメント再編
 
 - [x] 旧設計書のうち current code に効いている判断だけを抽出する

@@ -14,6 +14,7 @@
 
 - installer は GitHub Releases の `checksums.txt` を使って archive の SHA256 を必須検証するようにしました。
 - README / README.en に curl installer、version pin、uninstall の導線を追記しました。
+- ホーム画面の update 通知は起動ごとに latest release を再確認し、保存済み cache は失敗時の fallback に限定するようにしました。
 
 ## [0.2.0] - 2026-03-29
 

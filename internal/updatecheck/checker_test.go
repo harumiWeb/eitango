@@ -248,6 +248,108 @@ func TestCheckerCheckNowBypassesTTL(t *testing.T) {
 	}
 }
 
+func TestCheckerCheckNowRefreshesLatestTagEvenWithinTTL(t *testing.T) {
+	var hits int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		release := ReleaseInfo{
+			TagName: "v1.2.0",
+			HTMLURL: "https://example.com/eitango/v1.2.0",
+		}
+		if hits > 1 {
+			release = ReleaseInfo{
+				TagName: "v1.2.1",
+				HTMLURL: "https://example.com/eitango/v1.2.1",
+			}
+		}
+		if err := json.NewEncoder(w).Encode(release); err != nil {
+			t.Fatalf("Encode() error = %v", err)
+		}
+	}))
+	defer server.Close()
+
+	now := time.Date(2026, 3, 30, 12, 35, 0, 0, time.UTC)
+	checker := New(filepath.Join(t.TempDir(), "update-check.json"))
+	checker.LatestReleaseURL = server.URL
+	checker.Now = func() time.Time { return now }
+
+	first, err := checker.Check(context.Background(), "v1.1.0")
+	if err != nil {
+		t.Fatalf("first Check() error = %v", err)
+	}
+	if first.Latest.TagName != "v1.2.0" {
+		t.Fatalf("first Latest.TagName = %q, want v1.2.0", first.Latest.TagName)
+	}
+
+	now = now.Add(10 * time.Minute)
+	refreshed, err := checker.CheckNow(context.Background(), "v1.1.0")
+	if err != nil {
+		t.Fatalf("CheckNow() error = %v", err)
+	}
+	if hits != 2 {
+		t.Fatalf("hits = %d, want 2 because CheckNow bypasses TTL", hits)
+	}
+	if refreshed.Latest.TagName != "v1.2.1" {
+		t.Fatalf("refreshed Latest.TagName = %q, want v1.2.1", refreshed.Latest.TagName)
+	}
+	if !refreshed.UpdateAvailable {
+		t.Fatal("UpdateAvailable = false, want true")
+	}
+
+	saved, err := checker.loadState()
+	if err != nil {
+		t.Fatalf("loadState() error = %v", err)
+	}
+	if saved.LatestTag != "v1.2.1" {
+		t.Fatalf("saved LatestTag = %q, want v1.2.1", saved.LatestTag)
+	}
+}
+
+func TestCheckerCheckNowFallsBackToCachedLatestOnFetchError(t *testing.T) {
+	var hits int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		if hits == 1 {
+			if err := json.NewEncoder(w).Encode(ReleaseInfo{
+				TagName: "v1.2.0",
+				HTMLURL: "https://example.com/eitango/v1.2.0",
+			}); err != nil {
+				t.Fatalf("Encode() error = %v", err)
+			}
+			return
+		}
+		http.Error(w, "timeout", http.StatusGatewayTimeout)
+	}))
+	defer server.Close()
+
+	now := time.Date(2026, 3, 30, 12, 35, 0, 0, time.UTC)
+	checker := New(filepath.Join(t.TempDir(), "update-check.json"))
+	checker.LatestReleaseURL = server.URL
+	checker.Now = func() time.Time { return now }
+
+	if _, err := checker.Check(context.Background(), "v1.1.0"); err != nil {
+		t.Fatalf("first Check() error = %v", err)
+	}
+
+	now = now.Add(10 * time.Minute)
+	fallback, err := checker.CheckNow(context.Background(), "v1.1.0")
+	if err == nil {
+		t.Fatal("CheckNow() error = nil, want fetch error with cached fallback")
+	}
+	if hits != 2 {
+		t.Fatalf("hits = %d, want 2 because CheckNow retries immediately", hits)
+	}
+	if fallback.Latest.TagName != "v1.2.0" {
+		t.Fatalf("fallback Latest.TagName = %q, want cached v1.2.0", fallback.Latest.TagName)
+	}
+	if !fallback.UpdateAvailable {
+		t.Fatal("UpdateAvailable = false, want true from cached fallback")
+	}
+	if !fallback.ShouldNotify {
+		t.Fatal("ShouldNotify = false, want true from cached fallback after prior successful check")
+	}
+}
+
 func TestCheckerDisabledByEnv(t *testing.T) {
 	t.Setenv(DisableEnv, "1")
 

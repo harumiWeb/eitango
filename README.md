@@ -138,8 +138,9 @@ eitango doctor
 
 `eitango` / `eitango learn` / `eitango review` / `eitango version` は、GitHub Releases の latest release を確認できます。
 
-- 更新確認は 24 時間に 1 回までです
+- ホーム画面の通知は起動ごとに非同期で latest release を再確認します
 - 初回の成功確認では通知せず、次回以降の起動で差分があればホーム画面に軽く表示します
+- `update-check.json` には直前の successful check 結果を保存し、タイムアウトやオフライン時の fallback に使います
 - `eitango version` は現在の build info に加えて latest release URL も表示します
 - タイムアウトやオフライン時は黙ってスキップし、学習体験を止めません
 - `EITANGO_DISABLE_UPDATE_CHECK=1` で完全に無効化できます
