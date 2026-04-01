@@ -206,6 +206,21 @@ func TestRunDiagnosticsReadOnlyLegacySessionsFallbackToChoiceAnswerMode(t *testi
 	}
 }
 
+func TestTableHasColumnRejectsUnsupportedTableName(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+
+	_, err := st.tableHasColumn(ctx, "sessions; DROP TABLE sessions;--", "answer_mode")
+	if err == nil {
+		t.Fatal("tableHasColumn() error = nil, want unsupported table error")
+	}
+	if !strings.Contains(err.Error(), "unsupported table") {
+		t.Fatalf("tableHasColumn() error = %v, want unsupported table message", err)
+	}
+}
+
 func TestRunDiagnosticsDetectsUnquizzableWords(t *testing.T) {
 	t.Parallel()
 

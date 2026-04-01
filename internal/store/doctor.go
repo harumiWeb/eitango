@@ -776,8 +776,22 @@ WHERE session_id = ?
 	return diagnosticCheckOK("active sessions", fmt.Sprintf("%d active session is internally consistent", sessionCount))
 }
 
+func doctorTableInfoQuery(tableName string) (string, error) {
+	switch tableName {
+	case "sessions":
+		return "PRAGMA table_info(sessions)", nil
+	default:
+		return "", fmt.Errorf("unsupported table %q", tableName)
+	}
+}
+
 func (s *Store) tableHasColumn(ctx context.Context, tableName, columnName string) (bool, error) {
-	rows, err := s.db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", tableName))
+	query, err := doctorTableInfoQuery(tableName)
+	if err != nil {
+		return false, err
+	}
+
+	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return false, fmt.Errorf("inspect %s columns: %w", tableName, err)
 	}
@@ -803,9 +817,6 @@ func (s *Store) tableHasColumn(ctx context.Context, tableName, columnName string
 	}
 	if err := rows.Err(); err != nil {
 		return false, fmt.Errorf("iterate %s columns: %w", tableName, err)
-	}
-	if err := rows.Close(); err != nil {
-		return false, fmt.Errorf("close %s columns: %w", tableName, err)
 	}
 	return false, nil
 }

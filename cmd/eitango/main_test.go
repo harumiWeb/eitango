@@ -161,6 +161,25 @@ func TestPlayCommandFindResolvesLearnAliasAndWriteSubcommand(t *testing.T) {
 	}
 }
 
+func TestSessionCommandsRejectUnexpectedArgs(t *testing.T) {
+	t.Parallel()
+
+	for _, args := range [][]string{
+		{"play", "wrtie"},
+		{"review", "choice", "extra"},
+	} {
+		cmd := newRootCommand()
+		cmd.SetArgs(args)
+		err := cmd.Execute()
+		if err == nil {
+			t.Fatalf("Execute(%v) error = nil, want unexpected args error", args)
+		}
+		if !strings.Contains(err.Error(), "unknown command") && !strings.Contains(err.Error(), "accepts 0 arg(s)") {
+			t.Fatalf("Execute(%v) error = %v, want Cobra arg validation error", args, err)
+		}
+	}
+}
+
 func TestNewRootCommandVersionFlag(t *testing.T) {
 	originalVersion := version
 	originalReadBuildInfo := readBuildInfo

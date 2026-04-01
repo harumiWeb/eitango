@@ -1,0 +1,5 @@
+---
+engines:
+  tsqllint:
+    exclude_paths:
+      - "assets/migrations/*.sql"

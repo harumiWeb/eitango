@@ -60,7 +60,7 @@ const (
 	KindNew    = "kind.new"
 )
 
-// Feedback screen
+// Answer mode
 const (
 	AnswerModeChoice = "answer_mode.choice"
 	AnswerModeWrite  = "answer_mode.write"

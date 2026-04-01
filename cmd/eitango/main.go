@@ -97,6 +97,7 @@ func newSessionCommand(name string, aliases []string, mode, short string) *cobra
 		Use:     name,
 		Aliases: aliases,
 		Short:   short,
+		Args:    cobra.NoArgs,
 	}
 	addSessionFlags(cmd.PersistentFlags())
 	if mode == store.ModeReview {
@@ -113,6 +114,7 @@ func newAnswerModeCommand(name, sessionMode, short, answerMode string) *cobra.Co
 	return &cobra.Command{
 		Use:   name,
 		Short: short,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSession(cmd, sessionMode, answerMode)
 		},

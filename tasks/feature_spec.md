@@ -1,3 +1,38 @@
+# 2026-04-01 PR #12: Codacy follow-up
+
+## Goal
+
+- PR #12 の Codacy で出ている `doctor.go` の Security 指摘と SQLite migration への TSQLLint 誤検知を解消する。
+
+## Scope
+
+- `internal/store/doctor.go` の schema introspection query
+- `internal/store/doctor_test.go` の回帰テスト
+- Codacy 向けの tool-scoped ignore 設定
+
+## Non-Goals
+
+- `doctor` の診断仕様そのものの変更
+- SQLite migration SQL の文法や適用順の変更
+- 他 tool の有効/無効設定変更
+
+## Required Behavior
+
+- `tableHasColumn` は string-formatted SQL を使わず、許可した table 名に対する定数 PRAGMA だけを実行する。
+- 想定外の table 名は query 実行前にエラーとして拒否する。
+- Codacy では SQLite migration 群に `tsqllint` を適用しない。
+- `play/review [choice|write]` は想定外の位置引数を受け付けず、`wrtie` のような typo を default `choice` として黙って実行しない。
+- locale format string を触ったテストは、空文字確認だけで済ませず、引数個数と出力文字列まで検証する。
+
+## Acceptance
+
+- `go test ./internal/store` が通る。
+- `go test ./cmd/eitango ./internal/i18n ./internal/store` が通る。
+- Codacy issue の `internal/store/doctor.go` Security 2 件が再発しない。
+- `assets/migrations/005_answer_modes.sql` の Compatibility 指摘が `.codacy.yaml` で抑止される。
+
+---
+
 # 2026-03-29 ドキュメント再編仕様
 
 ## Goal

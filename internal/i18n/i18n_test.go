@@ -52,9 +52,10 @@ func TestTf(t *testing.T) {
 	if err := i18n.Load("ja"); err != nil {
 		t.Fatalf("Load(ja): %v", err)
 	}
-	got := i18n.Tf(i18n.HomeActiveDetail, 5, 10, "learn")
-	if got == "" {
-		t.Error("Tf returned empty string")
+	got := i18n.Tf(i18n.HomeActiveDetail, 5, 10, "learn", "choice")
+	want := "5/10 問回答済み (learn / choice)"
+	if got != want {
+		t.Fatalf("Tf(%s) = %q; want %q", i18n.HomeActiveDetail, got, want)
 	}
 }
 

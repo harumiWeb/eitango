@@ -12,3 +12,6 @@
 - destructive な削除は TTY 対話で後付け有効化しない。CLI 仕様で `--purge-data` のような明示 flag に限定すると決めたら、その契約をコードとテストの両方で固定する。
 - 文字入力を受け付ける画面では、単文字ショートカットを回答文字と衝突させない。補助操作は `Tab` / `Ctrl+...` / `Esc` のような非文字キーに寄せ、`h/s/q` のような代表文字が通常入力として通る回帰テストを追加する。
 - read-only 診断は最新 schema を直接仮定しない。`doctor` のように migration 未適用 DB を読む経路では列追加後も `PRAGMA table_info(...)` などで実スキーマを見て fallback し、欠けている migration は専用 check でだけ報告する。
+- schema introspection 用の `PRAGMA table_info(...)` は table 名を `fmt.Sprintf` で組み立てない。現在の呼び出し元が定数でも、許可テーブルごとの定数 query に閉じて静的解析と将来の misuse を防ぐ。
+- Cobra の runnable 親コマンドに subcommand を足したら、`Args` を明示して typo 位置引数を拒否する。未指定だと `play wrtie` が default 実行へ落ちる。
+- format string を更新した i18n テストは「空でない」だけで終わらせない。`%!s(MISSING)` を見逃さないよう、期待文字列か少なくとも verb 数一致まで確認する。

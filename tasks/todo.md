@@ -3,6 +3,14 @@
 このファイルは、初回 OSS リリースに向けた active backlog だけを管理する。
 完了済みの長い履歴、旧 30k ロードマップ、設計との差分棚卸しはここには残さない。
 
+## 2026-04-01 PR #12: Codacy follow-up
+
+- [x] `doctor.go` の `PRAGMA table_info(...)` を string formatting ではなく許可テーブルの定数 query に置き換える
+- [x] 想定外の table 名を拒否する回帰テストを追加する
+- [x] SQLite migration に対する `tsqllint` の誤検知を `.codacy.yaml` で除外する
+- [x] review 指摘に合わせて `play/review` が typo 引数を黙って受け付けないようにする
+- [x] locale format string の回帰テストを実際の引数数・出力まで検証する
+
 ## 2026-03-30 issue #3: go install version 表示
 
 - [x] `dev` のときだけ build info の `Main.Version` を使う解決ロジックを追加する
