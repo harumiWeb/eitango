@@ -18,6 +18,8 @@
 
 `eitango` is an offline English vocabulary trainer with a terminal UI. It uses Bubble Tea for the interactive interface and a local SQLite database for progress tracking.
 
+In addition to SRS-based review, it offers two modes: multiple-choice `choice` and input-based `write`.
+
 [日本語README](README.md)
 
 <img alt="home" src="assets/images/home.png" />
@@ -27,11 +29,22 @@
 - `eitango` opens the home screen, where you can choose modes and change settings in the TUI
 
 <p align="center">
-  <img alt="demo" src="assets/images/playing.gif" />
+  <img alt="playing" src="assets/images/choice.gif" />
+</p>
+<p align="center">
+  <em>choice mode</em>
 </p>
 
-- `eitango learn` starts a standard learning session
-- `eitango review` starts a due-only review session
+<p align="center">
+  <img alt="writing" src="assets/images/write.gif" />
+</p>
+<p align="center">
+  <em>write mode</em>
+</p>
+
+- on the home screen, `Tab` switches `choice / write`, `Enter` starts play, and `r` starts review
+- `eitango play [choice|write]` starts a standard learning session
+- `eitango review [choice|write]` starts a due-only review session
 - `eitango stats` shows learning statistics
 - `eitango version` shows the current build info and the latest release
 - `eitango doctor` runs read-only diagnostics on the DB and dictionary
@@ -91,6 +104,8 @@ Required tools are `sh`, `curl`, `tar`, `mktemp`, and one of `sha256sum`, `shasu
 
 Published archives include the executable plus `LICENSE`, `THIRD_PARTY_NOTICES.md`, and `third_party/licenses/`. Extract the artifact for your OS and run `eitango`.
 
+※ You need to manually add it to your `PATH`.
+
 ### 3. Install with Go
 
 Go 1.26 or newer is required.
@@ -110,12 +125,16 @@ eitango
 You can also start directly in a specific mode.
 
 ```bash
-eitango learn
+eitango play
+eitango play write
 eitango review --focus-mode
+eitango review write
 eitango stats
 eitango version
 eitango doctor
 ```
+
+`eitango learn` remains as a backward-compatible alias, but `eitango play` is now the canonical form in the docs.
 
 On first run, `eitango` initializes the local database. By default it uses the embedded `assets/words_core.jsonl` as the seed dictionary.
 
@@ -136,7 +155,7 @@ Set `EITANGO_DATA_DIR` to override the default location.
 
 ## Update Checks
 
-`eitango`, `eitango learn`, `eitango review`, and `eitango version` can check the latest GitHub Release.
+`eitango`, `eitango play`, `eitango review`, and `eitango version` can check the latest GitHub Release.
 
 - the home-screen notice revalidates the latest release asynchronously on every launch
 - the first successful check seeds the cache without showing a notice
@@ -163,8 +182,8 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 | Command | Purpose |
 | --- | --- |
 | `eitango version` | Show the current build info and the latest release |
-| `eitango learn [--focus-mode] [--questions N]` | Start a standard learning session |
-| `eitango review [--focus-mode] [--questions N] [--restart]` | Start a due-only review session |
+| `eitango play [choice write] [--focus-mode] [--questions N]` | Start a standard learning session |
+| `eitango review [choice write] [--focus-mode] [--questions N] [--restart]` | Start a due-only review session |
 | `eitango stats` | Show learning statistics |
 | `eitango --license` | Print bundled licenses and notices |
 | `eitango doctor` | Run DB / dictionary diagnostics |
@@ -174,6 +193,8 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 | `eitango export wrong-words --output wrong.csv` | Export difficult words as CSV |
 | `eitango export progress --output progress.json` | Export progress as JSON |
 | `eitango reset --progress` / `eitango reset --reseed` | Reset learning history / reseed the bundled core |
+
+In the TUI home screen, `Tab` switches `choice / write`, `Enter` starts play, and `r` starts review. `write` shows the Japanese meaning and asks you to type the English word, with staged hints on `Tab` and skip on `Ctrl+S`.
 
 ## Dictionary Data and Licensing
 

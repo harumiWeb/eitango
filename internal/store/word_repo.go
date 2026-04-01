@@ -264,7 +264,7 @@ WHERE status = ?
 	return nil
 }
 
-func (s *Store) CreateSession(ctx context.Context, mode string, items []SessionItemPlan) (SessionRecord, []SessionItem, error) {
+func (s *Store) CreateSession(ctx context.Context, mode, answerMode string, items []SessionItemPlan) (SessionRecord, []SessionItem, error) {
 	if len(items) == 0 {
 		return SessionRecord{}, nil, fmt.Errorf("create session: no session items")
 	}
@@ -274,6 +274,7 @@ func (s *Store) CreateSession(ctx context.Context, mode string, items []SessionI
 		ID:                uuid.NewString(),
 		StartedAt:         now,
 		Mode:              mode,
+		AnswerMode:        NormalizeAnswerMode(answerMode),
 		TotalQuestions:    len(items),
 		AnsweredQuestions: 0,
 		Status:            SessionStatusActive,
@@ -285,9 +286,9 @@ func (s *Store) CreateSession(ctx context.Context, mode string, items []SessionI
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-INSERT INTO sessions (id, started_at, mode, total_questions, answered_questions, status)
-VALUES (?, ?, ?, ?, ?, ?)
-`, record.ID, formatTime(record.StartedAt), record.Mode, record.TotalQuestions, record.AnsweredQuestions, record.Status); err != nil {
+INSERT INTO sessions (id, started_at, mode, answer_mode, total_questions, answered_questions, status)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+`, record.ID, formatTime(record.StartedAt), record.Mode, record.AnswerMode, record.TotalQuestions, record.AnsweredQuestions, record.Status); err != nil {
 		_ = tx.Rollback()
 		return SessionRecord{}, nil, fmt.Errorf("insert session: %w", err)
 	}
@@ -352,7 +353,7 @@ func (s *Store) LoadActiveRuntime(ctx context.Context) (*SessionRecord, []Sessio
 
 func (s *Store) LoadSession(ctx context.Context, sessionID string) (SessionRecord, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT id, started_at, finished_at, mode, total_questions, answered_questions, status
+SELECT id, started_at, finished_at, mode, answer_mode, total_questions, answered_questions, status
 FROM sessions
 WHERE id = ?
 `, sessionID)
@@ -430,10 +431,10 @@ func (s *Store) SaveAnswer(ctx context.Context, event ReviewEvent) (SessionRecor
 
 	reviewResult, err := tx.ExecContext(ctx, `
 INSERT INTO reviews (
-word_id, session_id, answered_at, selected_choice,
+word_id, session_id, answered_at, answer_mode, selected_choice,
 correct_choice, is_correct, response_ms, rating
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-`, event.WordID, event.SessionID, formatTime(now), event.SelectedChoice, event.CorrectChoice, boolToInt(event.IsCorrect), event.ResponseMS, string(event.Rating))
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`, event.WordID, event.SessionID, formatTime(now), NormalizeAnswerMode(event.AnswerMode), event.SelectedChoice, event.CorrectChoice, boolToInt(event.IsCorrect), event.ResponseMS, string(event.Rating))
 	if err != nil {
 		_ = tx.Rollback()
 		return SessionRecord{}, nil, fmt.Errorf("insert review: %w", err)
@@ -702,7 +703,7 @@ ORDER BY review_day DESC
 
 func (s *Store) loadActiveSession(ctx context.Context) (*SessionRecord, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT id, started_at, finished_at, mode, total_questions, answered_questions, status
+SELECT id, started_at, finished_at, mode, answer_mode, total_questions, answered_questions, status
 FROM sessions
 WHERE status = ?
 ORDER BY started_at DESC
@@ -901,9 +902,10 @@ func scanSessionRecord(scanner rowScanner) (SessionRecord, error) {
 	var record SessionRecord
 	var startedAt string
 	var finishedAt sql.NullString
-	if err := scanner.Scan(&record.ID, &startedAt, &finishedAt, &record.Mode, &record.TotalQuestions, &record.AnsweredQuestions, &record.Status); err != nil {
+	if err := scanner.Scan(&record.ID, &startedAt, &finishedAt, &record.Mode, &record.AnswerMode, &record.TotalQuestions, &record.AnsweredQuestions, &record.Status); err != nil {
 		return SessionRecord{}, err
 	}
+	record.AnswerMode = NormalizeAnswerMode(record.AnswerMode)
 
 	parsedStartedAt, err := parseTime(startedAt)
 	if err != nil {

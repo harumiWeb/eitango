@@ -19,6 +19,7 @@ import (
 	"github.com/harumiWeb/eitango/internal/store"
 	"github.com/harumiWeb/eitango/internal/updatecheck"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var (
@@ -63,7 +64,7 @@ func newRootCommand() *cobra.Command {
 	}
 	cmd.SetVersionTemplate("{{ .Version }}\n")
 	cmd.PersistentFlags().Bool("license", false, "Print bundled license information and exit")
-	cmd.AddCommand(newVersionCommand(), newLearnCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand(), newImportCommand(), newExportCommand(), newResetCommand(), newValidateCommand())
+	cmd.AddCommand(newVersionCommand(), newPlayCommand(), newReviewCommand(), newStatsCommand(), newDoctorCommand(), newImportCommand(), newExportCommand(), newResetCommand(), newValidateCommand())
 	return cmd
 }
 
@@ -75,25 +76,49 @@ func newVersionCommand() *cobra.Command {
 	}
 }
 
-func newLearnCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "learn",
-		Short: "Start a learning session",
-		RunE:  runLearn,
+func newPlayCommand() *cobra.Command {
+	cmd := newSessionCommand("play", []string{"learn"}, store.ModeLearn, "Start a learning session")
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		return runSession(cmd, store.ModeLearn, store.AnswerModeChoice)
 	}
-	addSessionFlags(cmd)
 	return cmd
 }
 
 func newReviewCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "review",
-		Short: "Start a due-only review session",
-		RunE:  runReview,
+	cmd := newSessionCommand("review", nil, store.ModeReview, "Start a due-only review session")
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		return runSession(cmd, store.ModeReview, store.AnswerModeChoice)
 	}
-	addSessionFlags(cmd)
-	cmd.Flags().Bool("restart", false, "Abandon the active session and start a fresh review session")
 	return cmd
+}
+
+func newSessionCommand(name string, aliases []string, mode, short string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     name,
+		Aliases: aliases,
+		Short:   short,
+		Args:    cobra.NoArgs,
+	}
+	addSessionFlags(cmd.PersistentFlags())
+	if mode == store.ModeReview {
+		cmd.PersistentFlags().Bool("restart", false, "Abandon the active session and start a fresh review session")
+	}
+	cmd.AddCommand(
+		newAnswerModeCommand("choice", mode, "Start with 4-choice answers", store.AnswerModeChoice),
+		newAnswerModeCommand("write", mode, "Start with typed answers", store.AnswerModeWrite),
+	)
+	return cmd
+}
+
+func newAnswerModeCommand(name, sessionMode, short, answerMode string) *cobra.Command {
+	return &cobra.Command{
+		Use:   name,
+		Short: short,
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runSession(cmd, sessionMode, answerMode)
+		},
+	}
 }
 
 func runDashboard(cmd *cobra.Command, args []string) error {
@@ -122,7 +147,7 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-func runLearn(cmd *cobra.Command, args []string) error {
+func runSession(cmd *cobra.Command, sessionMode, answerMode string) error {
 	ctx := commandContext(cmd)
 	currentVersion := resolvedVersion()
 	st, settings, err := openStore(ctx)
@@ -145,48 +170,12 @@ func runLearn(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	options, err := sessionOptionsFromSettings(settings, questionCount, focusMode)
-	if err != nil {
-		return err
-	}
-
-	program := tea.NewProgram(app.NewModel(st, app.Options{
-		Plan:           options,
-		Settings:       settings,
-		ConfigPath:     paths.ConfigPath,
-		CurrentVersion: currentVersion,
-		UpdateService:  newUpdateService(paths.DataDir),
-	}))
-	_, err = program.Run()
-	return err
-}
-
-func runReview(cmd *cobra.Command, args []string) error {
-	ctx := commandContext(cmd)
-	currentVersion := resolvedVersion()
-	st, settings, err := openStore(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = st.Close()
-	}()
-	paths, err := config.Resolve()
-	if err != nil {
-		return fmt.Errorf("resolve config path: %w", err)
-	}
-
-	focusMode, err := resolveFocusModeOverride(cmd)
-	if err != nil {
-		return err
-	}
-	questionCount, err := resolveQuestionCountOverride(cmd)
-	if err != nil {
-		return err
-	}
-	restart, err := cmd.Flags().GetBool("restart")
-	if err != nil {
-		return fmt.Errorf("get restart flag: %w", err)
+	restart := false
+	if sessionMode == store.ModeReview {
+		restart, err = cmd.Flags().GetBool("restart")
+		if err != nil {
+			return fmt.Errorf("get restart flag: %w", err)
+		}
 	}
 	options, err := sessionOptionsFromSettings(settings, questionCount, focusMode)
 	if err != nil {
@@ -200,7 +189,8 @@ func runReview(cmd *cobra.Command, args []string) error {
 		CurrentVersion: currentVersion,
 		UpdateService:  newUpdateService(paths.DataDir),
 		Startup: &app.StartupRequest{
-			Mode:          store.ModeReview,
+			Mode:          sessionMode,
+			AnswerMode:    answerMode,
 			ReplaceActive: restart,
 		},
 	}))
@@ -321,9 +311,9 @@ func runReset(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-func addSessionFlags(cmd *cobra.Command) {
-	cmd.Flags().Bool("focus-mode", false, "Use a 5-question session")
-	cmd.Flags().Int("questions", 0, "Override the lesson size with a specific question count")
+func addSessionFlags(flags *pflag.FlagSet) {
+	flags.Bool("focus-mode", false, "Use a 5-question session")
+	flags.Int("questions", 0, "Override the lesson size with a specific question count")
 }
 
 func resetOptionsFromFlags(cmd *cobra.Command) (store.ResetOptions, error) {

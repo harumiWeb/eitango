@@ -272,7 +272,7 @@ func seedExportCommandFixture(t *testing.T, dataDir string) exportCommandFixture
 
 	firstWrongAt := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Second)
 	retryCorrectAt := firstWrongAt.Add(20 * time.Minute)
-	record, _, err := st.CreateSession(ctx, store.ModeLearn, []store.SessionItemPlan{
+	record, _, err := st.CreateSession(ctx, store.ModeLearn, store.AnswerModeChoice, []store.SessionItemPlan{
 		{WordID: wordsByLemma["accept"].ID, Kind: store.ItemKindNew},
 	})
 	if err != nil {
@@ -308,7 +308,7 @@ func seedExportCommandFixture(t *testing.T, dataDir string) exportCommandFixture
 	}
 
 	secondCorrectAt := retryCorrectAt.Add(40 * time.Minute)
-	record, _, err = st.CreateSession(ctx, store.ModeLearn, []store.SessionItemPlan{
+	record, _, err = st.CreateSession(ctx, store.ModeLearn, store.AnswerModeChoice, []store.SessionItemPlan{
 		{WordID: wordsByLemma["avoid"].ID, Kind: store.ItemKindNew},
 	})
 	if err != nil {

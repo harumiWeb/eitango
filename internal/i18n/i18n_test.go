@@ -52,9 +52,10 @@ func TestTf(t *testing.T) {
 	if err := i18n.Load("ja"); err != nil {
 		t.Fatalf("Load(ja): %v", err)
 	}
-	got := i18n.Tf(i18n.HomeActiveDetail, 5, 10, "learn")
-	if got == "" {
-		t.Error("Tf returned empty string")
+	got := i18n.Tf(i18n.HomeActiveDetail, 5, 10, "learn", "choice")
+	want := "5/10 問回答済み (learn / choice)"
+	if got != want {
+		t.Fatalf("Tf(%s) = %q; want %q", i18n.HomeActiveDetail, got, want)
 	}
 }
 
@@ -78,29 +79,32 @@ func TestAllJAKeysExistInEN(t *testing.T) {
 
 	// Ensure every defined key constant returns a non-key value for both languages.
 	keys := []string{
-		i18n.HomeSubtitle, i18n.HomeDue, i18n.HomeNew, i18n.HomeStreak,
+		i18n.HomeSubtitle, i18n.HomeAnswerMode, i18n.HomeDue, i18n.HomeNew, i18n.HomeStreak,
 		i18n.HomeWait, i18n.HomeActive, i18n.HomeActiveDetail, i18n.HomeUpdate,
 		i18n.HomeUpdateDetail, i18n.HomeUpdateHint, i18n.HomeKeys,
-		i18n.QuizNoQuestion, i18n.QuizKeys,
+		i18n.QuizNoQuestion, i18n.QuizMeaning, i18n.QuizWord, i18n.QuizInput,
+		i18n.QuizHints, i18n.QuizHintNone, i18n.QuizKeysChoice, i18n.QuizKeysWrite,
+		i18n.AnswerModeChoice, i18n.AnswerModeWrite,
 		i18n.KindReview, i18n.KindRetry, i18n.KindNew,
 		i18n.FbNoFeedback, i18n.FbCorrect, i18n.FbIncorrect,
-		i18n.FbWord, i18n.FbCorrectAnswer, i18n.FbYourAnswer,
+		i18n.FbWord, i18n.FbMeaning, i18n.FbCorrectAnswer, i18n.FbYourAnswer,
+		i18n.FbSkipped, i18n.FbHints,
 		i18n.FbResponseTime, i18n.FbExampleEN, i18n.FbExampleJA,
-		i18n.FbKeys, i18n.FbStreak,
+		i18n.FbKeys, i18n.FbKeysWrite, i18n.FbStreak,
 		i18n.ResultsNoSummary, i18n.ResultsTitle, i18n.ResultsAccuracy,
 		i18n.ResultsCorrect, i18n.ResultsMix, i18n.ResultsMixDetail,
 		i18n.ResultsHardWords, i18n.ResultsKeys,
 		i18n.StatsTitle, i18n.StatsKeys, i18n.StatsDue, i18n.StatsNew,
 		i18n.StatsStreak, i18n.StatsReviews, i18n.StatsCorrect,
 		i18n.StatsAccuracy, i18n.StatsWait,
-		i18n.HelpTitle, i18n.HelpBack, i18n.HelpQuitDisabled,
+		i18n.HelpTitle, i18n.HelpBack, i18n.HelpQuitDisabled, i18n.HelpQuitDisabledWrite,
 		i18n.HelpSectionAnswer, i18n.HelpSectionMove, i18n.HelpSectionGeneral,
 		i18n.HelpSectionRate, i18n.HelpSectionNav, i18n.HelpSectionSessions,
 		i18n.HelpScreenQuiz, i18n.HelpScreenFeedback, i18n.HelpScreenResults,
 		i18n.HelpScreenStats, i18n.HelpScreenHome,
 		i18n.KeyUp, i18n.KeyDown, i18n.KeyChoice1, i18n.KeyChoice2,
-		i18n.KeyChoice3, i18n.KeyChoice4, i18n.KeyConfirm, i18n.KeyQuit,
-		i18n.KeyHelp, i18n.KeyAgain, i18n.KeyHard, i18n.KeyGood,
+		i18n.KeyChoice3, i18n.KeyChoice4, i18n.KeyToggleMode, i18n.KeyConfirm, i18n.KeyQuit,
+		i18n.KeyHelp, i18n.KeyHint, i18n.KeySkip, i18n.KeyAgain, i18n.KeyHard, i18n.KeyGood,
 		i18n.KeyEasy, i18n.KeyNewSession, i18n.KeyReview, i18n.KeyStats, i18n.KeyBack,
 		i18n.StatusReady, i18n.StatusLoading, i18n.StatusResumeFound,
 		i18n.StatusStatsLoaded, i18n.StatusSessionStarted, i18n.StatusSaved,
@@ -108,7 +112,7 @@ func TestAllJAKeysExistInEN(t *testing.T) {
 		i18n.StatusEscThenRate, i18n.StatusEscToReturn, i18n.StatusLoadingStats,
 		i18n.StatusActiveFound, i18n.StatusStartingReview, i18n.StatusStartingNew,
 		i18n.StatusStartingLearn, i18n.StatusResuming, i18n.StatusSaving,
-		i18n.StatusReturningHome, i18n.StatusBackHome, i18n.StatusHelp,
+		i18n.StatusReturningHome, i18n.StatusBackHome, i18n.StatusHelp, i18n.StatusWriteContinue,
 		i18n.CLIRootShort, i18n.CLIDoctorHeader, i18n.CLIDoctorOK,
 		i18n.CLIDoctorErrors, i18n.CLIDoctorWarnings, i18n.CLIDoctorBoth,
 		i18n.CLIResetHeader, i18n.CLIResetCleared, i18n.CLIResetReseeded,

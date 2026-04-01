@@ -21,6 +21,9 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case homeLoadedMsg:
 		m.home = msg.Home
+		if msg.Home.ActiveSession != nil {
+			m.selectedAnswerMode = store.NormalizeAnswerMode(msg.Home.ActiveSession.AnswerMode)
+		}
 		m.stats = msg.Stats
 		m.screen = ScreenHome
 		m.loading = false
@@ -65,10 +68,12 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case sessionLoadedMsg:
 		m.runtime = msg.Runtime
+		m.selectedAnswerMode = store.NormalizeAnswerMode(msg.Runtime.Session.AnswerMode)
 		m.currentQ = &msg.Question
 		m.feedback = nil
 		m.summary = nil
 		m.cursor = 0
+		m = m.resetWriteState()
 		m.loading = false
 		m.err = nil
 		m.screen = ScreenQuiz
@@ -78,6 +83,9 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case answerSavedMsg:
 		m.runtime = msg.Runtime
+		if msg.Runtime != nil {
+			m.selectedAnswerMode = store.NormalizeAnswerMode(msg.Runtime.Session.AnswerMode)
+		}
 		m.loading = false
 		m.err = nil
 		m.status = msg.Status
@@ -92,6 +100,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.currentQ = msg.NextQuestion
 			m.feedback = nil
 			m.cursor = 0
+			m = m.resetWriteState()
 			m.screen = ScreenQuiz
 			m.questionStarted = time.Now().UTC()
 			m.recentDistracts = appendRecent(m.recentDistracts, msg.NextQuestion.DistractorIDs()...)
@@ -105,21 +114,38 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyPressMsg:
-		switch {
-		case key.Matches(msg, m.keymap.Quit):
-			switch m.screen {
-			case ScreenFeedback:
-				m.status = i18n.T(i18n.StatusSelectRating)
-				return m, nil
-			case ScreenHelp:
-				if m.helpReturn == ScreenFeedback {
-					m.status = i18n.T(i18n.StatusEscThenRate)
-				} else {
-					m.status = i18n.T(i18n.StatusEscToReturn)
-				}
-				return m, nil
+		if m.screen == ScreenQuiz && m.currentQ != nil && m.currentQ.AnswerMode == store.AnswerModeWrite {
+			switch {
+			case key.Matches(msg, m.keymap.WriteQuit):
+				return m, tea.Quit
+			case (len(msg.Text) != 1 || (msg.Text != "q" && msg.Text != "Q")) && key.Matches(msg, m.keymap.Quit):
+				return m, tea.Quit
 			}
-			return m, tea.Quit
+		} else {
+			switch {
+			case key.Matches(msg, m.keymap.Quit):
+				switch m.screen {
+				case ScreenFeedback:
+					if m.feedback != nil && m.feedback.Question.AnswerMode == store.AnswerModeWrite {
+						m.status = i18n.T(i18n.StatusWriteContinue)
+					} else {
+						m.status = i18n.T(i18n.StatusSelectRating)
+					}
+					return m, nil
+				case ScreenHelp:
+					if m.helpReturn == ScreenFeedback {
+						if m.isWriteFeedback() {
+							m.status = i18n.T(i18n.StatusWriteContinue)
+						} else {
+							m.status = i18n.T(i18n.StatusEscThenRate)
+						}
+					} else {
+						m.status = i18n.T(i18n.StatusEscToReturn)
+					}
+					return m, nil
+				}
+				return m, tea.Quit
+			}
 		}
 
 		switch m.screen {
@@ -156,6 +182,10 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch {
+	case key.Matches(msg, m.keymap.ToggleAnswerMode):
+		m.selectedAnswerMode = nextAnswerMode(m.selectedAnswerMode)
+		m.status = m.homeStatus()
+		return m, nil
 	case key.Matches(msg, m.keymap.Stats):
 		m.loading = true
 		m.status = i18n.T(i18n.StatusLoadingStats)
@@ -282,7 +312,13 @@ func (m RootModel) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.openHelp(), nil
 	}
 
-	if m.currentQ == nil || len(m.currentQ.Choices) == 0 {
+	if m.currentQ == nil {
+		return m, nil
+	}
+	if m.currentQ.AnswerMode == store.AnswerModeWrite {
+		return m.updateWriteQuiz(msg)
+	}
+	if len(m.currentQ.Choices) == 0 {
 		return m, nil
 	}
 
@@ -298,15 +334,15 @@ func (m RootModel) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case key.Matches(msg, m.keymap.Select1):
-		return m.showFeedback(0), nil
+		return m.showChoiceFeedback(0), nil
 	case key.Matches(msg, m.keymap.Select2):
-		return m.showFeedback(1), nil
+		return m.showChoiceFeedback(1), nil
 	case key.Matches(msg, m.keymap.Select3):
-		return m.showFeedback(2), nil
+		return m.showChoiceFeedback(2), nil
 	case key.Matches(msg, m.keymap.Select4):
-		return m.showFeedback(3), nil
+		return m.showChoiceFeedback(3), nil
 	case key.Matches(msg, m.keymap.Confirm):
-		return m.showFeedback(m.cursor), nil
+		return m.showChoiceFeedback(m.cursor), nil
 	}
 
 	return m, nil
@@ -323,6 +359,16 @@ func (m RootModel) updateFeedback(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	var rating srs.Rating
+	if m.feedback.Question.AnswerMode == store.AnswerModeWrite {
+		switch {
+		case key.Matches(msg, m.keymap.Confirm):
+			m.loading = true
+			m.status = i18n.T(i18n.StatusSaving)
+			return m, submitAnswerCmd(m.store, m.quiz, m.runtime, *m.feedback, m.feedback.Rating, m.recentDistracts)
+		default:
+			return m, nil
+		}
+	}
 	switch {
 	case key.Matches(msg, m.keymap.Again):
 		rating = srs.Again
@@ -373,7 +419,7 @@ func (m RootModel) updateHelp(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m RootModel) showFeedback(index int) RootModel {
+func (m RootModel) showChoiceFeedback(index int) RootModel {
 	if m.currentQ == nil || index < 0 || index >= len(m.currentQ.Choices) {
 		return m
 	}
@@ -390,6 +436,72 @@ func (m RootModel) showFeedback(index int) RootModel {
 		m.status = i18n.T(i18n.StatusCheckRate)
 	}
 	return m
+}
+
+func (m RootModel) updateWriteQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keymap.Hint):
+		next := nextHintIndices(m.currentQ.Word.Lemma, m.writeHintIndices, m.writeHintCount)
+		if len(next) != len(m.writeHintIndices) {
+			m.writeHintIndices = next
+			m.writeHintCount++
+		}
+		return m, nil
+	case key.Matches(msg, m.keymap.Skip):
+		return m.showWriteFeedback(true), nil
+	case key.Matches(msg, m.keymap.Confirm):
+		return m.showWriteFeedback(false), nil
+	}
+
+	switch msg.Code {
+	case tea.KeyBackspace, tea.KeyDelete:
+		if len(m.writeInput) > 0 {
+			m.writeInput = m.writeInput[:len(m.writeInput)-1]
+		}
+		return m, nil
+	}
+
+	if len(msg.Text) == 1 && isASCIIAlpha(msg.Text[0]) {
+		m.writeInput += msg.Text
+	}
+	return m, nil
+}
+
+func (m RootModel) showWriteFeedback(skipped bool) RootModel {
+	if m.currentQ == nil {
+		return m
+	}
+
+	responseMS := time.Since(m.questionStarted).Milliseconds()
+	feedback := quiz.BuildWriteFeedback(*m.currentQ, m.writeInput, m.writeHintCount, skipped, responseMS)
+	m.feedback = &feedback
+	m.screen = ScreenFeedback
+	if feedback.Correct {
+		m.correctStreak++
+		m.status = i18n.T(i18n.StatusCorrect)
+	} else {
+		m.correctStreak = 0
+		m.status = i18n.T(i18n.StatusWriteContinue)
+	}
+	return m
+}
+
+func (m RootModel) resetWriteState() RootModel {
+	m.writeInput = ""
+	m.writeHintIndices = nil
+	m.writeHintCount = 0
+	return m
+}
+
+func nextAnswerMode(current string) string {
+	if store.NormalizeAnswerMode(current) == store.AnswerModeWrite {
+		return store.AnswerModeChoice
+	}
+	return store.AnswerModeWrite
+}
+
+func isASCIIAlpha(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
 }
 
 func appendRecent(existing []int64, ids ...int64) []int64 {

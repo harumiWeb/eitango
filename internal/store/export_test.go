@@ -81,7 +81,7 @@ func TestListWrongWordSnapshotsFiltersAndSortsByWrongReviews(t *testing.T) {
 	benefitID := fixture.wordsByLemma["benefit"].ID
 
 	firstBenefitWrongAt := fixture.secondCorrectAt.Add(20 * time.Minute)
-	record, _, err := st.CreateSession(ctx, ModeReview, []SessionItemPlan{
+	record, _, err := st.CreateSession(ctx, ModeReview, AnswerModeChoice, []SessionItemPlan{
 		{WordID: benefitID, Kind: ItemKindReview},
 	})
 	if err != nil {
@@ -106,7 +106,7 @@ func TestListWrongWordSnapshotsFiltersAndSortsByWrongReviews(t *testing.T) {
 	}
 
 	secondBenefitWrongAt := firstBenefitWrongAt.Add(30 * time.Minute)
-	record, _, err = st.CreateSession(ctx, ModeReview, []SessionItemPlan{
+	record, _, err = st.CreateSession(ctx, ModeReview, AnswerModeChoice, []SessionItemPlan{
 		{WordID: benefitID, Kind: ItemKindReview},
 	})
 	if err != nil {
@@ -172,7 +172,7 @@ func seedExportFixture(t *testing.T, st *Store) exportFixture {
 	firstWrongAt := time.Date(2026, time.March, 25, 9, 0, 0, 0, time.UTC)
 	retryCorrectAt := firstWrongAt.Add(20 * time.Minute)
 
-	record, _, err := st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+	record, _, err := st.CreateSession(ctx, ModeLearn, AnswerModeChoice, []SessionItemPlan{
 		{WordID: wordsByLemma["abandon"].ID, Kind: ItemKindNew},
 	})
 	if err != nil {
@@ -208,7 +208,7 @@ func seedExportFixture(t *testing.T, st *Store) exportFixture {
 	}
 
 	secondCorrectAt := retryCorrectAt.Add(40 * time.Minute)
-	record, _, err = st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+	record, _, err = st.CreateSession(ctx, ModeLearn, AnswerModeChoice, []SessionItemPlan{
 		{WordID: wordsByLemma["apply"].ID, Kind: ItemKindNew},
 	})
 	if err != nil {

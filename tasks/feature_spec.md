@@ -1,3 +1,38 @@
+# 2026-04-01 PR #12: Codacy follow-up
+
+## Goal
+
+- PR #12 の Codacy で出ている `doctor.go` の Security 指摘と SQLite migration への TSQLLint 誤検知を解消する。
+
+## Scope
+
+- `internal/store/doctor.go` の schema introspection query
+- `internal/store/doctor_test.go` の回帰テスト
+- Codacy 向けの tool-scoped ignore 設定
+
+## Non-Goals
+
+- `doctor` の診断仕様そのものの変更
+- SQLite migration SQL の文法や適用順の変更
+- 他 tool の有効/無効設定変更
+
+## Required Behavior
+
+- `tableHasColumn` は string-formatted SQL を使わず、許可した table 名に対する定数 PRAGMA だけを実行する。
+- 想定外の table 名は query 実行前にエラーとして拒否する。
+- Codacy では SQLite migration 群に `tsqllint` を適用しない。
+- `play/review [choice|write]` は想定外の位置引数を受け付けず、`wrtie` のような typo を default `choice` として黙って実行しない。
+- locale format string を触ったテストは、空文字確認だけで済ませず、引数個数と出力文字列まで検証する。
+
+## Acceptance
+
+- `go test ./internal/store` が通る。
+- `go test ./cmd/eitango ./internal/i18n ./internal/store` が通る。
+- Codacy issue の `internal/store/doctor.go` Security 2 件が再発しない。
+- `assets/migrations/005_answer_modes.sql` の Compatibility 指摘が `.codacy.yaml` で抑止される。
+
+---
+
 # 2026-03-29 ドキュメント再編仕様
 
 ## Goal
@@ -28,6 +63,51 @@
 - `docs/adr/` の 3 本が `Status`, `Background`, `Decision`, `Consequences`, `Rationale`, `Supersedes`, `Superseded by` を持つ。
 - `rg -n "docs/design\.md|design\.md"` で削除済み設計書への壊れた参照が残らない。
 - `go test ./...` が通る。
+
+---
+
+# 2026-03-31 issue #9: write モード追加と play/review × answer mode 整理
+
+## Goal
+
+- `choice` に加えて、日本語の意味を見て英単語を入力する `write` モードを追加する。
+- 学習種別を `play/review`、回答方式を `choice/write` の 2 軸で整理する。
+- ホーム画面のシンプルさを保ちつつ、`Tab` で回答方式だけを切り替えられるようにする。
+
+## Scope
+
+- TUI の home / quiz / feedback の mode 分岐
+- CLI の `play/review [choice|write]` 契約と `learn` alias 維持
+- `answer_mode` の session / review 永続化
+- write 用の入力、ヒント、skip、auto-rating、回帰テスト
+- README の操作説明更新
+
+## Non-Goals
+
+- typo 許容
+- `default_answer_mode` 設定
+- space / hyphen を含む lemma の write 対応
+- typed answer 本文の履歴保存
+
+## Required Behavior
+
+- ホーム画面で `Tab` が `choice/write` を切り替え、`Enter` は play、`r` は review のままにする。
+- `play` は正式コマンドとし、`learn` は互換 alias として残す。
+- `play/review` は `choice/write` を省略した場合に `choice` を使う。
+- `doctor` は read-only のまま pre-`005_answer_modes.sql` DB を診断できる。旧 `sessions` row は `choice` として扱い、migration drift は `migrations` check で報告する。
+- `write` は `MeaningJA` を prompt にし、`trim + lower-case + exact match` で正誤判定する。
+- `write` 中の通常入力を阻害しないため、ヒントと skip は `Tab` / `Ctrl+S` に割り当てる。
+- `write` のヒントは初回に先頭文字と、5 文字以上なら末尾文字も開示し、その後は未開示文字を中心から外側へ 1 文字ずつ開示する。
+- `write` の rating は自動で決める。ヒントなし正解は `Easy`、ヒントあり正解は `Good`、不正解と skip は `Again`。
+- `write` の feedback は `Enter` だけで保存して次へ進む。help / status / quit 無効表示も採点ショートカットではなく Enter 操作に合わせる。
+- active session は永続化した `answer_mode` で再開する。旧 row は `choice` として扱う。
+
+## Acceptance
+
+- `go test ./...` が通る。
+- `play/review [choice|write]` の command tree と `learn` alias の回帰がある。
+- home の mode toggle、write の入力/ヒント/skip/auto-rating、store の `answer_mode` 永続化に回帰テストがある。
+- README / README.en が新しい操作体系を案内する。
 
 ---
 

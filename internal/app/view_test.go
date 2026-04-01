@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -195,10 +196,123 @@ func TestRenderHomeShowsWaitToday(t *testing.T) {
 	model.stats = stats.Snapshot{
 		Today: stats.Window{Label: "Today", WaitMinutes: 5.5},
 	}
+	model.selectedAnswerMode = store.AnswerModeWrite
 
 	got := model.renderHome()
 	if !strings.Contains(got, "5.5 min") {
 		t.Fatalf("renderHome() missing wait metric:\n%s", got)
+	}
+	if !strings.Contains(got, i18n.T(i18n.AnswerModeWrite)) {
+		t.Fatalf("renderHome() missing selected answer mode:\n%s", got)
+	}
+}
+
+func TestRenderWriteFeedbackShowsMeaningHintsAndSkippedState(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.feedback = &quiz.Feedback{
+		Question: quiz.Question{
+			AnswerMode: store.AnswerModeWrite,
+			Word: store.Word{
+				Lemma:     "begin",
+				MeaningJA: "始める",
+			},
+		},
+		SelectedText: "began",
+		Correct:      false,
+		ResponseMS:   1700,
+		HintCount:    2,
+	}
+
+	got := model.renderFeedback()
+	for _, want := range []string{"begin", "始める", "began", "2"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderFeedback() missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderWriteQuizAndHelpShowCtrlShortcuts(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.screen = ScreenQuiz
+	model.writeInput = "begin"
+	model.currentQ = &quiz.Question{
+		AnswerMode: store.AnswerModeWrite,
+		Word: store.Word{
+			Lemma:     "begin",
+			MeaningJA: "始める",
+			Pos:       "verb",
+		},
+		Ordinal: 1,
+		Total:   1,
+		Kind:    store.ItemKindNew,
+	}
+
+	quizView := model.renderQuiz()
+	for _, want := range []string{"Tab=ヒント", "Ctrl+S", "Esc=終了"} {
+		if !strings.Contains(quizView, want) {
+			t.Fatalf("renderQuiz() missing %q:\n%s", want, quizView)
+		}
+	}
+	if !strings.Contains(quizView, "b e g i n") {
+		t.Fatalf("renderQuiz() should render spaced input:\n%s", quizView)
+	}
+	if strings.Contains(quizView, "A-Z") {
+		t.Fatalf("renderQuiz() unexpectedly shows A-Z typing hint:\n%s", quizView)
+	}
+
+	model = model.openHelp()
+	helpView := model.renderHelp()
+	for _, want := range []string{"tab", "ctrl+s", "esc"} {
+		if !strings.Contains(helpView, want) {
+			t.Fatalf("renderHelp() missing %q:\n%s", want, helpView)
+		}
+	}
+	if strings.Contains(helpView, "A-Z") {
+		t.Fatalf("renderHelp() unexpectedly shows A-Z typing hint:\n%s", helpView)
+	}
+}
+
+func TestRenderWriteFeedbackHelpShowsEnterOnly(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.screen = ScreenFeedback
+	model.feedback = &quiz.Feedback{
+		Question: quiz.Question{
+			AnswerMode: store.AnswerModeWrite,
+			Word: store.Word{
+				Lemma:     "begin",
+				MeaningJA: "始める",
+			},
+		},
+		Correct: true,
+	}
+
+	helpView := model.openHelp().renderHelp()
+	for _, want := range []string{
+		helpLine(model.keymap.Confirm),
+		fmt.Sprintf("%-10s %s", "q", i18n.T(i18n.HelpQuitDisabledWrite)),
+	} {
+		if !strings.Contains(helpView, want) {
+			t.Fatalf("renderHelp() missing %q:\n%s", want, helpView)
+		}
+	}
+	for _, unwanted := range []string{
+		helpLine(model.keymap.Again),
+		helpLine(model.keymap.Hard),
+		helpLine(model.keymap.Good),
+		helpLine(model.keymap.Easy),
+	} {
+		if strings.Contains(helpView, unwanted) {
+			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)
+		}
 	}
 }
 

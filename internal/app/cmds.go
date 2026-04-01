@@ -17,6 +17,7 @@ import (
 
 type sessionRequest struct {
 	Mode          string
+	AnswerMode    string
 	ReplaceActive bool
 	Plan          session.PlanOptions
 }
@@ -63,6 +64,7 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 		if mode == "" {
 			mode = store.ModeLearn
 		}
+		answerMode := store.NormalizeAnswerMode(request.AnswerMode)
 		options := request.Plan.Normalize()
 
 		if request.ReplaceActive {
@@ -116,7 +118,7 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 			return errMsg{err: fmt.Errorf("no words available for this session")}
 		}
 
-		record, items, err := st.CreateSession(ctx, mode, itemsPlan)
+		record, items, err := st.CreateSession(ctx, mode, answerMode, itemsPlan)
 		if err != nil {
 			return errMsg{err: err}
 		}
@@ -142,6 +144,7 @@ func submitAnswerCmd(st *store.Store, svc *quiz.Service, runtime *session.Runtim
 			ItemOrdinal:    item.Ordinal,
 			WordID:         item.WordID,
 			Kind:           item.Kind,
+			AnswerMode:     feedback.Question.AnswerMode,
 			SelectedChoice: feedback.SelectedIndex,
 			CorrectChoice:  feedback.Question.CorrectIndex,
 			IsCorrect:      feedback.Correct,
@@ -190,5 +193,5 @@ func buildCurrentQuestion(ctx context.Context, svc *quiz.Service, runtime *sessi
 	if !ok {
 		return quiz.Question{}, fmt.Errorf("no pending question")
 	}
-	return svc.BuildQuestion(ctx, item, runtime.Total(), recent)
+	return svc.BuildQuestion(ctx, item, runtime.Total(), runtime.Session.AnswerMode, recent)
 }

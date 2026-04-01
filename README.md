@@ -8,7 +8,7 @@
 
 <div align="center" style="max-width: 600px; margin: auto;">
 
-  ![GitHub Release](https://img.shields.io/github/v/release/harumiWeb/eitango) ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/harumiWeb/eitango) [![Apache-2.0](https://custom-icon-badges.herokuapp.com/badge/license-Apache%202.0-8BB80A.svg?logo=law&logoColor=white)]()  [![CI](https://github.com/harumiWeb/eitango/actions/workflows/ci.yml/badge.svg)](https://github.com/harumiWeb/eitango/actions/workflows/ci.yml) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/8c55fea55abd41a090db9253b79990d5)](https://app.codacy.com/gh/harumiWeb/eitango/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+![GitHub Release](https://img.shields.io/github/v/release/harumiWeb/eitango) ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/harumiWeb/eitango) [![Apache-2.0](https://custom-icon-badges.herokuapp.com/badge/license-Apache%202.0-8BB80A.svg?logo=law&logoColor=white)]() [![CI](https://github.com/harumiWeb/eitango/actions/workflows/ci.yml/badge.svg)](https://github.com/harumiWeb/eitango/actions/workflows/ci.yml) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/8c55fea55abd41a090db9253b79990d5)](https://app.codacy.com/gh/harumiWeb/eitango/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
 </div>
 
@@ -17,6 +17,8 @@
 # eitango
 
 オフラインで動く英単語トレーニング TUI です。Bubble Tea ベースの対話UIとローカル SQLite を使い、待ち時間に短く回せる学習セッションを想定しています。
+
+SRS での復習に加えて、選択式の `choice` と入力式の `write` の 2 モードを用意しています。
 
 [English README](README.en.md)
 
@@ -27,11 +29,22 @@
 - `eitango` でホーム画面を表示し、TUIでモード選択や設定変更が可能
 
 <p align="center">
-  <img alt="プレイしている様子" src="assets/images/playing.gif" />
+  <img alt="プレイしている様子" src="assets/images/choice.gif" />
+</p>
+<p align="center">
+  <em>choice mode</em>
 </p>
 
-- `eitango learn` で通常学習セッションを開始
-- `eitango review` で due-only の復習セッションを開始
+<p align="center">
+  <img alt="write mode" src="assets/images/write.gif" />
+</p>
+<p align="center">
+  <em>write mode</em>
+</p>
+
+- ホーム画面で `Tab` により `choice / write` を切り替え、`Enter` で play、`r` で review を開始
+- `eitango play [choice|write]` で通常学習セッションを開始
+- `eitango review [choice|write]` で due-only の復習セッションを開始
 - `eitango stats` で学習統計を表示
 - `eitango version` で現在のビルド情報と最新 release を確認
 - `eitango doctor` で DB と辞書の read-only 診断を実行
@@ -91,6 +104,8 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 
 公開アーカイブにはバイナリに加えて `LICENSE`、`THIRD_PARTY_NOTICES.md`、`third_party/licenses/` が同梱されます。自分のOS向けの成果物を展開して `eitango` を実行してください。
 
+※ `PATH`への追加は手動で行う必要があります。
+
 ### 3. Go からインストールする
 
 Go 1.26 以降を前提にしています。
@@ -110,12 +125,16 @@ eitango
 モード指定で起動することもできます。
 
 ```bash
-eitango learn
+eitango play
+eitango play write
 eitango review --focus-mode
+eitango review write
 eitango stats
 eitango version
 eitango doctor
 ```
+
+`eitango learn` は後方互換の alias として残っています。新しい案内では `eitango play` を使います。
 
 学習データは初回起動時にローカル DB へ初期化されます。デフォルトでは組み込みの `assets/words_core.jsonl` を seed として使用します。
 
@@ -136,7 +155,7 @@ eitango doctor
 
 ## 更新通知
 
-`eitango` / `eitango learn` / `eitango review` / `eitango version` は、GitHub Releases の latest release を確認できます。
+`eitango` / `eitango play` / `eitango review` / `eitango version` は、GitHub Releases の latest release を確認できます。
 
 - ホーム画面の通知は起動ごとに非同期で latest release を再確認します
 - 初回の成功確認では通知せず、次回以降の起動で差分があればホーム画面に軽く表示します
@@ -159,20 +178,22 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 
 ## コマンド一覧
 
-| コマンド | 役割 |
-| --- | --- |
-| `eitango version` | 現在の build info と latest release を表示 |
-| `eitango learn [--focus-mode] [--questions N]` | 通常学習セッションを開始 |
-| `eitango review [--focus-mode] [--questions N] [--restart]` | due-only 復習を開始 |
-| `eitango stats` | 統計を表示 |
-| `eitango --license` | 同梱ライセンスと notice を表示 |
-| `eitango doctor` | DB / 辞書の診断 |
-| `eitango validate --embedded-core` | 組み込み core 辞書を検証 |
-| `eitango validate --file words.csv --format csv --kind import` | import 用辞書を検証 |
-| `eitango import --file words.jsonl --format jsonl --source my-pack` | 外部辞書を取り込み |
-| `eitango export wrong-words --output wrong.csv` | 苦手語を CSV 出力 |
-| `eitango export progress --output progress.json` | 進捗を JSON 出力 |
-| `eitango reset --progress` / `eitango reset --reseed` | 学習履歴の初期化 / 組み込み core 再投入 |
+| コマンド                                                                   | 役割                                       |
+| -------------------------------------------------------------------------- | ------------------------------------------ |
+| `eitango version`                                                          | 現在の build info と latest release を表示 |
+| `eitango play [choice write] [--focus-mode] [--questions N]`               | 通常学習セッションを開始                   |
+| `eitango review [choice write] [--focus-mode] [--questions N] [--restart]` | due-only 復習を開始                        |
+| `eitango stats`                                                            | 統計を表示                                 |
+| `eitango --license`                                                        | 同梱ライセンスと notice を表示             |
+| `eitango doctor`                                                           | DB / 辞書の診断                            |
+| `eitango validate --embedded-core`                                         | 組み込み core 辞書を検証                   |
+| `eitango validate --file words.csv --format csv --kind import`             | import 用辞書を検証                        |
+| `eitango import --file words.jsonl --format jsonl --source my-pack`        | 外部辞書を取り込み                         |
+| `eitango export wrong-words --output wrong.csv`                            | 苦手語を CSV 出力                          |
+| `eitango export progress --output progress.json`                           | 進捗を JSON 出力                           |
+| `eitango reset --progress` / `eitango reset --reseed`                      | 学習履歴の初期化 / 組み込み core 再投入    |
+
+TUI のホーム画面では、`Tab` で `choice / write` を切り替え、`Enter` で play、`r` で review を開始します。`write` は日本語の意味を見て英単語を入力するモードで、`Tab` で段階ヒント、`Ctrl+S` でスキップできます。
 
 ## 辞書データとライセンス
 

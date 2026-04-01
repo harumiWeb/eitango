@@ -114,6 +114,87 @@ func TestListDistractorCandidatesPrioritizeGroupAndLevel(t *testing.T) {
 	}
 }
 
+func TestCreateSessionPersistsAnswerMode(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+
+	if err := st.SeedWords(ctx, testEntries(), "test-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+
+	record, _, err := st.CreateSession(ctx, ModeLearn, AnswerModeWrite, []SessionItemPlan{
+		{WordID: words[0].ID, Kind: ItemKindNew},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if record.AnswerMode != AnswerModeWrite {
+		t.Fatalf("record.AnswerMode = %q, want %q", record.AnswerMode, AnswerModeWrite)
+	}
+
+	active, _, err := st.LoadActiveRuntime(ctx)
+	if err != nil {
+		t.Fatalf("LoadActiveRuntime() error = %v", err)
+	}
+	if active == nil || active.AnswerMode != AnswerModeWrite {
+		t.Fatalf("active session = %+v, want write answer mode", active)
+	}
+}
+
+func TestSaveAnswerPersistsReviewAnswerMode(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+
+	if err := st.SeedWords(ctx, testEntries(), "test-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+
+	record, _, err := st.CreateSession(ctx, ModeLearn, AnswerModeWrite, []SessionItemPlan{
+		{WordID: words[0].ID, Kind: ItemKindNew},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+
+	if _, _, err := st.SaveAnswer(ctx, ReviewEvent{
+		SessionID:      record.ID,
+		ItemOrdinal:    1,
+		WordID:         words[0].ID,
+		Kind:           ItemKindNew,
+		AnswerMode:     AnswerModeWrite,
+		SelectedChoice: 0,
+		CorrectChoice:  0,
+		IsCorrect:      true,
+		Rating:         srs.Easy,
+		AnsweredAt:     time.Now().UTC(),
+		ResponseMS:     900,
+	}); err != nil {
+		t.Fatalf("SaveAnswer() error = %v", err)
+	}
+
+	var answerMode string
+	if err := st.db.QueryRowContext(ctx, `SELECT answer_mode FROM reviews WHERE session_id = ? LIMIT 1`, record.ID).Scan(&answerMode); err != nil {
+		t.Fatalf("load review answer_mode: %v", err)
+	}
+	if answerMode != AnswerModeWrite {
+		t.Fatalf("review answer_mode = %q, want %q", answerMode, AnswerModeWrite)
+	}
+}
+
 func TestSaveAnswerCreatesRetryCompletesSessionAndUpdatesStats(t *testing.T) {
 	t.Parallel()
 
@@ -133,7 +214,7 @@ func TestSaveAnswerCreatesRetryCompletesSessionAndUpdatesStats(t *testing.T) {
 	}
 	target := words[0]
 
-	record, items, err := st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+	record, items, err := st.CreateSession(ctx, ModeLearn, AnswerModeChoice, []SessionItemPlan{
 		{WordID: target.ID, Kind: ItemKindNew},
 	})
 	if err != nil {
@@ -335,7 +416,7 @@ func TestLoadStatsSnapshotCountsConsecutiveReviewDays(t *testing.T) {
 		{wordID: words[0].ID, answeredAt: yesterday},
 		{wordID: words[1].ID, answeredAt: today},
 	} {
-		record, _, err := st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+		record, _, err := st.CreateSession(ctx, ModeLearn, AnswerModeChoice, []SessionItemPlan{
 			{WordID: review.wordID, Kind: ItemKindNew},
 		})
 		if err != nil {
@@ -389,7 +470,7 @@ func TestSeedWordsVersionChangeResetsUserData(t *testing.T) {
 		t.Fatalf("ListNewWords() error = %v", err)
 	}
 
-	record, _, err := st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+	record, _, err := st.CreateSession(ctx, ModeLearn, AnswerModeChoice, []SessionItemPlan{
 		{WordID: words[0].ID, Kind: ItemKindNew},
 	})
 	if err != nil {
@@ -485,7 +566,7 @@ func TestResetProgressClearsLearningHistoryOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListNewWords() error = %v", err)
 	}
-	record, _, err := st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+	record, _, err := st.CreateSession(ctx, ModeLearn, AnswerModeChoice, []SessionItemPlan{
 		{WordID: words[0].ID, Kind: ItemKindNew},
 	})
 	if err != nil {
@@ -556,7 +637,7 @@ func TestResetReseedForcesReplaceSameVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListNewWords() error = %v", err)
 	}
-	record, _, err := st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+	record, _, err := st.CreateSession(ctx, ModeLearn, AnswerModeChoice, []SessionItemPlan{
 		{WordID: words[0].ID, Kind: ItemKindNew},
 	})
 	if err != nil {

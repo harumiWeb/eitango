@@ -63,6 +63,7 @@ type errMsg struct {
 
 type StartupRequest struct {
 	Mode          string
+	AnswerMode    string
 	ReplaceActive bool
 }
 
@@ -76,40 +77,44 @@ type Options struct {
 }
 
 type RootModel struct {
-	store            *store.Store
-	quiz             *quiz.Service
-	planOptions      session.PlanOptions
-	startup          *StartupRequest
-	settings         config.Settings
-	configPath       string
-	currentVersion   string
-	updateService    updatecheck.Service
-	updateLatestTag  string
-	screen           Screen
-	keymap           tui.KeyMap
-	styles           tui.Styles
-	home             store.HomeSnapshot
-	stats            stats.Snapshot
-	runtime          *session.Runtime
-	currentQ         *quiz.Question
-	feedback         *quiz.Feedback
-	summary          *store.SessionSummary
-	cursor           int
-	status           string
-	err              error
-	loading          bool
-	settingsOpen     bool
-	settingsCursor   int
-	settingsInput    string
-	settingsEditing  bool
-	settingsLanguage string
-	helpReturn       Screen
-	helpStatus       string
-	width            int
-	height           int
-	questionStarted  time.Time
-	recentDistracts  []int64
-	correctStreak    int
+	store              *store.Store
+	quiz               *quiz.Service
+	planOptions        session.PlanOptions
+	startup            *StartupRequest
+	settings           config.Settings
+	configPath         string
+	currentVersion     string
+	updateService      updatecheck.Service
+	updateLatestTag    string
+	selectedAnswerMode string
+	screen             Screen
+	keymap             tui.KeyMap
+	styles             tui.Styles
+	home               store.HomeSnapshot
+	stats              stats.Snapshot
+	runtime            *session.Runtime
+	currentQ           *quiz.Question
+	feedback           *quiz.Feedback
+	summary            *store.SessionSummary
+	cursor             int
+	writeInput         string
+	writeHintIndices   []int
+	writeHintCount     int
+	status             string
+	err                error
+	loading            bool
+	settingsOpen       bool
+	settingsCursor     int
+	settingsInput      string
+	settingsEditing    bool
+	settingsLanguage   string
+	helpReturn         Screen
+	helpStatus         string
+	width              int
+	height             int
+	questionStarted    time.Time
+	recentDistracts    []int64
+	correctStreak      int
 }
 
 func NewModel(store *store.Store, options Options) RootModel {
@@ -124,19 +129,20 @@ func NewModel(store *store.Store, options Options) RootModel {
 	}
 
 	return RootModel{
-		store:          store,
-		quiz:           quiz.NewService(store),
-		planOptions:    planOptions,
-		startup:        options.Startup,
-		settings:       settings,
-		configPath:     options.ConfigPath,
-		currentVersion: strings.TrimSpace(options.CurrentVersion),
-		updateService:  options.UpdateService,
-		screen:         ScreenHome,
-		keymap:         tui.NewKeyMap(),
-		styles:         tui.NewStyles(),
-		loading:        true,
-		status:         i18n.T(i18n.StatusLoading),
+		store:              store,
+		quiz:               quiz.NewService(store),
+		planOptions:        planOptions,
+		startup:            options.Startup,
+		settings:           settings,
+		configPath:         options.ConfigPath,
+		currentVersion:     strings.TrimSpace(options.CurrentVersion),
+		updateService:      options.UpdateService,
+		selectedAnswerMode: startupAnswerMode(options.Startup),
+		screen:             ScreenHome,
+		keymap:             tui.NewKeyMap(),
+		styles:             tui.NewStyles(),
+		loading:            true,
+		status:             i18n.T(i18n.StatusLoading),
 	}
 }
 
@@ -150,6 +156,7 @@ func (m RootModel) Init() tea.Cmd {
 			loadHomeCmd(m.store),
 			sessionCmd(m.store, m.quiz, sessionRequest{
 				Mode:          m.startup.Mode,
+				AnswerMode:    m.startup.AnswerMode,
 				ReplaceActive: m.startup.ReplaceActive,
 				Plan:          m.planOptions,
 			}, m.recentDistracts),
@@ -163,6 +170,7 @@ func (m RootModel) Init() tea.Cmd {
 func (m RootModel) sessionRequest(mode string, replaceActive bool) sessionRequest {
 	return sessionRequest{
 		Mode:          mode,
+		AnswerMode:    m.selectedAnswerMode,
 		ReplaceActive: replaceActive,
 		Plan:          m.planOptions,
 	}
@@ -247,4 +255,11 @@ func planOptionsFromSettings(settings config.Settings) session.PlanOptions {
 		options.QuestionCount = session.FocusQuestionCount
 	}
 	return options.Normalize()
+}
+
+func startupAnswerMode(startup *StartupRequest) string {
+	if startup == nil {
+		return store.AnswerModeChoice
+	}
+	return store.NormalizeAnswerMode(startup.AnswerMode)
 }

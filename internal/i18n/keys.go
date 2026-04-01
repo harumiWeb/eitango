@@ -6,6 +6,7 @@ package i18n
 // Home screen
 const (
 	HomeSubtitle     = "home.subtitle"
+	HomeAnswerMode   = "home.answer_mode"
 	HomeDue          = "home.due"
 	HomeNew          = "home.new"
 	HomeStreak       = "home.streak"
@@ -43,7 +44,13 @@ const (
 // Quiz screen
 const (
 	QuizNoQuestion = "quiz.no_question"
-	QuizKeys       = "quiz.keys"
+	QuizMeaning    = "quiz.meaning"
+	QuizWord       = "quiz.word"
+	QuizInput      = "quiz.input"
+	QuizHints      = "quiz.hints"
+	QuizHintNone   = "quiz.hint_none"
+	QuizKeysChoice = "quiz.keys_choice"
+	QuizKeysWrite  = "quiz.keys_write"
 )
 
 // Kind labels
@@ -53,18 +60,28 @@ const (
 	KindNew    = "kind.new"
 )
 
+// Answer mode
+const (
+	AnswerModeChoice = "answer_mode.choice"
+	AnswerModeWrite  = "answer_mode.write"
+)
+
 // Feedback screen
 const (
 	FbNoFeedback    = "fb.no_feedback"
 	FbCorrect       = "fb.correct"
 	FbIncorrect     = "fb.incorrect"
 	FbWord          = "fb.word"
+	FbMeaning       = "fb.meaning"
 	FbCorrectAnswer = "fb.correct_answer"
 	FbYourAnswer    = "fb.your_answer"
+	FbSkipped       = "fb.skipped"
+	FbHints         = "fb.hints"
 	FbResponseTime  = "fb.response_time"
 	FbExampleEN     = "fb.example_en"
 	FbExampleJA     = "fb.example_ja"
 	FbKeys          = "fb.keys"
+	FbKeysWrite     = "fb.keys_write"
 	FbStreak        = "fb.streak"
 )
 
@@ -95,11 +112,12 @@ const (
 
 // Help screen
 const (
-	HelpTitle          = "help.title"
-	HelpBack           = "help.back"
-	HelpQuitDisabled   = "help.quit_disabled"
-	HelpStartDigits    = "help.start_digits"
-	HelpSettingsDigits = "help.settings_digits"
+	HelpTitle             = "help.title"
+	HelpBack              = "help.back"
+	HelpQuitDisabled      = "help.quit_disabled"
+	HelpQuitDisabledWrite = "help.quit_disabled_write"
+	HelpStartDigits       = "help.start_digits"
+	HelpSettingsDigits    = "help.settings_digits"
 )
 
 // Help section titles
@@ -134,9 +152,12 @@ const (
 	KeyChoice2    = "key.choice2"
 	KeyChoice3    = "key.choice3"
 	KeyChoice4    = "key.choice4"
+	KeyToggleMode = "key.toggle_mode"
 	KeyConfirm    = "key.confirm"
 	KeyQuit       = "key.quit"
 	KeyHelp       = "key.help"
+	KeyHint       = "key.hint"
+	KeySkip       = "key.skip"
 	KeyAgain      = "key.again"
 	KeyHard       = "key.hard"
 	KeyGood       = "key.good"
@@ -177,6 +198,7 @@ const (
 	StatusSavingSettings      = "status.saving_settings"
 	StatusSettingsSaved       = "status.settings_saved"
 	StatusSettingsSavedFocus  = "status.settings_saved_focus_mode"
+	StatusWriteContinue       = "status.write_continue"
 )
 
 // CLI report messages

@@ -12,6 +12,11 @@ const (
 )
 
 const (
+	AnswerModeChoice = "choice"
+	AnswerModeWrite  = "write"
+)
+
+const (
 	SessionStatusActive    = "active"
 	SessionStatusCompleted = "completed"
 	SessionStatusAbandoned = "abandoned"
@@ -49,6 +54,7 @@ type SessionRecord struct {
 	StartedAt         time.Time
 	FinishedAt        *time.Time
 	Mode              string
+	AnswerMode        string
 	TotalQuestions    int
 	AnsweredQuestions int
 	Status            string
@@ -83,6 +89,7 @@ type ReviewEvent struct {
 	ItemOrdinal    int
 	WordID         int64
 	Kind           string
+	AnswerMode     string
 	SelectedChoice int
 	CorrectChoice  int
 	IsCorrect      bool
@@ -121,4 +128,13 @@ type ImportResult struct {
 	Source        string
 	InsertedWords int
 	UpdatedWords  int
+}
+
+func NormalizeAnswerMode(mode string) string {
+	switch mode {
+	case AnswerModeWrite:
+		return AnswerModeWrite
+	default:
+		return AnswerModeChoice
+	}
 }

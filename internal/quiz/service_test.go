@@ -1,6 +1,7 @@
 package quiz
 
 import (
+	"context"
 	"math/rand"
 	"testing"
 
@@ -33,4 +34,60 @@ func TestBuildChoices(t *testing.T) {
 	if !foundCorrect {
 		t.Fatalf("correct answer missing from choices: %+v", choices)
 	}
+}
+
+func TestBuildWriteQuestion(t *testing.T) {
+	t.Parallel()
+
+	svc := NewService(stubWordStore{
+		word: store.Word{
+			ID:        1,
+			Lemma:     "begin",
+			MeaningJA: "始める",
+			Pos:       "verb",
+		},
+	})
+
+	question, err := svc.BuildQuestion(context.Background(), store.SessionItem{
+		WordID:    1,
+		Ordinal:   2,
+		Kind:      store.ItemKindReview,
+		SessionID: "session-1",
+	}, 7, store.AnswerModeWrite, nil)
+	if err != nil {
+		t.Fatalf("BuildQuestion() error = %v", err)
+	}
+	if question.AnswerMode != store.AnswerModeWrite {
+		t.Fatalf("AnswerMode = %q, want %q", question.AnswerMode, store.AnswerModeWrite)
+	}
+	if len(question.Choices) != 0 {
+		t.Fatalf("len(Choices) = %d, want 0", len(question.Choices))
+	}
+	if question.Word.Lemma != "begin" || question.Word.MeaningJA != "始める" {
+		t.Fatalf("unexpected write question word: %+v", question.Word)
+	}
+}
+
+func TestNormalizeWriteAnswer(t *testing.T) {
+	t.Parallel()
+
+	if got := NormalizeWriteAnswer(" Begin "); got != "begin" {
+		t.Fatalf("NormalizeWriteAnswer() = %q, want %q", got, "begin")
+	}
+}
+
+type stubWordStore struct {
+	word store.Word
+}
+
+func (s stubWordStore) GetWord(context.Context, int64) (store.Word, error) {
+	return s.word, nil
+}
+
+func (s stubWordStore) ListWordsByPOS(context.Context, string, int, []int64) ([]store.Word, error) {
+	return nil, nil
+}
+
+func (s stubWordStore) ListDistractorCandidates(context.Context, store.Word, int, []int64) ([]store.Word, error) {
+	return nil, nil
 }
