@@ -2,16 +2,17 @@
 
 [home]
 subtitle = "待ち時間を活用する英単語トレーニング"
+answer_mode = "回答方式"
 due = "復習予定"
 new = "未学習"
 streak = "連続日数"
 wait = "今日の学習時間"
 active = "進行中のセッション"
-active_detail = "%d/%d 問回答済み (%s)"
+active_detail = "%d/%d 問回答済み (%s / %s)"
 update = "更新があります"
 update_detail = "%s を利用できます (現在: %s)"
 update_hint = "`eitango version` でリリース情報を確認できます"
-keys = "Enter=開始/再開  n=新規  r=復習  s=統計  c=設定  q=終了"
+keys = "Tab=回答方式  Enter=開始/再開  n=新規  r=復習  s=統計  c=設定  q=終了"
 
 [settings]
 title = "ホーム設定"
@@ -33,7 +34,17 @@ keys = "↑/↓=調整  0-9=入力  Enter=開始  Esc=戻る"
 
 [quiz]
 no_question = "問題を読み込めませんでした"
-keys = "1-4=解答  j/k=移動  enter=決定  q=保存して終了"
+meaning = "意味"
+word = "Word"
+input = "Input"
+hints = "ヒント"
+hint_none = "なし"
+keys_choice = "1-4=解答  j/k=移動  Enter=決定  q=保存して終了"
+keys_write = "Backspace=削除  Tab=ヒント  Ctrl+S=スキップ  Enter=決定  Esc=終了"
+
+[answer_mode]
+choice = "Choice"
+write = "Write"
 
 [kind]
 review = "復習"
@@ -45,12 +56,16 @@ no_feedback = "結果を表示できません"
 correct = "✓ 正解！"
 incorrect = "✗ 不正解"
 word = "単語"
+meaning = "意味"
 correct_answer = "正答"
 your_answer = "あなたの回答"
+skipped = "(スキップ)"
+hints = "ヒント使用"
 response_time = "回答時間"
 example_en = "例文（英語）"
 example_ja = "例文（日本語）"
 keys = "評価: a=もう一度  h=難しい  g=良い  e=簡単"
+keys_write = "Enter=保存して次へ"
 streak = "🔥 %d 問連続正解！"
 
 [results]
@@ -78,6 +93,7 @@ wait = "学習時間"
 title = "ヘルプ"
 back = "Esc=戻る"
 quit_disabled = "評価するまで無効"
+quit_disabled_write = "保存して次へ進むまで無効"
 start_digits = "0-9 で問題数を入力"
 settings_digits = "0-9 で既定の問題数を入力"
 
@@ -108,9 +124,12 @@ choice1 = "選択肢 1"
 choice2 = "選択肢 2"
 choice3 = "選択肢 3"
 choice4 = "選択肢 4"
+toggle_mode = "回答方式を切り替える"
 confirm = "決定"
 quit = "終了"
 help = "ヘルプ"
+hint = "ヒントを表示"
+skip = "スキップ"
 again = "もう一度"
 hard = "難しい"
 good = "良い"
@@ -149,6 +168,7 @@ invalid_question_count = "問題数は 1 以上の整数で入力してくださ
 saving_settings = "設定を保存中..."
 settings_saved = "設定を保存しました"
 settings_saved_focus_mode = "設定を保存しました。既定の問題数を優先するため focus_mode_default をオフにしました"
+write_continue = "Enter で保存して次へ進みます"
 
 [cli]
 root_short = "オフライン英単語トレーニング TUI"

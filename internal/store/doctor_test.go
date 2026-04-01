@@ -2,10 +2,12 @@ package store
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	projectassets "github.com/harumiWeb/eitango/assets"
 	"github.com/harumiWeb/eitango/internal/dict"
 )
 
@@ -132,7 +134,7 @@ func TestRunDiagnosticsDetectsActiveSessionInconsistencies(t *testing.T) {
 		t.Fatalf("len(words) = %d, want at least 4", len(words))
 	}
 
-	record, _, err := st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+	record, _, err := st.CreateSession(ctx, ModeLearn, AnswerModeChoice, []SessionItemPlan{
 		{WordID: words[0].ID, Kind: ItemKindNew},
 		{WordID: words[1].ID, Kind: ItemKindNew},
 	})
@@ -162,6 +164,45 @@ WHERE id = ?
 	}
 	if !strings.Contains(strings.Join(active.Details, "\n"), record.ID) {
 		t.Fatalf("active session details = %+v, want session id %s", active.Details, record.ID)
+	}
+}
+
+func TestRunDiagnosticsReadOnlyLegacySessionsFallbackToChoiceAnswerMode(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := legacyDoctorDBPath(t)
+
+	st, err := OpenReadOnly(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("OpenReadOnly() error = %v", err)
+	}
+	defer func() {
+		_ = st.Close()
+	}()
+
+	report := st.RunDiagnostics(ctx)
+
+	migrations, ok := report.Check("migrations")
+	if !ok {
+		t.Fatal("migrations check not found")
+	}
+	if migrations.Status != DiagnosticStatusError {
+		t.Fatalf("migrations status = %q, want %q", migrations.Status, DiagnosticStatusError)
+	}
+	if !strings.Contains(strings.Join(migrations.Details, "\n"), "005_answer_modes.sql") {
+		t.Fatalf("migrations details = %+v, want missing 005 migration", migrations.Details)
+	}
+
+	active, ok := report.Check("active sessions")
+	if !ok {
+		t.Fatal("active sessions check not found")
+	}
+	if active.Status != DiagnosticStatusOK {
+		t.Fatalf("active sessions status = %q, want %q", active.Status, DiagnosticStatusOK)
+	}
+	if strings.Contains(active.Summary, "could not be read") || strings.Contains(strings.Join(active.Details, "\n"), "answer_mode") {
+		t.Fatalf("active sessions = %+v, want legacy fallback without read failure", active)
 	}
 }
 
@@ -314,4 +355,72 @@ func doctorTestEntries() []dict.Entry {
 			DistractorGroup: "basic-verb-action",
 		},
 	}
+}
+
+func legacyDoctorDBPath(t *testing.T) string {
+	t.Helper()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "legacy-doctor.db")
+	st, err := Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer func() {
+		_ = st.Close()
+	}()
+
+	if _, err := st.db.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS schema_migrations (
+version TEXT PRIMARY KEY,
+applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+`); err != nil {
+		t.Fatalf("create schema_migrations: %v", err)
+	}
+
+	for _, migration := range []string{
+		"001_init.sql",
+		"002_indexes.sql",
+		"003_words_pos_rank.sql",
+		"004_words_source.sql",
+	} {
+		sqlBytes, err := projectassets.Embedded.ReadFile("migrations/" + migration)
+		if err != nil {
+			t.Fatalf("ReadFile(%s) error = %v", migration, err)
+		}
+		if _, err := st.db.ExecContext(ctx, string(sqlBytes)); err != nil {
+			t.Fatalf("apply %s: %v", migration, err)
+		}
+		if _, err := st.db.ExecContext(ctx, `INSERT INTO schema_migrations (version) VALUES (?)`, migration); err != nil {
+			t.Fatalf("record %s: %v", migration, err)
+		}
+	}
+
+	if err := st.SeedWords(ctx, doctorTestEntries(), dict.CoreWordsVersion); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListWordsByPOS(ctx, "verb", 1, nil)
+	if err != nil {
+		t.Fatalf("ListWordsByPOS() error = %v", err)
+	}
+	if len(words) == 0 {
+		t.Fatal("ListWordsByPOS() returned no words")
+	}
+
+	if _, err := st.db.ExecContext(ctx, `
+INSERT INTO sessions (id, started_at, mode, total_questions, answered_questions, status)
+VALUES (?, CURRENT_TIMESTAMP, ?, 1, 0, ?)
+`, "legacy-active", ModeLearn, SessionStatusActive); err != nil {
+		t.Fatalf("insert legacy session: %v", err)
+	}
+	if _, err := st.db.ExecContext(ctx, `
+INSERT INTO session_items (session_id, ordinal, word_id, kind, status)
+VALUES (?, 1, ?, ?, ?)
+`, "legacy-active", words[0].ID, ItemKindNew, ItemStatusPending); err != nil {
+		t.Fatalf("insert legacy session item: %v", err)
+	}
+
+	return dbPath
 }

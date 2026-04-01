@@ -25,7 +25,7 @@ func TestSessionCmdReviewResumesActiveSession(t *testing.T) {
 		t.Fatalf("ListNewWords() error = %v", err)
 	}
 
-	record, _, err := st.CreateSession(ctx, store.ModeLearn, []store.SessionItemPlan{
+	record, _, err := st.CreateSession(ctx, store.ModeLearn, store.AnswerModeChoice, []store.SessionItemPlan{
 		{WordID: words[0].ID, Kind: store.ItemKindNew},
 	})
 	if err != nil {
@@ -59,7 +59,7 @@ func TestSessionCmdReplaceActiveStartsFreshReviewSession(t *testing.T) {
 		markWordDue(t, st, word.ID, time.Now().UTC().AddDate(0, 0, -4))
 	}
 
-	activeRecord, _, err := st.CreateSession(ctx, store.ModeLearn, []store.SessionItemPlan{
+	activeRecord, _, err := st.CreateSession(ctx, store.ModeLearn, store.AnswerModeChoice, []store.SessionItemPlan{
 		{WordID: words[0].ID, Kind: store.ItemKindNew},
 	})
 	if err != nil {
@@ -167,6 +167,34 @@ func TestSessionCmdLearnUsesPlanOptions(t *testing.T) {
 	}
 }
 
+func TestSessionCmdWriteSessionPersistsAnswerMode(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
+		Mode:       store.ModeLearn,
+		AnswerMode: store.AnswerModeWrite,
+		Plan:       session.PlanOptions{QuestionCount: 1, ReviewRatio: 0},
+	}, nil)()
+	loaded := mustSessionLoadedMsg(t, msg)
+
+	if loaded.Runtime.Session.AnswerMode != store.AnswerModeWrite {
+		t.Fatalf("session answer mode = %q, want %q", loaded.Runtime.Session.AnswerMode, store.AnswerModeWrite)
+	}
+	if loaded.Question.AnswerMode != store.AnswerModeWrite {
+		t.Fatalf("question answer mode = %q, want %q", loaded.Question.AnswerMode, store.AnswerModeWrite)
+	}
+
+	record, err := st.LoadSession(ctx, loaded.Runtime.Session.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if record.AnswerMode != store.AnswerModeWrite {
+		t.Fatalf("stored answer mode = %q, want %q", record.AnswerMode, store.AnswerModeWrite)
+	}
+}
+
 func TestUpdateCheckCmdUsesCheckNowAndReturnsResultEvenWhenServiceErrors(t *testing.T) {
 	t.Parallel()
 
@@ -240,7 +268,7 @@ func markWordDue(t *testing.T, st *store.Store, wordID int64, answeredAt time.Ti
 	t.Helper()
 
 	ctx := context.Background()
-	record, _, err := st.CreateSession(ctx, store.ModeLearn, []store.SessionItemPlan{
+	record, _, err := st.CreateSession(ctx, store.ModeLearn, store.AnswerModeChoice, []store.SessionItemPlan{
 		{WordID: wordID, Kind: store.ItemKindNew},
 	})
 	if err != nil {

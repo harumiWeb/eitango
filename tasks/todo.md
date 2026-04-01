@@ -37,6 +37,24 @@
 - [x] README / README.en / CHANGELOG / ADR の update 通知説明を整合更新する
 - [x] `go test ./...` を通す
 
+## 2026-03-31 issue #9: write モード追加
+
+- [x] `sessions` / `reviews` に `answer_mode` を追加し、old row は `choice` default で後方互換にする
+- [x] CLI を `play/review [choice|write]` へ拡張し、`learn` alias を維持する
+- [x] ホーム画面に `Tab` の回答方式切替を追加する
+- [x] write 用の入力、ヒント、skip、auto-rating、feedback 分岐を実装する
+- [x] write 中の文字入力と衝突しないよう、hint / skip を `Tab` / `Ctrl+S` に固定する
+- [x] write/session/store/CLI の回帰テストを追加する
+- [x] README / README.en を新しい操作体系へ更新する
+- [x] `go test ./...` を通す
+
+## 2026-04-01 issue #9 follow-up: doctor / write feedback regressions
+
+- [x] `doctor` が pre-005 の read-only DB でも `answer_mode` 不在で落ちず、migration drift だけを報告するようにする
+- [x] write feedback の help / quit 無効表示 / status を Enter 専用フローに合わせる
+- [x] legacy doctor / write feedback help の回帰テストを追加する
+- [x] `go test ./...` を通す
+
 ## 2026-03-29 ドキュメント再編
 
 - [x] 旧設計書のうち current code に効いている判断だけを抽出する

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	projectassets "github.com/harumiWeb/eitango/assets"
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/dict"
 	"github.com/harumiWeb/eitango/internal/i18n"
@@ -23,33 +24,48 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
+func TestNewRootCommandIncludesPlayAndReviewCommands(t *testing.T) {
 	t.Parallel()
 
 	cmd := newRootCommand()
-	learn := findSubcommand(cmd, "learn")
-	if learn == nil {
-		t.Fatal("learn command not found")
+	play := findSubcommand(cmd, "play")
+	if play == nil {
+		t.Fatal("play command not found")
 	}
-	if learn.Flags().Lookup("focus-mode") == nil {
-		t.Fatal("learn focus-mode flag not found")
+	if play.PersistentFlags().Lookup("focus-mode") == nil {
+		t.Fatal("play focus-mode flag not found")
 	}
-	if learn.Flags().Lookup("questions") == nil {
-		t.Fatal("learn questions flag not found")
+	if play.PersistentFlags().Lookup("questions") == nil {
+		t.Fatal("play questions flag not found")
+	}
+	if !hasAlias(play, "learn") {
+		t.Fatal("play learn alias not found")
+	}
+	if findSubcommand(play, "choice") == nil {
+		t.Fatal("play choice command not found")
+	}
+	if findSubcommand(play, "write") == nil {
+		t.Fatal("play write command not found")
 	}
 
 	review := findSubcommand(cmd, "review")
 	if review == nil {
 		t.Fatal("review command not found")
 	}
-	if review.Flags().Lookup("focus-mode") == nil {
+	if review.PersistentFlags().Lookup("focus-mode") == nil {
 		t.Fatal("review focus-mode flag not found")
 	}
-	if review.Flags().Lookup("questions") == nil {
+	if review.PersistentFlags().Lookup("questions") == nil {
 		t.Fatal("review questions flag not found")
 	}
-	if review.Flags().Lookup("restart") == nil {
+	if review.PersistentFlags().Lookup("restart") == nil {
 		t.Fatal("review restart flag not found")
+	}
+	if findSubcommand(review, "choice") == nil {
+		t.Fatal("review choice command not found")
+	}
+	if findSubcommand(review, "write") == nil {
+		t.Fatal("review write command not found")
 	}
 
 	doctor := findSubcommand(cmd, "doctor")
@@ -129,6 +145,19 @@ func TestNewRootCommandIncludesReviewCommandAndFlags(t *testing.T) {
 	versionCmd := findSubcommand(cmd, "version")
 	if versionCmd == nil {
 		t.Fatal("version command not found")
+	}
+}
+
+func TestPlayCommandFindResolvesLearnAliasAndWriteSubcommand(t *testing.T) {
+	t.Parallel()
+
+	cmd := newRootCommand()
+	found, _, err := cmd.Find([]string{"learn", "write"})
+	if err != nil {
+		t.Fatalf("Find(learn write) error = %v", err)
+	}
+	if found == nil || found.Name() != "write" {
+		t.Fatalf("Find(learn write) = %+v, want write subcommand", found)
 	}
 }
 
@@ -414,6 +443,15 @@ func findSubcommand(root *cobra.Command, name string) *cobra.Command {
 	return nil
 }
 
+func hasAlias(cmd *cobra.Command, want string) bool {
+	for _, alias := range cmd.Aliases {
+		if alias == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestDoctorCommandRunsDiagnostics(t *testing.T) {
 	dataDir := t.TempDir()
 	dbPath := filepath.Join(dataDir, "user.db")
@@ -507,6 +545,41 @@ func TestDoctorCommandReturnsExitCodeForIssues(t *testing.T) {
 	}
 }
 
+func TestDoctorCommandHandlesLegacySchemaReadOnly(t *testing.T) {
+	dataDir := t.TempDir()
+	dbPath := filepath.Join(dataDir, "user.db")
+
+	createLegacyDoctorDB(t, dbPath)
+	t.Setenv("EITANGO_DATA_DIR", dataDir)
+
+	var out bytes.Buffer
+	cmd := newRootCommand()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"doctor"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("Execute() error = nil, want exit code error for missing migration")
+	}
+
+	var withExitCode interface{ ExitCode() int }
+	if !errors.As(err, &withExitCode) {
+		t.Fatalf("Execute() error = %T, want exit code error", err)
+	}
+	if withExitCode.ExitCode() != 1 {
+		t.Fatalf("ExitCode() = %d, want 1", withExitCode.ExitCode())
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "005_answer_modes.sql") {
+		t.Fatalf("doctor output = %q, want missing 005 migration", output)
+	}
+	if strings.Contains(output, "active sessions could not be read") || strings.Contains(output, "no such column: sessions.answer_mode") || strings.Contains(output, "no such column: answer_mode") {
+		t.Fatalf("doctor output = %q, want legacy schema fallback without read failure", output)
+	}
+}
+
 func TestResetCommandRequiresScopeFlag(t *testing.T) {
 	dataDir := t.TempDir()
 	dbPath := filepath.Join(dataDir, "user.db")
@@ -528,6 +601,76 @@ func TestResetCommandRequiresScopeFlag(t *testing.T) {
 	}
 	if _, statErr := os.Stat(dbPath); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("user.db should not be created, stat error = %v", statErr)
+	}
+}
+
+func createLegacyDoctorDB(t *testing.T, dbPath string) {
+	t.Helper()
+
+	ctx := context.Background()
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("sql.Open() error = %v", err)
+	}
+	defer func() {
+		_ = db.Close()
+	}()
+
+	if _, err := db.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS schema_migrations (
+version TEXT PRIMARY KEY,
+applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+`); err != nil {
+		t.Fatalf("create schema_migrations: %v", err)
+	}
+
+	for _, migration := range []string{
+		"001_init.sql",
+		"002_indexes.sql",
+		"003_words_pos_rank.sql",
+		"004_words_source.sql",
+	} {
+		sqlBytes, err := projectassets.Embedded.ReadFile("migrations/" + migration)
+		if err != nil {
+			t.Fatalf("ReadFile(%s) error = %v", migration, err)
+		}
+		if _, err := db.ExecContext(ctx, string(sqlBytes)); err != nil {
+			t.Fatalf("apply %s: %v", migration, err)
+		}
+		if _, err := db.ExecContext(ctx, `INSERT INTO schema_migrations (version) VALUES (?)`, migration); err != nil {
+			t.Fatalf("record %s: %v", migration, err)
+		}
+	}
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO words (id, lemma, pos, meaning_ja, level, frequency_rank, distractor_group, source)
+VALUES
+	(1, 'adopt', 'verb', '採用する', 'core-1', 100, 'basic-verb-action', ?),
+	(2, 'apply', 'verb', '応募する', 'core-1', 120, 'basic-verb-action', ?),
+	(3, 'cancel', 'verb', '取り消す', 'core-1', 140, 'basic-verb-action', ?),
+	(4, 'deliver', 'verb', '届ける', 'core-1', 160, 'basic-verb-action', ?)
+`, store.WordSourceCore, store.WordSourceCore, store.WordSourceCore, store.WordSourceCore); err != nil {
+		t.Fatalf("insert words: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO app_meta (key, value)
+VALUES ('dict_version', ?)
+`, dict.CoreWordsVersion); err != nil {
+		t.Fatalf("insert dict_version: %v", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO sessions (id, started_at, mode, total_questions, answered_questions, status)
+VALUES (?, CURRENT_TIMESTAMP, ?, 1, 0, ?)
+`, "legacy-active", store.ModeLearn, store.SessionStatusActive); err != nil {
+		t.Fatalf("insert legacy session: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO session_items (session_id, ordinal, word_id, kind, status)
+VALUES (?, 1, ?, ?, ?)
+`, "legacy-active", int64(1), store.ItemKindNew, store.ItemStatusPending); err != nil {
+		t.Fatalf("insert legacy session item: %v", err)
 	}
 }
 
@@ -635,7 +778,7 @@ func seedResetFixture(t *testing.T, dataDir string, entries []dict.Entry, versio
 	if err != nil {
 		t.Fatalf("ListNewWords() error = %v", err)
 	}
-	record, _, err := st.CreateSession(ctx, store.ModeLearn, []store.SessionItemPlan{
+	record, _, err := st.CreateSession(ctx, store.ModeLearn, store.AnswerModeChoice, []store.SessionItemPlan{
 		{WordID: words[0].ID, Kind: store.ItemKindNew},
 	})
 	if err != nil {

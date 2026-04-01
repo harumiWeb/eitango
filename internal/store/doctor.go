@@ -637,17 +637,33 @@ func (s *Store) checkActiveSessions(ctx context.Context) DiagnosticCheck {
 	type activeSessionSnapshot struct {
 		id                string
 		mode              string
+		answerMode        string
 		totalQuestions    int
 		answeredQuestions int
 		finishedAt        sql.NullString
 	}
 
-	rows, err := s.db.QueryContext(ctx, `
-SELECT id, mode, total_questions, answered_questions, finished_at
+	hasAnswerMode, err := s.tableHasColumn(ctx, "sessions", "answer_mode")
+	if err != nil {
+		return diagnosticCheckError("active sessions", "active session schema could not be inspected", err.Error())
+	}
+
+	query := `
+SELECT id, mode, 'choice' AS answer_mode, total_questions, answered_questions, finished_at
 FROM sessions
 WHERE status = ?
 ORDER BY started_at ASC
-`, SessionStatusActive)
+`
+	if hasAnswerMode {
+		query = `
+SELECT id, mode, answer_mode, total_questions, answered_questions, finished_at
+FROM sessions
+WHERE status = ?
+ORDER BY started_at ASC
+`
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, SessionStatusActive)
 	if err != nil {
 		return diagnosticCheckError("active sessions", "active sessions could not be read", err.Error())
 	}
@@ -656,7 +672,7 @@ ORDER BY started_at ASC
 	ids := make([]string, 0, doctorSampleLimit)
 	for rows.Next() {
 		var session activeSessionSnapshot
-		if err := rows.Scan(&session.id, &session.mode, &session.totalQuestions, &session.answeredQuestions, &session.finishedAt); err != nil {
+		if err := rows.Scan(&session.id, &session.mode, &session.answerMode, &session.totalQuestions, &session.answeredQuestions, &session.finishedAt); err != nil {
 			return diagnosticCheckError("active sessions", "active sessions could not be scanned", err.Error())
 		}
 		sessions = append(sessions, session)
@@ -713,6 +729,9 @@ WHERE session_id = ?
 		if session.mode != ModeLearn && session.mode != ModeReview {
 			issues = append(issues, fmt.Sprintf("session %s has unsupported mode %q", session.id, session.mode))
 		}
+		if NormalizeAnswerMode(session.answerMode) != session.answerMode {
+			issues = append(issues, fmt.Sprintf("session %s has unsupported answer_mode %q", session.id, session.answerMode))
+		}
 		if session.answeredQuestions > session.totalQuestions {
 			issues = append(issues, fmt.Sprintf("session %s has answered_questions %d > total_questions %d", session.id, session.answeredQuestions, session.totalQuestions))
 		}
@@ -755,6 +774,40 @@ WHERE session_id = ?
 	}
 
 	return diagnosticCheckOK("active sessions", fmt.Sprintf("%d active session is internally consistent", sessionCount))
+}
+
+func (s *Store) tableHasColumn(ctx context.Context, tableName, columnName string) (bool, error) {
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", tableName))
+	if err != nil {
+		return false, fmt.Errorf("inspect %s columns: %w", tableName, err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	for rows.Next() {
+		var (
+			cid          int
+			name         string
+			typeName     string
+			notNull      int
+			defaultValue sql.NullString
+			primaryKey   int
+		)
+		if err := rows.Scan(&cid, &name, &typeName, &notNull, &defaultValue, &primaryKey); err != nil {
+			return false, fmt.Errorf("scan %s columns: %w", tableName, err)
+		}
+		if name == columnName {
+			return true, nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, fmt.Errorf("iterate %s columns: %w", tableName, err)
+	}
+	if err := rows.Close(); err != nil {
+		return false, fmt.Errorf("close %s columns: %w", tableName, err)
+	}
+	return false, nil
 }
 
 func (s *Store) checkQuizability(ctx context.Context) DiagnosticCheck {

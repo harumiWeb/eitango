@@ -211,7 +211,7 @@ func TestResetReseedPreservesImportedWords(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListNewWords() error = %v", err)
 	}
-	record, _, err := st.CreateSession(ctx, ModeLearn, []SessionItemPlan{
+	record, _, err := st.CreateSession(ctx, ModeLearn, AnswerModeChoice, []SessionItemPlan{
 		{WordID: words[0].ID, Kind: ItemKindNew},
 	})
 	if err != nil {

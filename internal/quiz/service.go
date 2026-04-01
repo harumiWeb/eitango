@@ -29,7 +29,16 @@ func NewService(store WordStore) *Service {
 	}
 }
 
-func (s *Service) BuildQuestion(ctx context.Context, item store.SessionItem, total int, recentDistractors []int64) (Question, error) {
+func (s *Service) BuildQuestion(ctx context.Context, item store.SessionItem, total int, answerMode string, recentDistractors []int64) (Question, error) {
+	switch store.NormalizeAnswerMode(answerMode) {
+	case store.AnswerModeWrite:
+		return s.BuildWriteQuestion(ctx, item, total)
+	default:
+		return s.BuildChoiceQuestion(ctx, item, total, recentDistractors)
+	}
+}
+
+func (s *Service) BuildChoiceQuestion(ctx context.Context, item store.SessionItem, total int, recentDistractors []int64) (Question, error) {
 	correct, err := s.store.GetWord(ctx, item.WordID)
 	if err != nil {
 		return Question{}, err
@@ -63,8 +72,24 @@ func (s *Service) BuildQuestion(ctx context.Context, item store.SessionItem, tot
 
 	return Question{
 		Word:         correct,
+		AnswerMode:   store.AnswerModeChoice,
 		Choices:      choices,
 		CorrectIndex: correctIndex,
+		Ordinal:      item.Ordinal,
+		Total:        total,
+		Kind:         item.Kind,
+	}, nil
+}
+
+func (s *Service) BuildWriteQuestion(ctx context.Context, item store.SessionItem, total int) (Question, error) {
+	correct, err := s.store.GetWord(ctx, item.WordID)
+	if err != nil {
+		return Question{}, err
+	}
+	return Question{
+		Word:         correct,
+		AnswerMode:   store.AnswerModeWrite,
+		CorrectIndex: 0,
 		Ordinal:      item.Ordinal,
 		Total:        total,
 		Kind:         item.Kind,

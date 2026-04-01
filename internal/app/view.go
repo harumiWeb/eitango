@@ -44,6 +44,7 @@ func (m RootModel) renderHome() string {
 		m.styles.Title.Render(tui.Logo),
 		m.styles.Muted.Render(i18n.T(i18n.HomeSubtitle)),
 		"",
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.HomeAnswerMode), 14), m.renderAnswerModeTabs()),
 		fmt.Sprintf("%s: %d", tui.AlignLabel(i18n.T(i18n.HomeDue), 14), m.home.DueCount),
 		fmt.Sprintf("%s: %d", tui.AlignLabel(i18n.T(i18n.HomeNew), 14), m.home.NewCount),
 		fmt.Sprintf("%s: %d", tui.AlignLabel(i18n.T(i18n.HomeStreak), 14), m.home.StreakDays),
@@ -53,7 +54,7 @@ func (m RootModel) renderHome() string {
 		lines = append(lines,
 			"",
 			m.styles.Subtitle.Render(i18n.T(i18n.HomeActive)),
-			i18n.Tf(i18n.HomeActiveDetail, m.home.ActiveSession.AnsweredQuestions, m.home.ActiveSession.TotalQuestions, m.home.ActiveSession.Mode),
+			i18n.Tf(i18n.HomeActiveDetail, m.home.ActiveSession.AnsweredQuestions, m.home.ActiveSession.TotalQuestions, m.home.ActiveSession.Mode, answerModeLabel(m.home.ActiveSession.AnswerMode)),
 		)
 	}
 	if strings.TrimSpace(m.updateLatestTag) != "" {
@@ -98,11 +99,17 @@ func (m RootModel) renderQuiz() string {
 	if m.currentQ == nil {
 		return m.styles.Panel.Render(i18n.T(i18n.QuizNoQuestion))
 	}
+	if m.currentQ.AnswerMode == store.AnswerModeWrite {
+		return m.renderWriteQuiz()
+	}
+	return m.renderChoiceQuiz()
+}
 
+func (m RootModel) renderChoiceQuiz() string {
 	lines := []string{
 		m.styles.Title.Render(m.currentQ.Word.Lemma),
 		"",
-		m.styles.QuizMeta.Render(fmt.Sprintf("%s  •  %s  •  %d/%d", m.currentQ.Word.Pos, kindLabel(m.currentQ.Kind), m.currentQ.Ordinal, m.currentQ.Total)),
+		m.styles.QuizMeta.Render(fmt.Sprintf("%s  •  %s  •  %s  •  %d/%d", answerModeLabel(m.currentQ.AnswerMode), m.currentQ.Word.Pos, kindLabel(m.currentQ.Kind), m.currentQ.Ordinal, m.currentQ.Total)),
 		"",
 	}
 	for i, choice := range m.currentQ.Choices {
@@ -114,7 +121,23 @@ func (m RootModel) renderQuiz() string {
 			lines = append(lines, m.styles.Choice.Render(text))
 		}
 	}
-	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.QuizKeys)))
+	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.QuizKeysChoice)))
+	return m.styles.Panel.Render(strings.Join(lines, "\n"))
+}
+
+func (m RootModel) renderWriteQuiz() string {
+	lines := []string{
+		m.styles.Title.Render(i18n.T(i18n.AnswerModeWrite)),
+		"",
+		m.styles.QuizMeta.Render(fmt.Sprintf("%s  •  %s  •  %s  •  %d/%d", answerModeLabel(m.currentQ.AnswerMode), m.currentQ.Word.Pos, kindLabel(m.currentQ.Kind), m.currentQ.Ordinal, m.currentQ.Total)),
+		"",
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.QuizMeaning), 14), m.currentQ.Word.MeaningJA),
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.QuizWord), 14), renderSlots(m.currentQ.Word.Lemma, m.writeHintIndices)),
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.QuizInput), 14), renderSpacedInput(m.writeInput)),
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.QuizHints), 14), formatHintCount(m.writeHintCount)),
+		"",
+		m.styles.Muted.Render(i18n.T(i18n.QuizKeysWrite)),
+	}
 	return m.styles.Panel.Render(strings.Join(lines, "\n"))
 }
 
@@ -122,7 +145,13 @@ func (m RootModel) renderFeedback() string {
 	if m.feedback == nil {
 		return m.styles.Panel.Render(i18n.T(i18n.FbNoFeedback))
 	}
+	if m.feedback.Question.AnswerMode == store.AnswerModeWrite {
+		return m.renderWriteFeedback()
+	}
+	return m.renderChoiceFeedback()
+}
 
+func (m RootModel) renderChoiceFeedback() string {
 	panel := m.styles.WrongPanel
 	result := m.styles.Wrong.Render("✗ " + i18n.T(i18n.FbIncorrect))
 	if m.feedback.Correct {
@@ -159,6 +188,51 @@ func (m RootModel) renderFeedback() string {
 		}
 	}
 	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.FbKeys)))
+	return panel.Render(strings.Join(lines, "\n"))
+}
+
+func (m RootModel) renderWriteFeedback() string {
+	panel := m.styles.WrongPanel
+	result := m.styles.Wrong.Render("✗ " + i18n.T(i18n.FbIncorrect))
+	if m.feedback.Correct {
+		panel = m.styles.CorrectPanel
+		result = m.styles.Correct.Render("✓ " + i18n.T(i18n.FbCorrect))
+	}
+
+	lines := []string{result}
+	if m.feedback.Correct && m.correctStreak >= 3 {
+		lines = append(lines, m.styles.Correct.Render(i18n.Tf(i18n.FbStreak, m.correctStreak)))
+	}
+
+	lines = append(lines,
+		"",
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.FbWord), 14), m.feedback.Question.Word.Lemma),
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.FbMeaning), 14), m.feedback.Question.Word.MeaningJA),
+	)
+
+	if !m.feedback.Correct || m.feedback.Skipped {
+		answer := m.feedback.SelectedText
+		if m.feedback.Skipped {
+			answer = i18n.T(i18n.FbSkipped)
+		}
+		lines = append(lines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.FbYourAnswer), 14), answer))
+	}
+	if m.feedback.HintCount > 0 {
+		lines = append(lines, fmt.Sprintf("%s: %d", tui.AlignLabel(i18n.T(i18n.FbHints), 14), m.feedback.HintCount))
+	}
+	lines = append(lines, fmt.Sprintf("%s: %d ms", tui.AlignLabel(i18n.T(i18n.FbResponseTime), 14), m.feedback.ResponseMS))
+
+	if m.feedback.Question.Word.ExampleEN != "" || m.feedback.Question.Word.ExampleJA != "" {
+		lines = append(lines, "")
+		if m.feedback.Question.Word.ExampleEN != "" {
+			lines = append(lines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.FbExampleEN), 14), m.feedback.Question.Word.ExampleEN))
+		}
+		if m.feedback.Question.Word.ExampleJA != "" {
+			lines = append(lines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.FbExampleJA), 14), m.feedback.Question.Word.ExampleJA))
+		}
+	}
+
+	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.FbKeysWrite)))
 	return panel.Render(strings.Join(lines, "\n"))
 }
 
@@ -213,6 +287,15 @@ func (m RootModel) renderStatusLine() string {
 	return m.styles.Status.Render("status: " + msg)
 }
 
+func (m RootModel) renderAnswerModeTabs() string {
+	choice := answerModeLabel(store.AnswerModeChoice)
+	write := answerModeLabel(store.AnswerModeWrite)
+	if store.NormalizeAnswerMode(m.selectedAnswerMode) == store.AnswerModeWrite {
+		return m.styles.Choice.Render(choice) + "  " + m.styles.ChoiceSelected.Render(write)
+	}
+	return m.styles.ChoiceSelected.Render(choice) + "  " + m.styles.Choice.Render(write)
+}
+
 func kindLabel(kind string) string {
 	switch kind {
 	case store.ItemKindReview:
@@ -260,6 +343,19 @@ func (m RootModel) helpSections(screen Screen) []helpSection {
 
 	switch screen {
 	case ScreenQuiz:
+		if m.currentQ != nil && m.currentQ.AnswerMode == store.AnswerModeWrite {
+			return []helpSection{
+				{title: i18n.T(i18n.HelpSectionAnswer), lines: []string{
+					helpLine(m.keymap.Confirm),
+					helpLine(m.keymap.Hint),
+					helpLine(m.keymap.Skip),
+				}},
+				{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
+					helpLine(m.keymap.Help),
+					helpLine(m.keymap.WriteQuit),
+				}},
+			}
+		}
 		return []helpSection{
 			{title: i18n.T(i18n.HelpSectionAnswer), lines: []string{
 				helpLine(m.keymap.Select1),
@@ -278,6 +374,17 @@ func (m RootModel) helpSections(screen Screen) []helpSection {
 			}},
 		}
 	case ScreenFeedback:
+		if m.isWriteFeedback() {
+			return []helpSection{
+				{title: i18n.T(i18n.HelpSectionNav), lines: []string{
+					helpLine(m.keymap.Confirm),
+				}},
+				{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
+					helpLine(m.keymap.Help),
+					fmt.Sprintf("%-10s %s", "q", i18n.T(i18n.HelpQuitDisabledWrite)),
+				}},
+			}
+		}
 		return []helpSection{
 			{title: i18n.T(i18n.HelpSectionRate), lines: []string{
 				helpLine(m.keymap.Again),
@@ -318,6 +425,7 @@ func (m RootModel) helpSections(screen Screen) []helpSection {
 				helpLine(m.keymap.Confirm),
 				helpLine(m.keymap.NewSession),
 				helpLine(m.keymap.Review),
+				helpLine(m.keymap.ToggleAnswerMode),
 				helpLine(m.keymap.Stats),
 				helpLine(m.keymap.Settings),
 			}},
@@ -332,6 +440,10 @@ func (m RootModel) helpSections(screen Screen) []helpSection {
 func helpLine(binding key.Binding) string {
 	help := binding.Help()
 	return fmt.Sprintf("%-10s %s", help.Key, help.Desc)
+}
+
+func (m RootModel) isWriteFeedback() bool {
+	return m.feedback != nil && m.feedback.Question.AnswerMode == store.AnswerModeWrite
 }
 
 func screenHelpTitle(screen Screen) string {

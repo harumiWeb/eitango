@@ -5,6 +5,27 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-01
+
+### Added
+
+- `write` モードを追加し、日本語の意味を見て英単語を入力する学習フローを使えるようにしました。
+- CLI に `eitango play choice|write` と `eitango review choice|write` を追加しました。既存の `learn` は `play` の互換 alias として維持しています。
+- ホーム画面に回答方式トグルを追加し、`Tab` で `choice / write` を切り替えられるようにしました。
+
+### Changed
+
+- セッション管理を `play/review × choice/write` の 2 軸に整理し、active session 再開時も回答方式を維持するようにしました。
+- `write` モードの操作を text entry 前提に整理し、`Tab=ヒント`、`Ctrl+S=スキップ`、`Enter=決定/次へ`、`Esc=終了` に統一しました。
+- `write` モードの入力欄は `Word` スロット表示に合わせて字間スペース付きで描画するようにし、文字数の見比べをしやすくしました。
+- README / README.en を新しい `play/review` コマンド体系と `write` モード操作に合わせて更新しました。
+
+### Fixed
+
+- `write` モードで `h` / `s` / `q` がショートカット扱いされて文字入力できない問題を修正しました。
+- `write` フィードバック画面の help / status 表示を Enter で保存して次へ進む実際の操作に合わせました。
+- `eitango doctor` が pre-`005_answer_modes.sql` の DB を read-only で診断したとき、`sessions.answer_mode` 不在で失敗しないようにしました。旧スキーマは `choice` として診断し、migration drift は `migrations` check で報告します。
+
 ## [0.2.2] - 2026-03-31
 
 ### Added
@@ -36,6 +57,7 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/harumiWeb/eitango/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/harumiWeb/eitango/compare/v0.2.0...v0.2.2
 [0.2.0]: https://github.com/harumiWeb/eitango/compare/v0.1.1...v0.2.0

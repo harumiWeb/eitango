@@ -10,3 +10,5 @@
 - ローカルビルドで生成した `eitango.exe` や `bin/` 配下の実行ファイルはリポジトリへ含めない。配布用バイナリは Git ではなく release artifact で管理する。
 - installer や配布補助スクリプトで release asset 名を組み立てるときは、推測した tag 文字列をそのまま埋め込まず、実際の GoReleaser naming と `checksums.txt` を基準に fixture も含めて一致確認する。
 - destructive な削除は TTY 対話で後付け有効化しない。CLI 仕様で `--purge-data` のような明示 flag に限定すると決めたら、その契約をコードとテストの両方で固定する。
+- 文字入力を受け付ける画面では、単文字ショートカットを回答文字と衝突させない。補助操作は `Tab` / `Ctrl+...` / `Esc` のような非文字キーに寄せ、`h/s/q` のような代表文字が通常入力として通る回帰テストを追加する。
+- read-only 診断は最新 schema を直接仮定しない。`doctor` のように migration 未適用 DB を読む経路では列追加後も `PRAGMA table_info(...)` などで実スキーマを見て fallback し、欠けている migration は専用 check でだけ報告する。
