@@ -16,6 +16,11 @@ import (
 	"github.com/harumiWeb/eitango/internal/updatecheck"
 )
 
+const (
+	testResponseDuration   = 2 * time.Second
+	beginRevealHintPresses = 4
+)
+
 func TestUpdateHomeConfirmWithoutActiveStartsSessionImmediately(t *testing.T) {
 	t.Parallel()
 
@@ -293,7 +298,7 @@ func TestUpdateWriteQuizHintSkipAndAutoRating(t *testing.T) {
 		Total:   1,
 		Kind:    store.ItemKindNew,
 	}
-	model.questionStarted = time.Now().UTC().Add(-2 * time.Second)
+	model.questionStarted = time.Now().UTC().Add(-testResponseDuration)
 
 	next, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	withHint := next.(RootModel)
@@ -334,10 +339,10 @@ func TestUpdateWriteQuizAllHintsAutoFail(t *testing.T) {
 		Total:   1,
 		Kind:    store.ItemKindNew,
 	}
-	model.questionStarted = time.Now().UTC().Add(-2 * time.Second)
+	model.questionStarted = time.Now().UTC().Add(-testResponseDuration)
 
 	updated := model
-	for i := 0; i < 4; i++ {
+	for i := 0; i < beginRevealHintPresses; i++ {
 		next, _ := updated.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		updated = next.(RootModel)
 	}
@@ -354,8 +359,8 @@ func TestUpdateWriteQuizAllHintsAutoFail(t *testing.T) {
 	if updated.feedback.Skipped {
 		t.Fatalf("feedback.Skipped = true, want false: %+v", updated.feedback)
 	}
-	if updated.feedback.HintCount != 4 {
-		t.Fatalf("feedback.HintCount = %d, want 4", updated.feedback.HintCount)
+	if updated.feedback.HintCount != beginRevealHintPresses {
+		t.Fatalf("feedback.HintCount = %d, want %d", updated.feedback.HintCount, beginRevealHintPresses)
 	}
 	if updated.feedback.Rating != srs.Again {
 		t.Fatalf("feedback.Rating = %q, want %q", updated.feedback.Rating, srs.Again)
@@ -380,10 +385,10 @@ func TestUpdateWriteQuizAllHintsAutoFailWithCorrectPrefilledInput(t *testing.T) 
 		Kind:    store.ItemKindNew,
 	}
 	model.writeInput = "begin"
-	model.questionStarted = time.Now().UTC().Add(-2 * time.Second)
+	model.questionStarted = time.Now().UTC().Add(-testResponseDuration)
 
 	updated := model
-	for i := 0; i < 4; i++ {
+	for i := 0; i < beginRevealHintPresses; i++ {
 		next, _ := updated.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		updated = next.(RootModel)
 	}
