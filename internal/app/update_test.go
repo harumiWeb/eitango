@@ -16,6 +16,11 @@ import (
 	"github.com/harumiWeb/eitango/internal/updatecheck"
 )
 
+const (
+	testResponseDuration   = 2 * time.Second
+	beginRevealHintPresses = 4
+)
+
 func TestUpdateHomeConfirmWithoutActiveStartsSessionImmediately(t *testing.T) {
 	t.Parallel()
 
@@ -293,7 +298,7 @@ func TestUpdateWriteQuizHintSkipAndAutoRating(t *testing.T) {
 		Total:   1,
 		Kind:    store.ItemKindNew,
 	}
-	model.questionStarted = time.Now().UTC().Add(-2 * time.Second)
+	model.questionStarted = time.Now().UTC().Add(-testResponseDuration)
 
 	next, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	withHint := next.(RootModel)
@@ -314,6 +319,97 @@ func TestUpdateWriteQuizHintSkipAndAutoRating(t *testing.T) {
 	}
 	if skipped.feedback.Rating != srs.Again {
 		t.Fatalf("skip rating = %q, want %q", skipped.feedback.Rating, srs.Again)
+	}
+}
+
+func TestUpdateWriteQuizAllHintsAutoFail(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.screen = ScreenQuiz
+	model.currentQ = &quiz.Question{
+		AnswerMode: store.AnswerModeWrite,
+		Word: store.Word{
+			Lemma:     "begin",
+			MeaningJA: "始める",
+			Pos:       "verb",
+		},
+		Ordinal: 1,
+		Total:   1,
+		Kind:    store.ItemKindNew,
+	}
+	model.questionStarted = time.Now().UTC().Add(-testResponseDuration)
+
+	updated := model
+	for i := 0; i < beginRevealHintPresses; i++ {
+		next, _ := updated.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+		updated = next.(RootModel)
+	}
+
+	if updated.screen != ScreenFeedback {
+		t.Fatalf("screen after all hints = %v, want %v", updated.screen, ScreenFeedback)
+	}
+	if updated.feedback == nil {
+		t.Fatal("feedback after all hints = nil, want write feedback")
+	}
+	if updated.feedback.Correct {
+		t.Fatalf("feedback.Correct = true, want false: %+v", updated.feedback)
+	}
+	if updated.feedback.Skipped {
+		t.Fatalf("feedback.Skipped = true, want false: %+v", updated.feedback)
+	}
+	if updated.feedback.HintCount != beginRevealHintPresses {
+		t.Fatalf("feedback.HintCount = %d, want %d", updated.feedback.HintCount, beginRevealHintPresses)
+	}
+	if updated.feedback.Rating != srs.Again {
+		t.Fatalf("feedback.Rating = %q, want %q", updated.feedback.Rating, srs.Again)
+	}
+}
+
+func TestUpdateWriteQuizAllHintsAutoFailWithCorrectPrefilledInput(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.screen = ScreenQuiz
+	model.currentQ = &quiz.Question{
+		AnswerMode: store.AnswerModeWrite,
+		Word: store.Word{
+			Lemma:     "begin",
+			MeaningJA: "始める",
+			Pos:       "verb",
+		},
+		Ordinal: 1,
+		Total:   1,
+		Kind:    store.ItemKindNew,
+	}
+	model.writeInput = "begin"
+	model.questionStarted = time.Now().UTC().Add(-testResponseDuration)
+
+	updated := model
+	for i := 0; i < beginRevealHintPresses; i++ {
+		next, _ := updated.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+		updated = next.(RootModel)
+	}
+
+	if updated.screen != ScreenFeedback {
+		t.Fatalf("screen after all hints = %v, want %v", updated.screen, ScreenFeedback)
+	}
+	if updated.feedback == nil {
+		t.Fatal("feedback after all hints = nil, want write feedback")
+	}
+	if updated.feedback.Correct {
+		t.Fatalf("feedback.Correct = true, want false: %+v", updated.feedback)
+	}
+	if updated.feedback.Rating != srs.Again {
+		t.Fatalf("feedback.Rating = %q, want %q", updated.feedback.Rating, srs.Again)
+	}
+	if updated.feedback.SelectedText != "begin" {
+		t.Fatalf("feedback.SelectedText = %q, want %q", updated.feedback.SelectedText, "begin")
+	}
+	if updated.feedback.Skipped {
+		t.Fatalf("feedback.Skipped = true, want false: %+v", updated.feedback)
 	}
 }
 
