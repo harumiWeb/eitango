@@ -83,7 +83,11 @@ func Load(path string) (Settings, error) {
 		settings.FocusModeDefault = *raw.FocusModeDefault
 	}
 	if raw.WriteModeDifficulty != nil {
-		settings.WriteModeDifficulty = *raw.WriteModeDifficulty
+		writeModeDifficulty, err := parseWriteModeDifficulty(*raw.WriteModeDifficulty)
+		if err != nil {
+			return Settings{}, err
+		}
+		settings.WriteModeDifficulty = writeModeDifficulty
 	}
 	if raw.Language != nil {
 		settings.Language = *raw.Language
@@ -97,6 +101,12 @@ func Load(path string) (Settings, error) {
 }
 
 func Save(path string, settings Settings) error {
+	writeModeDifficulty, err := parseWriteModeDifficulty(settings.WriteModeDifficulty)
+	if err != nil {
+		return err
+	}
+	settings.WriteModeDifficulty = writeModeDifficulty
+
 	if err := validateSettings(settings); err != nil {
 		return err
 	}
@@ -214,6 +224,17 @@ func NormalizeWriteModeDifficulty(value string) string {
 		return WriteModeDifficultyHard
 	default:
 		return WriteModeDifficultyBasic
+	}
+}
+
+func parseWriteModeDifficulty(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case WriteModeDifficultyBasic:
+		return WriteModeDifficultyBasic, nil
+	case WriteModeDifficultyHard:
+		return WriteModeDifficultyHard, nil
+	default:
+		return "", fmt.Errorf("write_mode_difficulty must be %q or %q", WriteModeDifficultyBasic, WriteModeDifficultyHard)
 	}
 }
 

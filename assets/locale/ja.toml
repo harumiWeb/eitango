@@ -172,6 +172,7 @@ saving_settings = "設定を保存中..."
 settings_saved = "設定を保存しました"
 settings_saved_focus_mode = "設定を保存しました。既定の問題数を優先するため focus_mode_default をオフにしました"
 write_continue = "Enter で保存して次へ進みます"
+write_basic_empty = "Write basic の候補がありません。先に Choice で学習するか、Write難易度を hard に切り替えてください"
 
 [cli]
 root_short = "オフライン英単語トレーニング TUI"

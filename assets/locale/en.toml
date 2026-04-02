@@ -172,6 +172,7 @@ saving_settings = "Saving settings..."
 settings_saved = "Saved settings"
 settings_saved_focus_mode = "Saved settings. focus_mode_default was turned off so the default question count takes effect"
 write_continue = "Press Enter to save and continue"
+write_basic_empty = "No Write basic words are available. Answer some Choice questions first or switch Write difficulty to hard"
 
 [cli]
 root_short = "Offline TUI English vocabulary trainer"

@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/dict"
+	"github.com/harumiWeb/eitango/internal/i18n"
 	"github.com/harumiWeb/eitango/internal/quiz"
 	"github.com/harumiWeb/eitango/internal/session"
 	"github.com/harumiWeb/eitango/internal/srs"
@@ -344,8 +344,8 @@ func TestSessionCmdWriteBasicReturnsModeAwareErrorWhenChoicePoolIsEmpty(t *testi
 	}, nil)()
 
 	err := mustErrMsg(t, msg)
-	if !strings.Contains(err.Error(), "choice questions first") {
-		t.Fatalf("err = %v, want write/basic guidance", err)
+	if err.Error() != i18n.T(i18n.StatusWriteBasicEmpty) {
+		t.Fatalf("err = %v, want %q", err, i18n.T(i18n.StatusWriteBasicEmpty))
 	}
 }
 

@@ -51,6 +51,28 @@ write_mode_difficulty = "hard"
 	}
 }
 
+func TestLoadNormalizesWriteModeDifficulty(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte(`
+session_size = 12
+review_ratio = 0.4
+write_mode_difficulty = " Hard "
+language = "ja"
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	settings, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if settings.WriteModeDifficulty != WriteModeDifficultyHard {
+		t.Fatalf("WriteModeDifficulty = %q, want %q", settings.WriteModeDifficulty, WriteModeDifficultyHard)
+	}
+}
+
 func TestLoadRejectsInvalidValues(t *testing.T) {
 	t.Parallel()
 
@@ -160,6 +182,28 @@ func TestSaveRejectsInvalidWriteModeDifficulty(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "write_mode_difficulty") {
 		t.Fatalf("Save() error = %v, want write_mode_difficulty validation", err)
+	}
+}
+
+func TestSaveNormalizesWriteModeDifficulty(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := Save(path, Settings{
+		SessionSize:         10,
+		ReviewRatio:         0.4,
+		WriteModeDifficulty: " Hard ",
+		Language:            "ja",
+	}); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	settings, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if settings.WriteModeDifficulty != WriteModeDifficultyHard {
+		t.Fatalf("WriteModeDifficulty = %q, want %q", settings.WriteModeDifficulty, WriteModeDifficultyHard)
 	}
 }
 

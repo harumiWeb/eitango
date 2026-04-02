@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -109,7 +110,7 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 			basicWritePoolEmpty := false
 			if answerMode == store.AnswerModeWrite && writeModeDifficulty == config.WriteModeDifficultyBasic {
 				newWords, err = st.ListWriteBasicCandidates(ctx, options.QuestionCount, dueIDs)
-				basicWritePoolEmpty = len(dueWords) == 0 && len(newWords) == 0
+				basicWritePoolEmpty = len(newWords) == 0
 			} else {
 				newWords, err = st.ListNewWords(ctx, options.QuestionCount, dueIDs)
 			}
@@ -123,7 +124,7 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 			itemsPlan = session.BuildSessionItems(reviewWords, newSelection)
 
 			if len(itemsPlan) == 0 && basicWritePoolEmpty {
-				return errMsg{err: fmt.Errorf("no write/basic words available; answer some choice questions first or switch write difficulty to hard")}
+				return errMsg{err: errors.New(i18n.T(i18n.StatusWriteBasicEmpty))}
 			}
 		}
 

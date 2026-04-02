@@ -202,6 +202,7 @@ const (
 	StatusSettingsSaved       = "status.settings_saved"
 	StatusSettingsSavedFocus  = "status.settings_saved_focus_mode"
 	StatusWriteContinue       = "status.write_continue"
+	StatusWriteBasicEmpty     = "status.write_basic_empty"
 )
 
 // CLI report messages

@@ -117,6 +117,7 @@ func TestAllJAKeysExistInEN(t *testing.T) {
 		i18n.StatusActiveFound, i18n.StatusStartingReview, i18n.StatusStartingNew,
 		i18n.StatusStartingLearn, i18n.StatusResuming, i18n.StatusSaving,
 		i18n.StatusReturningHome, i18n.StatusBackHome, i18n.StatusHelp, i18n.StatusWriteContinue,
+		i18n.StatusWriteBasicEmpty,
 		i18n.CLIRootShort, i18n.CLIDoctorHeader, i18n.CLIDoctorOK,
 		i18n.CLIDoctorErrors, i18n.CLIDoctorWarnings, i18n.CLIDoctorBoth,
 		i18n.CLIResetHeader, i18n.CLIResetCleared, i18n.CLIResetReseeded,
