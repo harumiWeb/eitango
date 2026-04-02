@@ -129,10 +129,11 @@ func TestListWriteBasicCandidatesPrioritizeWriteUnseenAndExcludeDue(t *testing.T
 		t.Fatalf("ListNewWords() error = %v", err)
 	}
 
-	recordReviewInMode(t, st, words[2].ID, AnswerModeChoice, time.Now().UTC())
-	recordReviewInMode(t, st, words[1].ID, AnswerModeChoice, time.Now().UTC())
-	recordReviewInMode(t, st, words[1].ID, AnswerModeWrite, time.Now().UTC())
-	recordReviewInMode(t, st, words[0].ID, AnswerModeWrite, time.Now().UTC())
+	base := stableUTCNoon()
+	recordReviewInMode(t, st, words[2].ID, AnswerModeChoice, base.Add(1*time.Minute))
+	recordReviewInMode(t, st, words[1].ID, AnswerModeChoice, base.Add(2*time.Minute))
+	recordReviewInMode(t, st, words[1].ID, AnswerModeWrite, base.Add(3*time.Minute))
+	recordReviewInMode(t, st, words[0].ID, AnswerModeWrite, base.Add(4*time.Minute))
 
 	seen, err := st.ListWriteBasicCandidates(ctx, 10, nil)
 	if err != nil {

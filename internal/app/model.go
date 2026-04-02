@@ -27,6 +27,13 @@ const (
 	ScreenHelp
 )
 
+const (
+	settingsRowQuestionCount = iota
+	settingsRowWriteDifficulty
+	settingsRowLanguage
+	settingsRowCount
+)
+
 type homeLoadedMsg struct {
 	Home  store.HomeSnapshot
 	Stats stats.Snapshot
@@ -181,7 +188,7 @@ func (m RootModel) sessionRequest(mode string, replaceActive bool) sessionReques
 
 func (m RootModel) openSettingsOverlay() RootModel {
 	m.settingsOpen = true
-	m.settingsCursor = 0
+	m.settingsCursor = settingsRowQuestionCount
 	m.settingsInput = strconv.Itoa(m.settings.SessionSize)
 	m.settingsEditing = false
 	m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(m.settings.WriteModeDifficulty)
@@ -220,7 +227,7 @@ func (m RootModel) settingsQuestionDisplay() string {
 	if m.settingsInput == "" {
 		return "..."
 	}
-	if m.settingsCursor == 0 && m.settingsEditing {
+	if m.settingsCursor == settingsRowQuestionCount && m.settingsEditing {
 		return m.settingsInput + "_"
 	}
 	return m.settingsInput

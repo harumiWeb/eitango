@@ -115,7 +115,7 @@ func Save(path string, settings Settings) error {
 		SessionSize:         settings.SessionSize,
 		ReviewRatio:         settings.ReviewRatio,
 		FocusModeDefault:    settings.FocusModeDefault,
-		WriteModeDifficulty: NormalizeWriteModeDifficulty(settings.WriteModeDifficulty),
+		WriteModeDifficulty: settings.WriteModeDifficulty,
 		Language:            settings.Language,
 	}); err != nil {
 		return fmt.Errorf("encode config %s: %w", path, err)

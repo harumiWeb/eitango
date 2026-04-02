@@ -106,8 +106,10 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 				dueIDs = append(dueIDs, word.ID)
 			}
 			var newWords []store.Word
+			basicWritePoolEmpty := false
 			if answerMode == store.AnswerModeWrite && writeModeDifficulty == config.WriteModeDifficultyBasic {
 				newWords, err = st.ListWriteBasicCandidates(ctx, options.QuestionCount, dueIDs)
+				basicWritePoolEmpty = len(dueWords) == 0 && len(newWords) == 0
 			} else {
 				newWords, err = st.ListNewWords(ctx, options.QuestionCount, dueIDs)
 			}
@@ -119,6 +121,10 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 			reviewWords := dueWords[:plan.ReviewCount]
 			newSelection := newWords[:plan.NewCount]
 			itemsPlan = session.BuildSessionItems(reviewWords, newSelection)
+
+			if len(itemsPlan) == 0 && basicWritePoolEmpty {
+				return errMsg{err: fmt.Errorf("no write/basic words available; answer some choice questions first or switch write difficulty to hard")}
+			}
 		}
 
 		if len(itemsPlan) == 0 {

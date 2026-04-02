@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -330,6 +331,24 @@ func TestSessionCmdWriteDefaultsToBasicWhenDifficultyUnset(t *testing.T) {
 	}
 }
 
+func TestSessionCmdWriteBasicReturnsModeAwareErrorWhenChoicePoolIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	st := newTestStore(t)
+
+	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
+		Mode:                store.ModeLearn,
+		AnswerMode:          store.AnswerModeWrite,
+		WriteModeDifficulty: config.WriteModeDifficultyBasic,
+		Plan:                session.PlanOptions{QuestionCount: 1, ReviewRatio: 0},
+	}, nil)()
+
+	err := mustErrMsg(t, msg)
+	if !strings.Contains(err.Error(), "choice questions first") {
+		t.Fatalf("err = %v, want write/basic guidance", err)
+	}
+}
+
 func TestUpdateCheckCmdUsesCheckNowAndReturnsResultEvenWhenServiceErrors(t *testing.T) {
 	t.Parallel()
 
@@ -464,6 +483,21 @@ func mustSessionLoadedMsg(t *testing.T, msg any) sessionLoadedMsg {
 		t.Fatalf("unexpected msg type %T", msg)
 	}
 	return sessionLoadedMsg{}
+}
+
+func mustErrMsg(t *testing.T, msg any) error {
+	t.Helper()
+
+	switch typed := msg.(type) {
+	case errMsg:
+		if typed.err == nil {
+			t.Fatal("errMsg.err = nil, want error")
+		}
+		return typed.err
+	default:
+		t.Fatalf("unexpected msg type %T", msg)
+	}
+	return nil
 }
 
 func testEntries() []dict.Entry {

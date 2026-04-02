@@ -162,3 +162,25 @@ func TestSaveRejectsInvalidWriteModeDifficulty(t *testing.T) {
 		t.Fatalf("Save() error = %v, want write_mode_difficulty validation", err)
 	}
 }
+
+func TestLoadRejectsInvalidWriteModeDifficulty(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte(`
+session_size = 10
+review_ratio = 0.4
+write_mode_difficulty = "invalid"
+language = "ja"
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("Load() error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "write_mode_difficulty") {
+		t.Fatalf("Load() error = %v, want write_mode_difficulty validation", err)
+	}
+}

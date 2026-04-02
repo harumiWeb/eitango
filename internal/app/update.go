@@ -227,14 +227,14 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 	case key.Matches(msg, m.keymap.Back), key.Matches(msg, m.keymap.Settings):
 		return m.closeSettingsOverlay(), nil
 	case key.Matches(msg, m.keymap.Up):
-		if m.settingsCursor > 0 {
+		if m.settingsCursor > settingsRowQuestionCount {
 			m.settingsCursor--
 		}
 		m.settingsEditing = false
 		m.status = i18n.T(i18n.StatusConfiguringSettings)
 		return m, nil
 	case key.Matches(msg, m.keymap.Down):
-		if m.settingsCursor < 2 {
+		if m.settingsCursor < settingsRowCount-1 {
 			m.settingsCursor++
 		}
 		m.settingsEditing = false
@@ -242,7 +242,7 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		return m, nil
 	case key.Matches(msg, m.keymap.Left):
 		switch m.settingsCursor {
-		case 0:
+		case settingsRowQuestionCount:
 			count, ok := m.settingsQuestionCount()
 			if !ok || count <= 1 {
 				count = 1
@@ -250,9 +250,9 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 				count--
 			}
 			m.settingsInput = strconv.Itoa(count)
-		case 1:
+		case settingsRowWriteDifficulty:
 			m.settingsWriteDifficulty = config.WriteModeDifficultyBasic
-		case 2:
+		case settingsRowLanguage:
 			m.settingsLanguage = i18n.LangJA
 		}
 		m.settingsEditing = false
@@ -260,16 +260,16 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		return m, nil
 	case key.Matches(msg, m.keymap.Right):
 		switch m.settingsCursor {
-		case 0:
+		case settingsRowQuestionCount:
 			count, ok := m.settingsQuestionCount()
 			if !ok {
 				count = 0
 			}
 			count++
 			m.settingsInput = strconv.Itoa(count)
-		case 1:
+		case settingsRowWriteDifficulty:
 			m.settingsWriteDifficulty = config.WriteModeDifficultyHard
-		case 2:
+		case settingsRowLanguage:
 			m.settingsLanguage = i18n.LangEN
 		}
 		m.settingsEditing = false
@@ -286,7 +286,7 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		return m, saveSettingsCmd(m.configPath, settings, focusModeDisabled)
 	}
 
-	if m.settingsCursor == 0 {
+	if m.settingsCursor == settingsRowQuestionCount {
 		switch msg.Code {
 		case tea.KeyBackspace, tea.KeyDelete:
 			if len(m.settingsInput) > 0 {
@@ -298,7 +298,7 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		}
 	}
 
-	if m.settingsCursor == 0 && len(msg.Text) == 1 && msg.Text[0] >= '0' && msg.Text[0] <= '9' {
+	if m.settingsCursor == settingsRowQuestionCount && len(msg.Text) == 1 && msg.Text[0] >= '0' && msg.Text[0] <= '9' {
 		if m.settingsEditing {
 			m.settingsInput += msg.Text
 		} else {
