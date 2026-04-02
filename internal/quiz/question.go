@@ -43,9 +43,9 @@ func BuildFeedback(question Question, selectedIndex int, responseMS int64) Feedb
 	}
 }
 
-func BuildWriteFeedback(question Question, typed string, hintCount int, skipped bool, responseMS int64) Feedback {
+func BuildWriteFeedback(question Question, typed string, hintCount int, skipped bool, forceIncorrect bool, responseMS int64) Feedback {
 	normalizedTyped := NormalizeWriteAnswer(typed)
-	correct := !skipped && normalizedTyped == NormalizeWriteAnswer(question.Word.Lemma)
+	correct := !forceIncorrect && !skipped && normalizedTyped == NormalizeWriteAnswer(question.Word.Lemma)
 	rating := srs.Again
 	switch {
 	case correct && hintCount == 0:

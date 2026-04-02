@@ -452,14 +452,14 @@ func (m RootModel) updateWriteQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.writeHintIndices = next
 			m.writeHintCount++
 			if len(next) == len([]rune(m.currentQ.Word.Lemma)) {
-				return m.showWriteFeedback(false), nil
+				return m.showWriteFeedback(false, true), nil
 			}
 		}
 		return m, nil
 	case key.Matches(msg, m.keymap.Skip):
-		return m.showWriteFeedback(true), nil
+		return m.showWriteFeedback(true, false), nil
 	case key.Matches(msg, m.keymap.Confirm):
-		return m.showWriteFeedback(false), nil
+		return m.showWriteFeedback(false, false), nil
 	}
 
 	switch msg.Code {
@@ -476,13 +476,13 @@ func (m RootModel) updateWriteQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m RootModel) showWriteFeedback(skipped bool) RootModel {
+func (m RootModel) showWriteFeedback(skipped bool, forceIncorrect bool) RootModel {
 	if m.currentQ == nil {
 		return m
 	}
 
 	responseMS := time.Since(m.questionStarted).Milliseconds()
-	feedback := quiz.BuildWriteFeedback(*m.currentQ, m.writeInput, m.writeHintCount, skipped, responseMS)
+	feedback := quiz.BuildWriteFeedback(*m.currentQ, m.writeInput, m.writeHintCount, skipped, forceIncorrect, responseMS)
 	m.feedback = &feedback
 	m.screen = ScreenFeedback
 	if feedback.Correct {
