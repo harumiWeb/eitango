@@ -77,44 +77,45 @@ type Options struct {
 }
 
 type RootModel struct {
-	store              *store.Store
-	quiz               *quiz.Service
-	planOptions        session.PlanOptions
-	startup            *StartupRequest
-	settings           config.Settings
-	configPath         string
-	currentVersion     string
-	updateService      updatecheck.Service
-	updateLatestTag    string
-	selectedAnswerMode string
-	screen             Screen
-	keymap             tui.KeyMap
-	styles             tui.Styles
-	home               store.HomeSnapshot
-	stats              stats.Snapshot
-	runtime            *session.Runtime
-	currentQ           *quiz.Question
-	feedback           *quiz.Feedback
-	summary            *store.SessionSummary
-	cursor             int
-	writeInput         string
-	writeHintIndices   []int
-	writeHintCount     int
-	status             string
-	err                error
-	loading            bool
-	settingsOpen       bool
-	settingsCursor     int
-	settingsInput      string
-	settingsEditing    bool
-	settingsLanguage   string
-	helpReturn         Screen
-	helpStatus         string
-	width              int
-	height             int
-	questionStarted    time.Time
-	recentDistracts    []int64
-	correctStreak      int
+	store                   *store.Store
+	quiz                    *quiz.Service
+	planOptions             session.PlanOptions
+	startup                 *StartupRequest
+	settings                config.Settings
+	configPath              string
+	currentVersion          string
+	updateService           updatecheck.Service
+	updateLatestTag         string
+	selectedAnswerMode      string
+	screen                  Screen
+	keymap                  tui.KeyMap
+	styles                  tui.Styles
+	home                    store.HomeSnapshot
+	stats                   stats.Snapshot
+	runtime                 *session.Runtime
+	currentQ                *quiz.Question
+	feedback                *quiz.Feedback
+	summary                 *store.SessionSummary
+	cursor                  int
+	writeInput              string
+	writeHintIndices        []int
+	writeHintCount          int
+	status                  string
+	err                     error
+	loading                 bool
+	settingsOpen            bool
+	settingsCursor          int
+	settingsInput           string
+	settingsEditing         bool
+	settingsWriteDifficulty string
+	settingsLanguage        string
+	helpReturn              Screen
+	helpStatus              string
+	width                   int
+	height                  int
+	questionStarted         time.Time
+	recentDistracts         []int64
+	correctStreak           int
 }
 
 func NewModel(store *store.Store, options Options) RootModel {
@@ -155,10 +156,11 @@ func (m RootModel) Init() tea.Cmd {
 		cmds = append(cmds, tea.Sequence(
 			loadHomeCmd(m.store),
 			sessionCmd(m.store, m.quiz, sessionRequest{
-				Mode:          m.startup.Mode,
-				AnswerMode:    m.startup.AnswerMode,
-				ReplaceActive: m.startup.ReplaceActive,
-				Plan:          m.planOptions,
+				Mode:                m.startup.Mode,
+				AnswerMode:          m.startup.AnswerMode,
+				WriteModeDifficulty: m.settings.WriteModeDifficulty,
+				ReplaceActive:       m.startup.ReplaceActive,
+				Plan:                m.planOptions,
 			}, m.recentDistracts),
 		))
 		return tea.Batch(cmds...)
@@ -169,10 +171,11 @@ func (m RootModel) Init() tea.Cmd {
 
 func (m RootModel) sessionRequest(mode string, replaceActive bool) sessionRequest {
 	return sessionRequest{
-		Mode:          mode,
-		AnswerMode:    m.selectedAnswerMode,
-		ReplaceActive: replaceActive,
-		Plan:          m.planOptions,
+		Mode:                mode,
+		AnswerMode:          m.selectedAnswerMode,
+		WriteModeDifficulty: m.settings.WriteModeDifficulty,
+		ReplaceActive:       replaceActive,
+		Plan:                m.planOptions,
 	}
 }
 
@@ -181,6 +184,7 @@ func (m RootModel) openSettingsOverlay() RootModel {
 	m.settingsCursor = 0
 	m.settingsInput = strconv.Itoa(m.settings.SessionSize)
 	m.settingsEditing = false
+	m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(m.settings.WriteModeDifficulty)
 	m.settingsLanguage = m.settings.Language
 	m.err = nil
 	m.status = i18n.T(i18n.StatusConfiguringSettings)
@@ -229,6 +233,13 @@ func (m RootModel) settingsLanguageLabel() string {
 	return i18n.T(i18n.SettingsLanguageJA)
 }
 
+func (m RootModel) settingsWriteDifficultyLabel() string {
+	if config.NormalizeWriteModeDifficulty(m.settingsWriteDifficulty) == config.WriteModeDifficultyHard {
+		return i18n.T(i18n.SettingsWriteDifficultyHard)
+	}
+	return i18n.T(i18n.SettingsWriteDifficultyBasic)
+}
+
 func (m RootModel) settingsDraft() (config.Settings, bool, bool) {
 	count, ok := m.settingsQuestionCount()
 	if !ok {
@@ -237,6 +248,7 @@ func (m RootModel) settingsDraft() (config.Settings, bool, bool) {
 
 	draft := m.settings
 	draft.SessionSize = count
+	draft.WriteModeDifficulty = config.NormalizeWriteModeDifficulty(m.settingsWriteDifficulty)
 	draft.Language = m.settingsLanguage
 
 	focusModeDisabled := draft.FocusModeDefault && draft.SessionSize != m.settings.SessionSize

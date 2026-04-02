@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-02
+
+### Added
+
+- `write_mode_difficulty` 設定を追加し、Write モードの難易度を `basic / hard` で切り替えられるようにしました。
+- ホーム設定画面に Write 難易度の項目を追加しました。
+
+### Changed
+
+- `write_mode_difficulty=basic` では、Write の新規問題候補を Choice モードで一度見た語から優先的に選ぶようにしました。
+- `write_mode_difficulty=hard` は従来どおり、Choice 未出題の語も Write に出せる高難度設定として維持しました。
+- README / README.en に Write 難易度設定と `basic` / `hard` の違いを追記しました。
+
+### Fixed
+
+- `basic` で Write 未出題語を優先しつつ、候補不足時だけ Choice 既出語へフォールバックするようにし、Write の初期難易度が不必要に上がる問題を抑えました。
+- `basic` の候補選定で、due の復習語が新規枠へ再混入しないようにしました。
+
 ## [0.3.0] - 2026-04-01
 
 ### Added
@@ -57,7 +75,8 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/harumiWeb/eitango/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/harumiWeb/eitango/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/harumiWeb/eitango/compare/v0.2.0...v0.2.2
 [0.2.0]: https://github.com/harumiWeb/eitango/compare/v0.1.1...v0.2.0

@@ -17,6 +17,9 @@ keys = "Tab=mode  Enter=start/resume  n=new  r=review  s=stats  c=settings  q=qu
 [settings]
 title = "Home settings"
 questions = "Default questions"
+write_difficulty = "Write difficulty"
+write_difficulty_basic = "basic"
+write_difficulty_hard = "hard"
 language = "Language"
 language_ja = "Japanese"
 language_en = "English"

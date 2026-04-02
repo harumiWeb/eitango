@@ -21,13 +21,16 @@ const (
 
 // Home settings overlay
 const (
-	SettingsTitle      = "settings.title"
-	SettingsQuestions  = "settings.questions"
-	SettingsLanguage   = "settings.language"
-	SettingsLanguageJA = "settings.language_ja"
-	SettingsLanguageEN = "settings.language_en"
-	SettingsKeys       = "settings.keys"
-	SettingsFocusNote  = "settings.focus_note"
+	SettingsTitle                = "settings.title"
+	SettingsQuestions            = "settings.questions"
+	SettingsWriteDifficulty      = "settings.write_difficulty"
+	SettingsWriteDifficultyBasic = "settings.write_difficulty_basic"
+	SettingsWriteDifficultyHard  = "settings.write_difficulty_hard"
+	SettingsLanguage             = "settings.language"
+	SettingsLanguageJA           = "settings.language_ja"
+	SettingsLanguageEN           = "settings.language_en"
+	SettingsKeys                 = "settings.keys"
+	SettingsFocusNote            = "settings.focus_note"
 )
 
 // Start setup screen

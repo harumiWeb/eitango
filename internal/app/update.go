@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
 	"github.com/harumiWeb/eitango/internal/quiz"
 	"github.com/harumiWeb/eitango/internal/srs"
@@ -52,6 +53,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settingsOpen = false
 		m.settingsEditing = false
 		m.settingsInput = strconv.Itoa(msg.Settings.SessionSize)
+		m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(msg.Settings.WriteModeDifficulty)
 		m.settingsLanguage = msg.Settings.Language
 		if msg.FocusModeDisabled {
 			m.status = i18n.T(i18n.StatusSettingsSavedFocus)
@@ -232,7 +234,7 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		m.status = i18n.T(i18n.StatusConfiguringSettings)
 		return m, nil
 	case key.Matches(msg, m.keymap.Down):
-		if m.settingsCursor < 1 {
+		if m.settingsCursor < 2 {
 			m.settingsCursor++
 		}
 		m.settingsEditing = false
@@ -249,6 +251,8 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			}
 			m.settingsInput = strconv.Itoa(count)
 		case 1:
+			m.settingsWriteDifficulty = config.WriteModeDifficultyBasic
+		case 2:
 			m.settingsLanguage = i18n.LangJA
 		}
 		m.settingsEditing = false
@@ -264,6 +268,8 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			count++
 			m.settingsInput = strconv.Itoa(count)
 		case 1:
+			m.settingsWriteDifficulty = config.WriteModeDifficultyHard
+		case 2:
 			m.settingsLanguage = i18n.LangEN
 		}
 		m.settingsEditing = false

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/dict"
 	"github.com/harumiWeb/eitango/internal/quiz"
 	"github.com/harumiWeb/eitango/internal/session"
@@ -173,9 +174,10 @@ func TestSessionCmdWriteSessionPersistsAnswerMode(t *testing.T) {
 	ctx := context.Background()
 	st := newTestStore(t)
 	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
-		Mode:       store.ModeLearn,
-		AnswerMode: store.AnswerModeWrite,
-		Plan:       session.PlanOptions{QuestionCount: 1, ReviewRatio: 0},
+		Mode:                store.ModeLearn,
+		AnswerMode:          store.AnswerModeWrite,
+		WriteModeDifficulty: config.WriteModeDifficultyHard,
+		Plan:                session.PlanOptions{QuestionCount: 1, ReviewRatio: 0},
 	}, nil)()
 	loaded := mustSessionLoadedMsg(t, msg)
 
@@ -192,6 +194,139 @@ func TestSessionCmdWriteSessionPersistsAnswerMode(t *testing.T) {
 	}
 	if record.AnswerMode != store.AnswerModeWrite {
 		t.Fatalf("stored answer mode = %q, want %q", record.AnswerMode, store.AnswerModeWrite)
+	}
+}
+
+func TestSessionCmdWriteBasicPrefersChoiceSeenWriteUnseenWords(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+
+	recordReviewInMode(t, st, words[1].ID, store.AnswerModeChoice, time.Now().UTC())
+	recordReviewInMode(t, st, words[0].ID, store.AnswerModeChoice, time.Now().UTC())
+	recordReviewInMode(t, st, words[0].ID, store.AnswerModeWrite, time.Now().UTC())
+
+	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
+		Mode:                store.ModeLearn,
+		AnswerMode:          store.AnswerModeWrite,
+		WriteModeDifficulty: config.WriteModeDifficultyBasic,
+		Plan:                session.PlanOptions{QuestionCount: 1, ReviewRatio: 0},
+	}, nil)()
+	loaded := mustSessionLoadedMsg(t, msg)
+
+	if loaded.Question.Word.ID != words[1].ID {
+		t.Fatalf("question word = %d, want choice-seen word %d", loaded.Question.Word.ID, words[1].ID)
+	}
+	if len(loaded.Runtime.Items) != 1 || loaded.Runtime.Items[0].WordID != words[1].ID {
+		t.Fatalf("runtime items = %+v, want choice-seen word only", loaded.Runtime.Items)
+	}
+}
+
+func TestSessionCmdWriteBasicFallsBackToChoiceSeenWords(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+
+	recordReviewInMode(t, st, words[0].ID, store.AnswerModeChoice, time.Now().UTC())
+	recordReviewInMode(t, st, words[0].ID, store.AnswerModeWrite, time.Now().UTC())
+
+	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
+		Mode:                store.ModeLearn,
+		AnswerMode:          store.AnswerModeWrite,
+		WriteModeDifficulty: config.WriteModeDifficultyBasic,
+		Plan:                session.PlanOptions{QuestionCount: 1, ReviewRatio: 0},
+	}, nil)()
+	loaded := mustSessionLoadedMsg(t, msg)
+
+	if loaded.Question.Word.ID != words[0].ID {
+		t.Fatalf("question word = %d, want fallback choice-seen word %d", loaded.Question.Word.ID, words[0].ID)
+	}
+}
+
+func TestSessionCmdWriteBasicDoesNotReuseDueWordsBeyondDueSelectionLimit(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+
+	now := time.Now().UTC()
+	markWordDue(t, st, words[0].ID, now.AddDate(0, 0, -4))
+	markWordDue(t, st, words[1].ID, now.AddDate(0, 0, -5))
+	recordReviewInMode(t, st, words[2].ID, store.AnswerModeChoice, now)
+
+	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
+		Mode:                store.ModeLearn,
+		AnswerMode:          store.AnswerModeWrite,
+		WriteModeDifficulty: config.WriteModeDifficultyBasic,
+		Plan:                session.PlanOptions{QuestionCount: 1, ReviewRatio: 0},
+	}, nil)()
+	loaded := mustSessionLoadedMsg(t, msg)
+
+	if loaded.Question.Word.ID != words[2].ID {
+		t.Fatalf("question word = %d, want non-due basic candidate %d", loaded.Question.Word.ID, words[2].ID)
+	}
+}
+
+func TestSessionCmdWriteHardKeepsUsingNewWords(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+
+	recordReviewInMode(t, st, words[0].ID, store.AnswerModeChoice, time.Now().UTC())
+
+	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
+		Mode:                store.ModeLearn,
+		AnswerMode:          store.AnswerModeWrite,
+		WriteModeDifficulty: config.WriteModeDifficultyHard,
+		Plan:                session.PlanOptions{QuestionCount: 1, ReviewRatio: 0},
+	}, nil)()
+	loaded := mustSessionLoadedMsg(t, msg)
+
+	if loaded.Question.Word.ID == words[0].ID {
+		t.Fatalf("question word = %d, want an unseen new word under hard mode", loaded.Question.Word.ID)
+	}
+}
+
+func TestSessionCmdWriteDefaultsToBasicWhenDifficultyUnset(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+
+	recordReviewInMode(t, st, words[2].ID, store.AnswerModeChoice, time.Now().UTC())
+
+	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
+		Mode:       store.ModeLearn,
+		AnswerMode: store.AnswerModeWrite,
+		Plan:       session.PlanOptions{QuestionCount: 1, ReviewRatio: 0},
+	}, nil)()
+	loaded := mustSessionLoadedMsg(t, msg)
+
+	if loaded.Question.Word.ID != words[2].ID {
+		t.Fatalf("question word = %d, want basic default choice-seen word %d", loaded.Question.Word.ID, words[2].ID)
 	}
 }
 
@@ -281,6 +416,33 @@ func markWordDue(t *testing.T, st *store.Store, wordID int64, answeredAt time.Ti
 		Kind:           store.ItemKindNew,
 		SelectedChoice: 1,
 		CorrectChoice:  1,
+		IsCorrect:      true,
+		Rating:         srs.Good,
+		AnsweredAt:     answeredAt,
+		ResponseMS:     800,
+	}); err != nil {
+		t.Fatalf("SaveAnswer() error = %v", err)
+	}
+}
+
+func recordReviewInMode(t *testing.T, st *store.Store, wordID int64, answerMode string, answeredAt time.Time) {
+	t.Helper()
+
+	ctx := context.Background()
+	record, _, err := st.CreateSession(ctx, store.ModeLearn, answerMode, []store.SessionItemPlan{
+		{WordID: wordID, Kind: store.ItemKindNew},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if _, _, err := st.SaveAnswer(ctx, store.ReviewEvent{
+		SessionID:      record.ID,
+		ItemOrdinal:    1,
+		WordID:         wordID,
+		Kind:           store.ItemKindNew,
+		AnswerMode:     answerMode,
+		SelectedChoice: 0,
+		CorrectChoice:  0,
 		IsCorrect:      true,
 		Rating:         srs.Good,
 		AnsweredAt:     answeredAt,

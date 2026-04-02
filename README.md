@@ -43,6 +43,7 @@ SRS での復習に加えて、選択式の `choice` と入力式の `write` の
 </p>
 
 - ホーム画面で `Tab` により `choice / write` を切り替え、`Enter` で play、`r` で review を開始
+- ホーム設定で Write 難易度 `basic / hard` を切り替え可能
 - `eitango play [choice|write]` で通常学習セッションを開始
 - `eitango review [choice|write]` で due-only の復習セッションを開始
 - `eitango stats` で学習統計を表示
@@ -138,6 +139,19 @@ eitango doctor
 
 学習データは初回起動時にローカル DB へ初期化されます。デフォルトでは組み込みの `assets/words_core.jsonl` を seed として使用します。
 
+## Write 難易度
+
+- `write_mode_difficulty = "basic"` が既定値です
+- `basic` では Learn + Write の新規枠に、Choice で一度出題された語だけを使います
+- `hard` では従来どおり、Choice 未出題語も Write に出します
+- `basic` では候補が少ないと session の新規問題数が減ることがあります
+
+`config.toml` では次の key で切り替えます。
+
+```toml
+write_mode_difficulty = "basic"
+```
+
 ## データ保存先
 
 - Windows: `%AppData%\\eitango-cli\\`
@@ -194,6 +208,7 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 | `eitango reset --progress` / `eitango reset --reseed`                      | 学習履歴の初期化 / 組み込み core 再投入    |
 
 TUI のホーム画面では、`Tab` で `choice / write` を切り替え、`Enter` で play、`r` で review を開始します。`write` は日本語の意味を見て英単語を入力するモードで、`Tab` で段階ヒント、`Ctrl+S` でスキップできます。
+Write 難易度はホーム設定または `config.toml` の `write_mode_difficulty` で管理し、CLI flag での一時 override はありません。
 
 ## 辞書データとライセンス
 
