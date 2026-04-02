@@ -84,8 +84,9 @@ func (m RootModel) renderSettingsOverlay() string {
 	lines := []string{
 		m.styles.Title.Render(i18n.T(i18n.SettingsTitle)),
 		"",
-		m.renderSettingsRow(0, i18n.T(i18n.SettingsQuestions), m.settingsQuestionDisplay()),
-		m.renderSettingsRow(1, i18n.T(i18n.SettingsLanguage), m.settingsLanguageLabel()),
+		m.renderSettingsRow(settingsRowQuestionCount, i18n.T(i18n.SettingsQuestions), m.settingsQuestionDisplay()),
+		m.renderSettingsRow(settingsRowWriteDifficulty, i18n.T(i18n.SettingsWriteDifficulty), m.settingsWriteDifficultyLabel()),
+		m.renderSettingsRow(settingsRowLanguage, i18n.T(i18n.SettingsLanguage), m.settingsLanguageLabel()),
 		"",
 		m.styles.Muted.Render(i18n.T(i18n.SettingsKeys)),
 	}

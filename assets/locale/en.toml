@@ -17,6 +17,9 @@ keys = "Tab=mode  Enter=start/resume  n=new  r=review  s=stats  c=settings  q=qu
 [settings]
 title = "Home settings"
 questions = "Default questions"
+write_difficulty = "Write difficulty"
+write_difficulty_basic = "basic"
+write_difficulty_hard = "hard"
 language = "Language"
 language_ja = "Japanese"
 language_en = "English"
@@ -169,6 +172,7 @@ saving_settings = "Saving settings..."
 settings_saved = "Saved settings"
 settings_saved_focus_mode = "Saved settings. focus_mode_default was turned off so the default question count takes effect"
 write_continue = "Press Enter to save and continue"
+write_basic_empty = "No Write basic words are available. Answer some Choice questions first or switch Write difficulty to hard"
 
 [cli]
 root_short = "Offline TUI English vocabulary trainer"

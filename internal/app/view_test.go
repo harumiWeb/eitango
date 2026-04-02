@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
 	"github.com/harumiWeb/eitango/internal/quiz"
 	"github.com/harumiWeb/eitango/internal/stats"
@@ -84,6 +85,7 @@ func TestHelpScreenRoundTripFromAllScreens(t *testing.T) {
 			prepare: func(model *RootModel) {
 				model.settingsOpen = true
 				model.settingsInput = "10"
+				model.settingsWriteDifficulty = config.WriteModeDifficultyBasic
 				model.settingsLanguage = i18n.LangJA
 			},
 		},
@@ -323,11 +325,17 @@ func TestRenderHomeWithSettingsOverlayUsesScreenSwitch(t *testing.T) {
 	model.loading = false
 	model.settingsOpen = true
 	model.settingsInput = "10"
+	model.settingsWriteDifficulty = config.WriteModeDifficultyHard
 	model.settingsLanguage = i18n.LangJA
 
 	got := model.renderHomeWithSettingsOverlay()
 	if !strings.Contains(got, i18n.T(i18n.SettingsTitle)) {
 		t.Fatalf("renderHomeWithSettingsOverlay() missing settings title:\n%s", got)
+	}
+	for _, want := range []string{i18n.T(i18n.SettingsWriteDifficulty), i18n.T(i18n.SettingsWriteDifficultyHard)} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderHomeWithSettingsOverlay() missing %q:\n%s", want, got)
+		}
 	}
 	if strings.Contains(got, i18n.T(i18n.HomeSubtitle)) {
 		t.Fatalf("renderHomeWithSettingsOverlay() should not include home background when settings are open:\n%s", got)

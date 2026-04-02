@@ -43,6 +43,7 @@ In addition to SRS-based review, it offers two modes: multiple-choice `choice` a
 </p>
 
 - on the home screen, `Tab` switches `choice / write`, `Enter` starts play, and `r` starts review
+- the home settings screen can switch Write difficulty between `basic` and `hard`
 - `eitango play [choice|write]` starts a standard learning session
 - `eitango review [choice|write]` starts a due-only review session
 - `eitango stats` shows learning statistics
@@ -138,6 +139,19 @@ eitango doctor
 
 On first run, `eitango` initializes the local database. By default it uses the embedded `assets/words_core.jsonl` as the seed dictionary.
 
+## Write Difficulty
+
+- `write_mode_difficulty = "basic"` is the default
+- in `basic`, Learn + Write only uses words that have appeared at least once in Choice mode for its new-card pool
+- in `hard`, Write can still pull words that have never appeared in Choice mode
+- under `basic`, sessions may contain fewer new Write questions when the eligible pool is small
+
+You can set it in `config.toml`:
+
+```toml
+write_mode_difficulty = "basic"
+```
+
 ## Data Directory
 
 - Windows: `%AppData%\\eitango-cli\\`
@@ -195,6 +209,7 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 | `eitango reset --progress` / `eitango reset --reseed` | Reset learning history / reseed the bundled core |
 
 In the TUI home screen, `Tab` switches `choice / write`, `Enter` starts play, and `r` starts review. `write` shows the Japanese meaning and asks you to type the English word, with staged hints on `Tab` and skip on `Ctrl+S`.
+Write difficulty is controlled by the home settings screen or `config.toml` via `write_mode_difficulty`; there is no CLI flag override.
 
 ## Dictionary Data and Licensing
 

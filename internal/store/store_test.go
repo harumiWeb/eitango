@@ -114,6 +114,47 @@ func TestListDistractorCandidatesPrioritizeGroupAndLevel(t *testing.T) {
 	}
 }
 
+func TestListWriteBasicCandidatesPrioritizeWriteUnseenAndExcludeDue(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+
+	if err := st.SeedWords(ctx, testEntries(), "test-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+
+	base := stableUTCNoon()
+	recordReviewInMode(t, st, words[2].ID, AnswerModeChoice, base.Add(1*time.Minute))
+	recordReviewInMode(t, st, words[1].ID, AnswerModeChoice, base.Add(2*time.Minute))
+	recordReviewInMode(t, st, words[1].ID, AnswerModeWrite, base.Add(3*time.Minute))
+	recordReviewInMode(t, st, words[0].ID, AnswerModeChoice, base.AddDate(0, 0, -4))
+
+	seen, err := st.ListWriteBasicCandidates(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListWriteBasicCandidates() error = %v", err)
+	}
+	if len(seen) != 2 {
+		t.Fatalf("len(ListWriteBasicCandidates()) = %d, want 2", len(seen))
+	}
+	if seen[0].ID != words[2].ID || seen[1].ID != words[1].ID {
+		t.Fatalf("unexpected choice-seen order: %+v", []int64{seen[0].ID, seen[1].ID})
+	}
+
+	seen, err = st.ListWriteBasicCandidates(ctx, 10, []int64{words[2].ID})
+	if err != nil {
+		t.Fatalf("ListWriteBasicCandidates(exclude) error = %v", err)
+	}
+	if len(seen) != 1 || seen[0].ID != words[1].ID {
+		t.Fatalf("unexpected excluded result: %+v", seen)
+	}
+}
+
 func TestCreateSessionPersistsAnswerMode(t *testing.T) {
 	t.Parallel()
 
@@ -811,4 +852,31 @@ func mustLoadProgress(t *testing.T, st *Store, wordID int64) Progress {
 func stableUTCNoon() time.Time {
 	now := time.Now().UTC()
 	return time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.UTC)
+}
+
+func recordReviewInMode(t *testing.T, st *Store, wordID int64, answerMode string, answeredAt time.Time) {
+	t.Helper()
+
+	ctx := context.Background()
+	record, _, err := st.CreateSession(ctx, ModeLearn, answerMode, []SessionItemPlan{
+		{WordID: wordID, Kind: ItemKindNew},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if _, _, err := st.SaveAnswer(ctx, ReviewEvent{
+		SessionID:      record.ID,
+		ItemOrdinal:    1,
+		WordID:         wordID,
+		Kind:           ItemKindNew,
+		AnswerMode:     answerMode,
+		SelectedChoice: 0,
+		CorrectChoice:  0,
+		IsCorrect:      true,
+		Rating:         srs.Good,
+		AnsweredAt:     answeredAt,
+		ResponseMS:     800,
+	}); err != nil {
+		t.Fatalf("SaveAnswer() error = %v", err)
+	}
 }

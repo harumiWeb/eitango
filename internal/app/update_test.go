@@ -96,9 +96,10 @@ func TestUpdateHomeSettingsSavePersistsAndAppliesLanguage(t *testing.T) {
 
 	path := filepath.Join(t.TempDir(), "config.toml")
 	initial := config.Settings{
-		SessionSize: 12,
-		ReviewRatio: 0.4,
-		Language:    i18n.LangJA,
+		SessionSize:         12,
+		ReviewRatio:         0.4,
+		WriteModeDifficulty: config.WriteModeDifficultyBasic,
+		Language:            i18n.LangJA,
 	}
 
 	model := NewModel(nil, Options{
@@ -109,7 +110,8 @@ func TestUpdateHomeSettingsSavePersistsAndAppliesLanguage(t *testing.T) {
 	model = model.openSettingsOverlay()
 	model.settingsInput = "8"
 	model.settingsEditing = true
-	model.settingsCursor = 1
+	model.settingsWriteDifficulty = config.WriteModeDifficultyHard
+	model.settingsCursor = 2
 	model.settingsLanguage = i18n.LangEN
 
 	next, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -141,6 +143,9 @@ func TestUpdateHomeSettingsSavePersistsAndAppliesLanguage(t *testing.T) {
 	if final.settings.Language != i18n.LangEN {
 		t.Fatalf("Language = %q, want %q", final.settings.Language, i18n.LangEN)
 	}
+	if final.settings.WriteModeDifficulty != config.WriteModeDifficultyHard {
+		t.Fatalf("WriteModeDifficulty = %q, want %q", final.settings.WriteModeDifficulty, config.WriteModeDifficultyHard)
+	}
 	if final.planOptions.QuestionCount != 8 {
 		t.Fatalf("QuestionCount = %d, want 8", final.planOptions.QuestionCount)
 	}
@@ -158,6 +163,9 @@ func TestUpdateHomeSettingsSavePersistsAndAppliesLanguage(t *testing.T) {
 	if savedSettings.Language != i18n.LangEN {
 		t.Fatalf("saved Language = %q, want %q", savedSettings.Language, i18n.LangEN)
 	}
+	if savedSettings.WriteModeDifficulty != config.WriteModeDifficultyHard {
+		t.Fatalf("saved WriteModeDifficulty = %q, want %q", savedSettings.WriteModeDifficulty, config.WriteModeDifficultyHard)
+	}
 }
 
 func TestUpdateHomeSettingsSaveDisablesFocusModeDefaultOnQuestionChange(t *testing.T) {
@@ -165,10 +173,11 @@ func TestUpdateHomeSettingsSaveDisablesFocusModeDefaultOnQuestionChange(t *testi
 
 	path := filepath.Join(t.TempDir(), "config.toml")
 	initial := config.Settings{
-		SessionSize:      12,
-		ReviewRatio:      0.4,
-		FocusModeDefault: true,
-		Language:         i18n.LangJA,
+		SessionSize:         12,
+		ReviewRatio:         0.4,
+		FocusModeDefault:    true,
+		WriteModeDifficulty: config.WriteModeDifficultyBasic,
+		Language:            i18n.LangJA,
 	}
 
 	model := NewModel(nil, Options{
@@ -196,6 +205,34 @@ func TestUpdateHomeSettingsSaveDisablesFocusModeDefaultOnQuestionChange(t *testi
 	}
 	if final.status != i18n.T(i18n.StatusSettingsSavedFocus) {
 		t.Fatalf("status = %q, want focus-disabled save status", final.status)
+	}
+}
+
+func TestUpdateHomeSettingsDifficultySwitchesWithArrowKeys(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings: config.Settings{
+			SessionSize:         10,
+			ReviewRatio:         0.4,
+			WriteModeDifficulty: config.WriteModeDifficultyBasic,
+			Language:            i18n.LangJA,
+		},
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsCursor = 1
+
+	next, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	updated := next.(RootModel)
+	if updated.settingsWriteDifficulty != config.WriteModeDifficultyHard {
+		t.Fatalf("settingsWriteDifficulty after right = %q, want %q", updated.settingsWriteDifficulty, config.WriteModeDifficultyHard)
+	}
+
+	next, _ = updated.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	updated = next.(RootModel)
+	if updated.settingsWriteDifficulty != config.WriteModeDifficultyBasic {
+		t.Fatalf("settingsWriteDifficulty after left = %q, want %q", updated.settingsWriteDifficulty, config.WriteModeDifficultyBasic)
 	}
 }
 

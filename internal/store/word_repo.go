@@ -156,6 +156,54 @@ WHERE (p.word_id IS NULL OR p.state = 'new')
 	return scanWords(rows)
 }
 
+func (s *Store) ListWriteBasicCandidates(ctx context.Context, limit int, excludeIDs []int64) ([]Word, error) {
+	query := `
+SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
+       distractor_group, example_en, example_ja, source, created_at
+FROM (
+	SELECT w.id, w.lemma, w.pos, w.meaning_ja, w.level, w.frequency_rank,
+	       w.distractor_group, w.example_en, w.example_ja, w.source, w.created_at,
+	       CASE WHEN EXISTS (
+	           SELECT 1
+	           FROM reviews r
+	           WHERE r.word_id = w.id AND r.answer_mode = ?
+	       ) THEN 1 ELSE 0 END AS write_seen
+	FROM words w
+	WHERE EXISTS (
+		SELECT 1
+		FROM reviews r
+		WHERE r.word_id = w.id AND r.answer_mode = ?
+	)
+	AND NOT EXISTS (
+		SELECT 1
+		FROM progress p
+		WHERE p.word_id = w.id AND p.due_at IS NOT NULL AND p.due_at <= ?
+	)
+)
+WHERE 1 = 1
+`
+	args := make([]any, 0, len(excludeIDs)+4)
+	args = append(args, AnswerModeWrite, AnswerModeChoice, formatTime(time.Now().UTC()))
+	if len(excludeIDs) > 0 {
+		query += " AND id NOT IN (" + placeholders(len(excludeIDs)) + ")"
+		for _, id := range excludeIDs {
+			args = append(args, id)
+		}
+	}
+	query += ` ORDER BY write_seen ASC, COALESCE(frequency_rank, 999999) ASC, id ASC LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query write basic candidates: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	return scanWords(rows)
+}
+
 func (s *Store) GetWord(ctx context.Context, wordID int64) (Word, error) {
 	row := s.db.QueryRowContext(ctx, `
 SELECT id, lemma, pos, meaning_ja, level, frequency_rank,

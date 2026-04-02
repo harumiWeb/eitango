@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -16,10 +17,11 @@ import (
 )
 
 type sessionRequest struct {
-	Mode          string
-	AnswerMode    string
-	ReplaceActive bool
-	Plan          session.PlanOptions
+	Mode                string
+	AnswerMode          string
+	WriteModeDifficulty string
+	ReplaceActive       bool
+	Plan                session.PlanOptions
 }
 
 func loadHomeCmd(st *store.Store) tea.Cmd {
@@ -65,6 +67,7 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 			mode = store.ModeLearn
 		}
 		answerMode := store.NormalizeAnswerMode(request.AnswerMode)
+		writeModeDifficulty := config.NormalizeWriteModeDifficulty(request.WriteModeDifficulty)
 		options := request.Plan.Normalize()
 
 		if request.ReplaceActive {
@@ -103,7 +106,14 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 			for _, word := range dueWords {
 				dueIDs = append(dueIDs, word.ID)
 			}
-			newWords, err := st.ListNewWords(ctx, options.QuestionCount, dueIDs)
+			var newWords []store.Word
+			basicWritePoolEmpty := false
+			if answerMode == store.AnswerModeWrite && writeModeDifficulty == config.WriteModeDifficultyBasic {
+				newWords, err = st.ListWriteBasicCandidates(ctx, options.QuestionCount, dueIDs)
+				basicWritePoolEmpty = len(newWords) == 0
+			} else {
+				newWords, err = st.ListNewWords(ctx, options.QuestionCount, dueIDs)
+			}
 			if err != nil {
 				return errMsg{err: err}
 			}
@@ -112,6 +122,10 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 			reviewWords := dueWords[:plan.ReviewCount]
 			newSelection := newWords[:plan.NewCount]
 			itemsPlan = session.BuildSessionItems(reviewWords, newSelection)
+
+			if len(itemsPlan) == 0 && basicWritePoolEmpty {
+				return errMsg{err: errors.New(i18n.T(i18n.StatusWriteBasicEmpty))}
+			}
 		}
 
 		if len(itemsPlan) == 0 {

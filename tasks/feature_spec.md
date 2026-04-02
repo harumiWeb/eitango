@@ -33,6 +33,48 @@
 
 ---
 
+# 2026-04-02 issue #14: Writeモードの難易度緩和
+
+## Goal
+
+- Write モードの初見難易度を下げるため、`basic` では Choice で一度見た語だけを Write の新規枠に出す。
+- 上級者向けに現行挙動を維持する `hard` を残す。
+
+## Scope
+
+- `config.Settings` と `config.toml` の新設定
+- ホーム設定 UI と locale 文言
+- Learn + Write の session 候補選定
+- store の Choice 既出語クエリ
+- 回帰テストと README 更新
+
+## Non-Goals
+
+- CLI flag による一時 override
+- Review モードの候補選定変更
+- SRS アルゴリズム変更
+- DB schema / migration 追加
+
+## Required Behavior
+
+- `write_mode_difficulty` 設定を追加し、値は `basic` / `hard`、未設定時は `basic` とする。
+- ホーム設定に Write 難易度を追加し、`←/→` で切り替えて保存できる。
+- `mode=learn` かつ `answer_mode=write` かつ `write_mode_difficulty=basic` のときだけ、新規候補を Choice 既出語から取得する。
+- Choice 既出語の条件は `reviews.answer_mode = 'choice'` が 1 件以上あることとする。
+- `basic` 用の新規候補は due 除外を守り、並び順は `ListNewWords` と同じ `frequency_rank ASC, id ASC` にする。
+- `basic` では候補不足時の fallback 補完を入れず、利用可能件数だけで session を組む。
+- `hard` は従来どおり `ListNewWords` を使う。
+
+## Acceptance
+
+- `go test ./internal/config ./internal/app ./internal/store ./cmd/eitango` が通る。
+- `basic` で Choice 履歴のない語が Write 新規枠に出ない回帰がある。
+- `hard` で従来どおり未出題語が Write 新規枠に出る回帰がある。
+- 設定未指定で `basic` が使われる回帰がある。
+- README / README.en に設定項目と `basic` の制約が反映される。
+
+---
+
 # 2026-03-29 ドキュメント再編仕様
 
 ## Goal

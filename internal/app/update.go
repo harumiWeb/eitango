@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
 	"github.com/harumiWeb/eitango/internal/quiz"
 	"github.com/harumiWeb/eitango/internal/srs"
@@ -52,6 +53,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settingsOpen = false
 		m.settingsEditing = false
 		m.settingsInput = strconv.Itoa(msg.Settings.SessionSize)
+		m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(msg.Settings.WriteModeDifficulty)
 		m.settingsLanguage = msg.Settings.Language
 		if msg.FocusModeDisabled {
 			m.status = i18n.T(i18n.StatusSettingsSavedFocus)
@@ -225,14 +227,14 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 	case key.Matches(msg, m.keymap.Back), key.Matches(msg, m.keymap.Settings):
 		return m.closeSettingsOverlay(), nil
 	case key.Matches(msg, m.keymap.Up):
-		if m.settingsCursor > 0 {
+		if m.settingsCursor > settingsRowQuestionCount {
 			m.settingsCursor--
 		}
 		m.settingsEditing = false
 		m.status = i18n.T(i18n.StatusConfiguringSettings)
 		return m, nil
 	case key.Matches(msg, m.keymap.Down):
-		if m.settingsCursor < 1 {
+		if m.settingsCursor < settingsRowCount-1 {
 			m.settingsCursor++
 		}
 		m.settingsEditing = false
@@ -240,7 +242,7 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		return m, nil
 	case key.Matches(msg, m.keymap.Left):
 		switch m.settingsCursor {
-		case 0:
+		case settingsRowQuestionCount:
 			count, ok := m.settingsQuestionCount()
 			if !ok || count <= 1 {
 				count = 1
@@ -248,7 +250,9 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 				count--
 			}
 			m.settingsInput = strconv.Itoa(count)
-		case 1:
+		case settingsRowWriteDifficulty:
+			m.settingsWriteDifficulty = config.WriteModeDifficultyBasic
+		case settingsRowLanguage:
 			m.settingsLanguage = i18n.LangJA
 		}
 		m.settingsEditing = false
@@ -256,14 +260,16 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		return m, nil
 	case key.Matches(msg, m.keymap.Right):
 		switch m.settingsCursor {
-		case 0:
+		case settingsRowQuestionCount:
 			count, ok := m.settingsQuestionCount()
 			if !ok {
 				count = 0
 			}
 			count++
 			m.settingsInput = strconv.Itoa(count)
-		case 1:
+		case settingsRowWriteDifficulty:
+			m.settingsWriteDifficulty = config.WriteModeDifficultyHard
+		case settingsRowLanguage:
 			m.settingsLanguage = i18n.LangEN
 		}
 		m.settingsEditing = false
@@ -280,7 +286,7 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		return m, saveSettingsCmd(m.configPath, settings, focusModeDisabled)
 	}
 
-	if m.settingsCursor == 0 {
+	if m.settingsCursor == settingsRowQuestionCount {
 		switch msg.Code {
 		case tea.KeyBackspace, tea.KeyDelete:
 			if len(m.settingsInput) > 0 {
@@ -292,7 +298,7 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		}
 	}
 
-	if m.settingsCursor == 0 && len(msg.Text) == 1 && msg.Text[0] >= '0' && msg.Text[0] <= '9' {
+	if m.settingsCursor == settingsRowQuestionCount && len(msg.Text) == 1 && msg.Text[0] >= '0' && msg.Text[0] <= '9' {
 		if m.settingsEditing {
 			m.settingsInput += msg.Text
 		} else {

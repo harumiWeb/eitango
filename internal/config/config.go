@@ -17,6 +17,11 @@ import (
 
 const appDirName = "eitango-cli"
 
+const (
+	WriteModeDifficultyBasic = "basic"
+	WriteModeDifficultyHard  = "hard"
+)
+
 type Paths struct {
 	DataDir    string
 	DBPath     string
@@ -25,24 +30,27 @@ type Paths struct {
 }
 
 type Settings struct {
-	SessionSize      int
-	ReviewRatio      float64
-	FocusModeDefault bool
-	Language         string
+	SessionSize         int
+	ReviewRatio         float64
+	FocusModeDefault    bool
+	WriteModeDifficulty string
+	Language            string
 }
 
 type fileSettings struct {
-	SessionSize      *int     `toml:"session_size"`
-	ReviewRatio      *float64 `toml:"review_ratio"`
-	FocusModeDefault *bool    `toml:"focus_mode_default"`
-	Language         *string  `toml:"language"`
+	SessionSize         *int     `toml:"session_size"`
+	ReviewRatio         *float64 `toml:"review_ratio"`
+	FocusModeDefault    *bool    `toml:"focus_mode_default"`
+	WriteModeDifficulty *string  `toml:"write_mode_difficulty"`
+	Language            *string  `toml:"language"`
 }
 
 func DefaultSettings() Settings {
 	return Settings{
-		SessionSize: session.DefaultQuestionCount,
-		ReviewRatio: session.DefaultReviewRatio,
-		Language:    i18n.DefaultLang,
+		SessionSize:         session.DefaultQuestionCount,
+		ReviewRatio:         session.DefaultReviewRatio,
+		WriteModeDifficulty: WriteModeDifficultyBasic,
+		Language:            i18n.DefaultLang,
 	}
 }
 
@@ -74,6 +82,13 @@ func Load(path string) (Settings, error) {
 	if raw.FocusModeDefault != nil {
 		settings.FocusModeDefault = *raw.FocusModeDefault
 	}
+	if raw.WriteModeDifficulty != nil {
+		writeModeDifficulty, err := parseWriteModeDifficulty(*raw.WriteModeDifficulty)
+		if err != nil {
+			return Settings{}, err
+		}
+		settings.WriteModeDifficulty = writeModeDifficulty
+	}
 	if raw.Language != nil {
 		settings.Language = *raw.Language
 	}
@@ -86,6 +101,12 @@ func Load(path string) (Settings, error) {
 }
 
 func Save(path string, settings Settings) error {
+	writeModeDifficulty, err := parseWriteModeDifficulty(settings.WriteModeDifficulty)
+	if err != nil {
+		return err
+	}
+	settings.WriteModeDifficulty = writeModeDifficulty
+
 	if err := validateSettings(settings); err != nil {
 		return err
 	}
@@ -95,15 +116,17 @@ func Save(path string, settings Settings) error {
 
 	var buf bytes.Buffer
 	if err := toml.NewEncoder(&buf).Encode(struct {
-		SessionSize      int     `toml:"session_size"`
-		ReviewRatio      float64 `toml:"review_ratio"`
-		FocusModeDefault bool    `toml:"focus_mode_default"`
-		Language         string  `toml:"language"`
+		SessionSize         int     `toml:"session_size"`
+		ReviewRatio         float64 `toml:"review_ratio"`
+		FocusModeDefault    bool    `toml:"focus_mode_default"`
+		WriteModeDifficulty string  `toml:"write_mode_difficulty"`
+		Language            string  `toml:"language"`
 	}{
-		SessionSize:      settings.SessionSize,
-		ReviewRatio:      settings.ReviewRatio,
-		FocusModeDefault: settings.FocusModeDefault,
-		Language:         settings.Language,
+		SessionSize:         settings.SessionSize,
+		ReviewRatio:         settings.ReviewRatio,
+		FocusModeDefault:    settings.FocusModeDefault,
+		WriteModeDifficulty: settings.WriteModeDifficulty,
+		Language:            settings.Language,
 	}); err != nil {
 		return fmt.Errorf("encode config %s: %w", path, err)
 	}
@@ -195,12 +218,35 @@ func joinUndecoded(keys []toml.Key) string {
 	return strings.Join(parts, ", ")
 }
 
+func NormalizeWriteModeDifficulty(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case WriteModeDifficultyHard:
+		return WriteModeDifficultyHard
+	default:
+		return WriteModeDifficultyBasic
+	}
+}
+
+func parseWriteModeDifficulty(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case WriteModeDifficultyBasic:
+		return WriteModeDifficultyBasic, nil
+	case WriteModeDifficultyHard:
+		return WriteModeDifficultyHard, nil
+	default:
+		return "", fmt.Errorf("write_mode_difficulty must be %q or %q", WriteModeDifficultyBasic, WriteModeDifficultyHard)
+	}
+}
+
 func validateSettings(settings Settings) error {
 	if settings.SessionSize <= 0 {
 		return fmt.Errorf("session_size must be greater than 0")
 	}
 	if math.IsNaN(settings.ReviewRatio) || settings.ReviewRatio < 0 || settings.ReviewRatio > 1 {
 		return fmt.Errorf("review_ratio must be between 0 and 1")
+	}
+	if normalized := NormalizeWriteModeDifficulty(settings.WriteModeDifficulty); normalized != settings.WriteModeDifficulty {
+		return fmt.Errorf("write_mode_difficulty must be %q or %q", WriteModeDifficultyBasic, WriteModeDifficultyHard)
 	}
 	if !i18n.ValidLang(settings.Language) {
 		return fmt.Errorf("unsupported language: %q (use %q or %q)", settings.Language, i18n.LangJA, i18n.LangEN)

@@ -11,6 +11,15 @@
 - [x] review 指摘に合わせて `play/review` が typo 引数を黙って受け付けないようにする
 - [x] locale format string の回帰テストを実際の引数数・出力まで検証する
 
+## 2026-04-02 issue #14: Write モード難易度緩和
+
+- [x] `config.toml` に `write_mode_difficulty` (`basic` / `hard`) を追加する
+- [x] ホーム設定 UI に Write 難易度行を追加する
+- [x] Learn + Write + `basic` で Choice 既出語だけを新規候補に使う
+- [x] `ListWordsSeenInChoice` の store query と回帰テストを追加する
+- [x] `hard` と既定値 `basic` の回帰テストを追加する
+- [x] README / README.en に設定と挙動差分を反映する
+
 ## 2026-03-30 issue #3: go install version 表示
 
 - [x] `dev` のときだけ build info の `Main.Version` を使う解決ロジックを追加する
