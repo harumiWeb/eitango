@@ -317,6 +317,51 @@ func TestUpdateWriteQuizHintSkipAndAutoRating(t *testing.T) {
 	}
 }
 
+func TestUpdateWriteQuizAllHintsAutoFail(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.screen = ScreenQuiz
+	model.currentQ = &quiz.Question{
+		AnswerMode: store.AnswerModeWrite,
+		Word: store.Word{
+			Lemma:     "begin",
+			MeaningJA: "始める",
+			Pos:       "verb",
+		},
+		Ordinal: 1,
+		Total:   1,
+		Kind:    store.ItemKindNew,
+	}
+	model.questionStarted = time.Now().UTC().Add(-2 * time.Second)
+
+	updated := model
+	for i := 0; i < 4; i++ {
+		next, _ := updated.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+		updated = next.(RootModel)
+	}
+
+	if updated.screen != ScreenFeedback {
+		t.Fatalf("screen after all hints = %v, want %v", updated.screen, ScreenFeedback)
+	}
+	if updated.feedback == nil {
+		t.Fatal("feedback after all hints = nil, want write feedback")
+	}
+	if updated.feedback.Correct {
+		t.Fatalf("feedback.Correct = true, want false: %+v", updated.feedback)
+	}
+	if updated.feedback.Skipped {
+		t.Fatalf("feedback.Skipped = true, want false: %+v", updated.feedback)
+	}
+	if updated.feedback.HintCount != 4 {
+		t.Fatalf("feedback.HintCount = %d, want 4", updated.feedback.HintCount)
+	}
+	if updated.feedback.Rating != srs.Again {
+		t.Fatalf("feedback.Rating = %q, want %q", updated.feedback.Rating, srs.Again)
+	}
+}
+
 func TestUpdateWriteQuizLettersRemainTypable(t *testing.T) {
 	t.Parallel()
 

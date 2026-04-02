@@ -451,6 +451,9 @@ func (m RootModel) updateWriteQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if len(next) != len(m.writeHintIndices) {
 			m.writeHintIndices = next
 			m.writeHintCount++
+			if len(next) == len([]rune(m.currentQ.Word.Lemma)) {
+				return m.showWriteFeedback(false), nil
+			}
 		}
 		return m, nil
 	case key.Matches(msg, m.keymap.Skip):
