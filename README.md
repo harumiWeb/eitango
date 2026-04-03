@@ -20,6 +20,8 @@
 
 SRS での復習に加えて、選択式の `choice` と入力式の `write` の 2 モードを用意しています。
 
+デフォルトで内部に語彙が組み込まれており（現在の語彙数: 約**5200**）、外部 CSV / JSONL からの辞書インポートもサポートしています。学習統計や進捗管理、更新通知、診断ツールも備えています。
+
 [English README](README.en.md)
 
 <img alt="home" src="assets/images/home.png" />
