@@ -209,6 +209,28 @@ func TestRenderHomeShowsWaitToday(t *testing.T) {
 	}
 }
 
+func TestRenderHomeLocalizesActiveSessionMode(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.home.ActiveSession = &store.SessionRecord{
+		Mode:              store.ModeLearn,
+		AnswerMode:        store.AnswerModeChoice,
+		AnsweredQuestions: 2,
+		TotalQuestions:    5,
+	}
+
+	got := model.renderHome()
+	wantDetail := i18n.Tf(i18n.HomeActiveDetail, 2, 5, i18n.T(i18n.StartModeLearn), i18n.T(i18n.AnswerModeChoice))
+	if !strings.Contains(got, wantDetail) {
+		t.Fatalf("renderHome() missing localized active session detail %q:\n%s", wantDetail, got)
+	}
+	if strings.Contains(got, "learn / "+i18n.T(i18n.AnswerModeChoice)) {
+		t.Fatalf("renderHome() unexpectedly contains raw session mode:\n%s", got)
+	}
+}
+
 func TestRenderWriteFeedbackShowsMeaningHintsAndSkippedState(t *testing.T) {
 	t.Parallel()
 
@@ -339,5 +361,89 @@ func TestRenderHomeWithSettingsOverlayUsesScreenSwitch(t *testing.T) {
 	}
 	if strings.Contains(got, i18n.T(i18n.HomeSubtitle)) {
 		t.Fatalf("renderHomeWithSettingsOverlay() should not include home background when settings are open:\n%s", got)
+	}
+}
+
+func TestRenderHomeWithConfirmOverlayUsesScreenSwitch(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.home.ActiveSession = &store.SessionRecord{
+		Mode:              store.ModeLearn,
+		AnswerMode:        store.AnswerModeChoice,
+		AnsweredQuestions: 2,
+		TotalQuestions:    5,
+	}
+	model.homeConfirm = &homeConfirmState{
+		Request: sessionRequest{
+			Mode:       store.ModeReview,
+			AnswerMode: store.AnswerModeWrite,
+		},
+	}
+
+	got := model.renderHomeWithConfirmOverlay()
+	currentDetail := i18n.Tf(
+		i18n.HomeActiveDetail,
+		model.home.ActiveSession.AnsweredQuestions,
+		model.home.ActiveSession.TotalQuestions,
+		sessionModeLabel(model.home.ActiveSession.Mode),
+		answerModeLabel(model.home.ActiveSession.AnswerMode),
+	)
+	for _, want := range []string{
+		i18n.T(i18n.HomeConfirmTitle),
+		i18n.T(i18n.HomeConfirmBody),
+		i18n.T(i18n.HomeConfirmCurrent),
+		i18n.T(i18n.HomeConfirmTarget),
+		currentDetail,
+		i18n.T(i18n.StartModeLearn),
+		i18n.T(i18n.StartModeReview),
+		i18n.T(i18n.AnswerModeWrite),
+		i18n.T(i18n.HomeConfirmKeys),
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderHomeWithConfirmOverlay() missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, i18n.T(i18n.HomeSubtitle)) {
+		t.Fatalf("renderHomeWithConfirmOverlay() should not include home background when confirmation is open:\n%s", got)
+	}
+}
+
+func TestRenderHelpFromHomeConfirmShowsConfirmAndBack(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.home.ActiveSession = &store.SessionRecord{
+		Mode:              store.ModeLearn,
+		AnswerMode:        store.AnswerModeChoice,
+		AnsweredQuestions: 1,
+		TotalQuestions:    3,
+	}
+	model.homeConfirm = &homeConfirmState{
+		Request: sessionRequest{
+			Mode:       store.ModeLearn,
+			AnswerMode: store.AnswerModeWrite,
+		},
+	}
+
+	helpView := model.openHelp().renderHelp()
+	for _, want := range []string{
+		helpLine(model.keymap.Confirm),
+		helpLine(model.keymap.Back),
+	} {
+		if !strings.Contains(helpView, want) {
+			t.Fatalf("renderHelp() missing %q:\n%s", want, helpView)
+		}
+	}
+	for _, unwanted := range []string{
+		helpLine(model.keymap.NewSession),
+		helpLine(model.keymap.Review),
+		helpLine(model.keymap.ToggleAnswerMode),
+	} {
+		if strings.Contains(helpView, unwanted) {
+			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)
+		}
 	}
 }

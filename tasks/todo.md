@@ -20,6 +20,14 @@
 - [x] `hard` と既定値 `basic` の回帰テストを追加する
 - [x] README / README.en に設定と挙動差分を反映する
 
+## 2026-04-03 issue #15: 進行中セッション時のモード切替確認
+
+- [x] `tasks/feature_spec.md` にホーム開始競合の仕様を追加する
+- [x] ホーム画面に active session 破棄確認 overlay を追加する
+- [x] `Enter` / `r` / `n` の競合時に pending request を確認経由へ切り替える
+- [x] locale 文言と help 表示を確認 overlay に対応させる
+- [x] `internal/app` / `internal/i18n` の回帰テストを追加して通す
+
 ## 2026-03-30 issue #3: go install version 表示
 
 - [x] `dev` のときだけ build info の `Main.Version` を使う解決ロジックを追加する

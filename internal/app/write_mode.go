@@ -16,6 +16,13 @@ func answerModeLabel(mode string) string {
 	return i18n.T(i18n.AnswerModeChoice)
 }
 
+func sessionModeLabel(mode string) string {
+	if mode == store.ModeReview {
+		return i18n.T(i18n.StartModeReview)
+	}
+	return i18n.T(i18n.StartModeLearn)
+}
+
 func nextHintIndices(word string, shown []int, hintCount int) []int {
 	runes := []rune(word)
 	if len(runes) == 0 {

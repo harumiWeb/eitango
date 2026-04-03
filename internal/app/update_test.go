@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,6 +14,7 @@ import (
 	"github.com/harumiWeb/eitango/internal/quiz"
 	"github.com/harumiWeb/eitango/internal/session"
 	"github.com/harumiWeb/eitango/internal/srs"
+	"github.com/harumiWeb/eitango/internal/stats"
 	"github.com/harumiWeb/eitango/internal/store"
 	"github.com/harumiWeb/eitango/internal/updatecheck"
 )
@@ -86,6 +89,332 @@ func TestUpdateHomeTabTogglesAnswerMode(t *testing.T) {
 	updated = next.(RootModel)
 	if updated.selectedAnswerMode != store.AnswerModeChoice {
 		t.Fatalf("selectedAnswerMode = %q, want %q", updated.selectedAnswerMode, store.AnswerModeChoice)
+	}
+}
+
+func TestUpdateHomeConfirmWithDifferentAnswerModeOpensDiscardOverlay(t *testing.T) {
+	t.Parallel()
+
+	st := newTestStore(t)
+	active := mustCreateActiveSession(t, st, store.ModeLearn, store.AnswerModeChoice)
+	model := NewModel(st, Options{})
+	model.loading = false
+	model.home.ActiveSession = &active
+	model.selectedAnswerMode = store.AnswerModeWrite
+
+	next, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.loading {
+		t.Fatal("loading = true, want false")
+	}
+	if updated.homeConfirm == nil {
+		t.Fatal("homeConfirm = nil, want discard confirmation")
+	}
+	if updated.status != i18n.T(i18n.StatusConfirmDiscard) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusConfirmDiscard))
+	}
+	if updated.homeConfirm.Request.Mode != store.ModeLearn {
+		t.Fatalf("pending mode = %q, want %q", updated.homeConfirm.Request.Mode, store.ModeLearn)
+	}
+	if updated.homeConfirm.Request.AnswerMode != store.AnswerModeWrite {
+		t.Fatalf("pending answer mode = %q, want %q", updated.homeConfirm.Request.AnswerMode, store.AnswerModeWrite)
+	}
+	if !updated.homeConfirm.Request.ReplaceActive {
+		t.Fatal("pending request ReplaceActive = false, want true")
+	}
+}
+
+func TestUpdateHomeConfirmDiscardStartsRequestedSession(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	active := mustCreateActiveSession(t, st, store.ModeLearn, store.AnswerModeChoice)
+	settings := config.DefaultSettings()
+	settings.WriteModeDifficulty = config.WriteModeDifficultyHard
+	model := NewModel(st, Options{Settings: settings})
+	model.loading = false
+	model.home.ActiveSession = &active
+	model.selectedAnswerMode = store.AnswerModeWrite
+
+	opened, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	pending := opened.(RootModel)
+
+	next, cmd := pending.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated := next.(RootModel)
+	if !updated.loading {
+		t.Fatal("loading = false, want true")
+	}
+	if updated.homeConfirm != nil {
+		t.Fatalf("homeConfirm = %+v, want nil after confirmation", updated.homeConfirm)
+	}
+	if updated.status != i18n.T(i18n.StatusStartingLearn) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusStartingLearn))
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want session start command")
+	}
+
+	loaded := mustSessionLoadedMsg(t, cmd())
+	if loaded.Runtime.Session.ID == active.ID {
+		t.Fatalf("session id = %q, want a fresh session", loaded.Runtime.Session.ID)
+	}
+	if loaded.Runtime.Session.Mode != store.ModeLearn {
+		t.Fatalf("session mode = %q, want %q", loaded.Runtime.Session.Mode, store.ModeLearn)
+	}
+	if loaded.Runtime.Session.AnswerMode != store.AnswerModeWrite {
+		t.Fatalf("session answer mode = %q, want %q", loaded.Runtime.Session.AnswerMode, store.AnswerModeWrite)
+	}
+
+	abandoned, err := st.LoadSession(ctx, active.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if abandoned.Status != store.SessionStatusAbandoned {
+		t.Fatalf("abandoned status = %q, want %q", abandoned.Status, store.SessionStatusAbandoned)
+	}
+}
+
+func TestUpdateHomeConfirmCancelKeepsActiveSessionAndSelection(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	active := mustCreateActiveSession(t, st, store.ModeLearn, store.AnswerModeChoice)
+	model := NewModel(st, Options{})
+	model.loading = false
+	model.home.ActiveSession = &active
+	model.selectedAnswerMode = store.AnswerModeWrite
+
+	opened, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	pending := opened.(RootModel)
+
+	next, cmd := pending.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.homeConfirm != nil {
+		t.Fatalf("homeConfirm = %+v, want nil after cancel", updated.homeConfirm)
+	}
+	if updated.selectedAnswerMode != store.AnswerModeWrite {
+		t.Fatalf("selectedAnswerMode = %q, want %q", updated.selectedAnswerMode, store.AnswerModeWrite)
+	}
+	if updated.status != i18n.T(i18n.StatusResumeFound) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusResumeFound))
+	}
+
+	record, err := st.LoadSession(ctx, active.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if record.Status != store.SessionStatusActive {
+		t.Fatalf("record status = %q, want %q", record.Status, store.SessionStatusActive)
+	}
+}
+
+func TestUpdateHomeReviewWithActiveSessionConfirmsThenStartsReview(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	active := mustCreateActiveSession(t, st, store.ModeLearn, store.AnswerModeChoice)
+	words, err := st.ListNewWords(ctx, 3, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+	markWordDue(t, st, words[1].ID, time.Now().UTC().AddDate(0, 0, -4))
+
+	model := NewModel(st, Options{})
+	model.loading = false
+	model.home.ActiveSession = &active
+
+	opened, cmd := model.Update(tea.KeyPressMsg{Text: "r", Code: 'r'})
+	pending := opened.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if pending.homeConfirm == nil {
+		t.Fatal("homeConfirm = nil, want discard confirmation for review")
+	}
+	if pending.homeConfirm.StartStatus != i18n.StatusStartingReview {
+		t.Fatalf("StartStatus = %q, want %q", pending.homeConfirm.StartStatus, i18n.StatusStartingReview)
+	}
+
+	next, cmd := pending.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated := next.(RootModel)
+	if updated.status != i18n.T(i18n.StatusStartingReview) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusStartingReview))
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want review session command")
+	}
+
+	loaded := mustSessionLoadedMsg(t, cmd())
+	if loaded.Runtime.Session.Mode != store.ModeReview {
+		t.Fatalf("session mode = %q, want %q", loaded.Runtime.Session.Mode, store.ModeReview)
+	}
+}
+
+func TestUpdateHomeNewSessionWithActiveSessionOpensDiscardOverlay(t *testing.T) {
+	t.Parallel()
+
+	st := newTestStore(t)
+	active := mustCreateActiveSession(t, st, store.ModeLearn, store.AnswerModeChoice)
+	model := NewModel(st, Options{})
+	model.loading = false
+	model.home.ActiveSession = &active
+	model.selectedAnswerMode = store.AnswerModeWrite
+
+	next, cmd := model.Update(tea.KeyPressMsg{Text: "n", Code: 'n'})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.homeConfirm == nil {
+		t.Fatal("homeConfirm = nil, want discard confirmation for new session")
+	}
+	if updated.homeConfirm.StartStatus != i18n.StatusStartingNew {
+		t.Fatalf("StartStatus = %q, want %q", updated.homeConfirm.StartStatus, i18n.StatusStartingNew)
+	}
+	if updated.homeConfirm.Request.Mode != store.ModeLearn {
+		t.Fatalf("pending mode = %q, want %q", updated.homeConfirm.Request.Mode, store.ModeLearn)
+	}
+	if updated.homeConfirm.Request.AnswerMode != store.AnswerModeWrite {
+		t.Fatalf("pending answer mode = %q, want %q", updated.homeConfirm.Request.AnswerMode, store.AnswerModeWrite)
+	}
+	if !updated.homeConfirm.Request.ReplaceActive {
+		t.Fatal("pending request ReplaceActive = false, want true")
+	}
+}
+
+func TestUpdateHomeNewSessionWithoutActiveStartsImmediately(t *testing.T) {
+	t.Parallel()
+
+	st := newTestStore(t)
+	settings := config.DefaultSettings()
+	settings.WriteModeDifficulty = config.WriteModeDifficultyHard
+	model := NewModel(st, Options{Settings: settings})
+	model.loading = false
+	model.selectedAnswerMode = store.AnswerModeWrite
+
+	next, cmd := model.Update(tea.KeyPressMsg{Text: "n", Code: 'n'})
+	updated := next.(RootModel)
+	if updated.homeConfirm != nil {
+		t.Fatalf("homeConfirm = %+v, want nil", updated.homeConfirm)
+	}
+	if !updated.loading {
+		t.Fatal("loading = false, want true")
+	}
+	if updated.status != i18n.T(i18n.StatusStartingNew) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusStartingNew))
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want new session command")
+	}
+
+	loaded := mustSessionLoadedMsg(t, cmd())
+	if loaded.Runtime.Session.Mode != store.ModeLearn {
+		t.Fatalf("session mode = %q, want %q", loaded.Runtime.Session.Mode, store.ModeLearn)
+	}
+	if loaded.Runtime.Session.AnswerMode != store.AnswerModeWrite {
+		t.Fatalf("session answer mode = %q, want %q", loaded.Runtime.Session.AnswerMode, store.AnswerModeWrite)
+	}
+}
+
+func TestUpdateHomeReloadedErrMsgReplacesStaleActiveSnapshot(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = true
+	model.home.ActiveSession = &store.SessionRecord{
+		ID:                "stale-session",
+		Mode:              store.ModeLearn,
+		AnswerMode:        store.AnswerModeChoice,
+		AnsweredQuestions: 2,
+		TotalQuestions:    5,
+		Status:            store.SessionStatusActive,
+	}
+	model.homeConfirm = &homeConfirmState{
+		Request: sessionRequest{
+			Mode:          store.ModeLearn,
+			AnswerMode:    store.AnswerModeWrite,
+			ReplaceActive: true,
+		},
+		StartStatus: i18n.StatusStartingLearn,
+	}
+	model.selectedAnswerMode = store.AnswerModeWrite
+	wantErr := errors.New("no words available for this session")
+
+	next, cmd := model.Update(homeReloadedErrMsg{
+		Home: store.HomeSnapshot{},
+		Stats: &stats.Snapshot{
+			Today: stats.Window{Label: "Today", WaitMinutes: 1.5},
+		},
+		err: wantErr,
+	})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.loading {
+		t.Fatal("loading = true, want false")
+	}
+	if updated.home.ActiveSession != nil {
+		t.Fatalf("home.ActiveSession = %+v, want nil", updated.home.ActiveSession)
+	}
+	if updated.homeConfirm != nil {
+		t.Fatalf("homeConfirm = %+v, want nil", updated.homeConfirm)
+	}
+	if updated.err == nil || updated.err.Error() != wantErr.Error() {
+		t.Fatalf("err = %v, want %v", updated.err, wantErr)
+	}
+	if updated.status != wantErr.Error() {
+		t.Fatalf("status = %q, want %q", updated.status, wantErr.Error())
+	}
+	if updated.selectedAnswerMode != store.AnswerModeWrite {
+		t.Fatalf("selectedAnswerMode = %q, want %q", updated.selectedAnswerMode, store.AnswerModeWrite)
+	}
+	if updated.stats.Today.WaitMinutes != 1.5 {
+		t.Fatalf("stats.Today.WaitMinutes = %v, want 1.5", updated.stats.Today.WaitMinutes)
+	}
+}
+
+func TestUpdateHomeReloadedErrMsgWithoutStatsKeepsExistingStats(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = true
+	model.home.ActiveSession = &store.SessionRecord{
+		ID:                "stale-session",
+		Mode:              store.ModeLearn,
+		AnswerMode:        store.AnswerModeChoice,
+		AnsweredQuestions: 2,
+		TotalQuestions:    5,
+		Status:            store.SessionStatusActive,
+	}
+	model.stats = stats.Snapshot{
+		Today: stats.Window{Label: "Today", WaitMinutes: 4.25},
+	}
+	wantErr := errors.New("no words available for this session")
+
+	next, _ := model.Update(homeReloadedErrMsg{
+		Home:  store.HomeSnapshot{},
+		Stats: nil,
+		err:   wantErr,
+	})
+	updated := next.(RootModel)
+	if updated.home.ActiveSession != nil {
+		t.Fatalf("home.ActiveSession = %+v, want nil", updated.home.ActiveSession)
+	}
+	if updated.stats.Today.WaitMinutes != 4.25 {
+		t.Fatalf("stats.Today.WaitMinutes = %v, want 4.25", updated.stats.Today.WaitMinutes)
+	}
+	if updated.status != wantErr.Error() {
+		t.Fatalf("status = %q, want %q", updated.status, wantErr.Error())
 	}
 }
 
@@ -538,4 +867,21 @@ func TestUpdateHelpQuitFromWriteFeedbackShowsWriteContinueStatus(t *testing.T) {
 	if updated.screen != ScreenHelp {
 		t.Fatalf("screen = %v, want %v", updated.screen, ScreenHelp)
 	}
+}
+
+func mustCreateActiveSession(t *testing.T, st *store.Store, mode, answerMode string) store.SessionRecord {
+	t.Helper()
+
+	ctx := context.Background()
+	words, err := st.ListNewWords(ctx, 1, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+	record, _, err := st.CreateSession(ctx, mode, answerMode, []store.SessionItemPlan{
+		{WordID: words[0].ID, Kind: store.ItemKindNew},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	return record
 }

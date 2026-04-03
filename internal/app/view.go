@@ -19,6 +19,8 @@ func (m RootModel) View() tea.View {
 		body = m.renderHome()
 		if m.settingsOpen {
 			body = m.renderHomeWithSettingsOverlay()
+		} else if m.homeConfirm != nil {
+			body = m.renderHomeWithConfirmOverlay()
 		}
 	case ScreenQuiz:
 		body = m.renderQuiz()
@@ -54,7 +56,7 @@ func (m RootModel) renderHome() string {
 		lines = append(lines,
 			"",
 			m.styles.Subtitle.Render(i18n.T(i18n.HomeActive)),
-			i18n.Tf(i18n.HomeActiveDetail, m.home.ActiveSession.AnsweredQuestions, m.home.ActiveSession.TotalQuestions, m.home.ActiveSession.Mode, answerModeLabel(m.home.ActiveSession.AnswerMode)),
+			i18n.Tf(i18n.HomeActiveDetail, m.home.ActiveSession.AnsweredQuestions, m.home.ActiveSession.TotalQuestions, sessionModeLabel(m.home.ActiveSession.Mode), answerModeLabel(m.home.ActiveSession.AnswerMode)),
 		)
 	}
 	if strings.TrimSpace(m.updateLatestTag) != "" {
@@ -80,6 +82,10 @@ func (m RootModel) renderHomeWithSettingsOverlay() string {
 	return m.renderSettingsOverlay()
 }
 
+func (m RootModel) renderHomeWithConfirmOverlay() string {
+	return m.renderHomeConfirmOverlay()
+}
+
 func (m RootModel) renderSettingsOverlay() string {
 	lines := []string{
 		m.styles.Title.Render(i18n.T(i18n.SettingsTitle)),
@@ -92,6 +98,26 @@ func (m RootModel) renderSettingsOverlay() string {
 	}
 	if m.settings.FocusModeDefault {
 		lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.SettingsFocusNote)))
+	}
+	return m.styles.ModalPanel.Render(strings.Join(lines, "\n"))
+}
+
+func (m RootModel) renderHomeConfirmOverlay() string {
+	if m.homeConfirm == nil || m.home.ActiveSession == nil {
+		return m.renderHome()
+	}
+
+	request := m.homeConfirm.Request
+	active := m.home.ActiveSession
+	lines := []string{
+		m.styles.Title.Render(i18n.T(i18n.HomeConfirmTitle)),
+		"",
+		i18n.T(i18n.HomeConfirmBody),
+		"",
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.HomeConfirmCurrent), 14), i18n.Tf(i18n.HomeActiveDetail, active.AnsweredQuestions, active.TotalQuestions, sessionModeLabel(active.Mode), answerModeLabel(active.AnswerMode))),
+		fmt.Sprintf("%s: %s / %s", tui.AlignLabel(i18n.T(i18n.HomeConfirmTarget), 14), sessionModeLabel(request.Mode), answerModeLabel(request.AnswerMode)),
+		"",
+		m.styles.Muted.Render(i18n.T(i18n.HomeConfirmKeys)),
 	}
 	return m.styles.ModalPanel.Render(strings.Join(lines, "\n"))
 }
@@ -334,6 +360,18 @@ func (m RootModel) helpSections(screen Screen) []helpSection {
 			}},
 			{title: i18n.T(i18n.HelpSectionInput), lines: []string{
 				fmt.Sprintf("%-10s %s", "0-9", i18n.T(i18n.HelpSettingsDigits)),
+			}},
+			{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
+				helpLine(m.keymap.Help),
+				helpLine(m.keymap.Quit),
+			}},
+		}
+	}
+	if screen == ScreenHome && m.homeConfirm != nil {
+		return []helpSection{
+			{title: i18n.T(i18n.HelpSectionNav), lines: []string{
+				helpLine(m.keymap.Confirm),
+				helpLine(m.keymap.Back),
 			}},
 			{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
 				helpLine(m.keymap.Help),

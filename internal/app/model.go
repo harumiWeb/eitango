@@ -55,6 +55,12 @@ type answerSavedMsg struct {
 	Status       string
 }
 
+type homeReloadedErrMsg struct {
+	Home  store.HomeSnapshot
+	Stats *stats.Snapshot
+	err   error
+}
+
 type settingsSavedMsg struct {
 	Settings          config.Settings
 	FocusModeDisabled bool
@@ -81,6 +87,11 @@ type Options struct {
 	ConfigPath     string
 	CurrentVersion string
 	UpdateService  updatecheck.Service
+}
+
+type homeConfirmState struct {
+	Request     sessionRequest
+	StartStatus string
 }
 
 type RootModel struct {
@@ -111,6 +122,7 @@ type RootModel struct {
 	err                     error
 	loading                 bool
 	settingsOpen            bool
+	homeConfirm             *homeConfirmState
 	settingsCursor          int
 	settingsInput           string
 	settingsEditing         bool
@@ -188,6 +200,7 @@ func (m RootModel) sessionRequest(mode string, replaceActive bool) sessionReques
 
 func (m RootModel) openSettingsOverlay() RootModel {
 	m.settingsOpen = true
+	m.homeConfirm = nil
 	m.settingsCursor = settingsRowQuestionCount
 	m.settingsInput = strconv.Itoa(m.settings.SessionSize)
 	m.settingsEditing = false
@@ -201,6 +214,22 @@ func (m RootModel) openSettingsOverlay() RootModel {
 func (m RootModel) closeSettingsOverlay() RootModel {
 	m.settingsOpen = false
 	m.settingsEditing = false
+	m.status = m.homeStatus()
+	return m
+}
+
+func (m RootModel) openHomeConfirm(request sessionRequest, startStatus string) RootModel {
+	m.homeConfirm = &homeConfirmState{
+		Request:     request,
+		StartStatus: startStatus,
+	}
+	m.err = nil
+	m.status = i18n.T(i18n.StatusConfirmDiscard)
+	return m
+}
+
+func (m RootModel) closeHomeConfirm() RootModel {
+	m.homeConfirm = nil
 	m.status = m.homeStatus()
 	return m
 }
