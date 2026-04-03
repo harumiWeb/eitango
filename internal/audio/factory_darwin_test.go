@@ -5,8 +5,6 @@ package audio
 import "testing"
 
 func TestNewSpeakerOnDarwinUsesSayWhenAvailable(t *testing.T) {
-	t.Parallel()
-
 	previous := darwinLookPath
 	previousVoices := darwinListVoices
 	darwinLookPath = func(file string) (string, error) {
@@ -57,8 +55,6 @@ func TestParseDarwinVoiceLineExtractsVoiceAndLocale(t *testing.T) {
 }
 
 func TestDarwinPreferredVoiceFallsBackToOtherEnglishLocale(t *testing.T) {
-	t.Parallel()
-
 	previousVoices := darwinListVoices
 	darwinListVoices = func() ([]byte, error) {
 		return []byte("Daniel  en_GB  # Hello, my name is Daniel.\nKyoko  ja_JP  # こんにちは。"), nil

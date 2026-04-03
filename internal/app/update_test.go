@@ -961,8 +961,10 @@ func TestUpdateQuizSpeakUsesSpeaker(t *testing.T) {
 	t.Parallel()
 
 	speaker := &stubSpeaker{enabled: true}
+	settings := newAudioEnabledSettings()
 	model := NewModel(nil, Options{
-		SpeakerFactory: func(audio.Config) audio.Speaker { return speaker },
+		Settings:       settings,
+		SpeakerFactory: newPinnedSpeakerFactory(speaker),
 	})
 	model.loading = false
 	model.screen = ScreenQuiz
@@ -995,7 +997,8 @@ func TestUpdateQuizSpeakWithoutSpeakerSetsUnavailableStatus(t *testing.T) {
 	t.Parallel()
 
 	model := NewModel(nil, Options{
-		SpeakerFactory: func(audio.Config) audio.Speaker { return &stubSpeaker{enabled: false} },
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(false),
 	})
 	model.loading = false
 	model.screen = ScreenQuiz
@@ -1018,7 +1021,8 @@ func TestUpdateQuizShiftTabTogglesAutoplayForCurrentSession(t *testing.T) {
 	t.Parallel()
 
 	model := NewModel(nil, Options{
-		SpeakerFactory: func(audio.Config) audio.Speaker { return &stubSpeaker{enabled: true} },
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
 	})
 	model.loading = false
 	model.screen = ScreenQuiz
@@ -1042,7 +1046,8 @@ func TestUpdateQuizShiftTabWithoutSpeakerKeepsAutoplayOff(t *testing.T) {
 	t.Parallel()
 
 	model := NewModel(nil, Options{
-		SpeakerFactory: func(audio.Config) audio.Speaker { return &stubSpeaker{enabled: false} },
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(false),
 	})
 	model.loading = false
 	model.screen = ScreenQuiz
@@ -1078,7 +1083,7 @@ func TestSessionLoadedMsgInitializesAutoplayButDoesNotSpeakInWriteQuiz(t *testin
 			AudioAutoplay:       true,
 			Language:            i18n.LangJA,
 		},
-		SpeakerFactory: func(audio.Config) audio.Speaker { return speaker },
+		SpeakerFactory: newPinnedSpeakerFactory(speaker),
 	})
 
 	record := store.SessionRecord{
@@ -1126,7 +1131,7 @@ func TestSessionLoadedMsgDisablesAutoplayWhenSpeakerUnavailable(t *testing.T) {
 			AudioAutoplay:       true,
 			Language:            i18n.LangJA,
 		},
-		SpeakerFactory: func(audio.Config) audio.Speaker { return &stubSpeaker{enabled: false} },
+		SpeakerFactory: newStubSpeakerFactory(false),
 	})
 
 	record := store.SessionRecord{
@@ -1166,7 +1171,8 @@ func TestUpdateWriteQuizCtrlPDoesNotSpeak(t *testing.T) {
 
 	speaker := &stubSpeaker{enabled: true}
 	model := NewModel(nil, Options{
-		SpeakerFactory: func(audio.Config) audio.Speaker { return speaker },
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newPinnedSpeakerFactory(speaker),
 	})
 	model.loading = false
 	model.screen = ScreenQuiz
@@ -1228,7 +1234,7 @@ func TestUpdateWriteQuizSkipAutoplaySpeaksOnFeedback(t *testing.T) {
 			AudioAutoplay:       false,
 			Language:            i18n.LangJA,
 		},
-		SpeakerFactory: func(audio.Config) audio.Speaker { return speaker },
+		SpeakerFactory: newPinnedSpeakerFactory(speaker),
 	})
 	model.loading = false
 	model.screen = ScreenQuiz
@@ -1324,4 +1330,25 @@ func (s *stubSpeaker) Speak(_ context.Context, text string) error {
 
 func (s *stubSpeaker) Enabled() bool {
 	return s.enabled
+}
+
+func newAudioEnabledSettings() config.Settings {
+	settings := config.DefaultSettings()
+	settings.AudioEnabled = true
+	return settings
+}
+
+func newStubSpeakerFactory(enabled bool) func(audio.Config) audio.Speaker {
+	return func(cfg audio.Config) audio.Speaker {
+		return &stubSpeaker{enabled: enabled && cfg.Enabled}
+	}
+}
+
+func newPinnedSpeakerFactory(speaker *stubSpeaker) func(audio.Config) audio.Speaker {
+	return func(cfg audio.Config) audio.Speaker {
+		if !cfg.Enabled {
+			return &stubSpeaker{enabled: false}
+		}
+		return speaker
+	}
 }

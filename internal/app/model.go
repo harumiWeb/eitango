@@ -101,51 +101,52 @@ type homeConfirmState struct {
 }
 
 type RootModel struct {
-	store                   *store.Store
-	quiz                    *quiz.Service
-	planOptions             session.PlanOptions
-	startup                 *StartupRequest
-	settings                config.Settings
-	configPath              string
-	currentVersion          string
-	updateService           updatecheck.Service
-	speaker                 audio.Speaker
-	speakerFactory          func(audio.Config) audio.Speaker
-	updateLatestTag         string
-	selectedAnswerMode      string
-	screen                  Screen
-	keymap                  tui.KeyMap
-	styles                  tui.Styles
-	home                    store.HomeSnapshot
-	stats                   stats.Snapshot
-	runtime                 *session.Runtime
-	currentQ                *quiz.Question
-	feedback                *quiz.Feedback
-	summary                 *store.SessionSummary
-	cursor                  int
-	writeInput              string
-	writeHintIndices        []int
-	writeHintCount          int
-	status                  string
-	err                     error
-	loading                 bool
-	settingsOpen            bool
-	homeConfirm             *homeConfirmState
-	settingsCursor          int
-	settingsInput           string
-	settingsEditing         bool
-	settingsWriteDifficulty string
-	settingsAudioEnabled    bool
-	settingsAudioAutoplay   bool
-	settingsLanguage        string
-	helpReturn              Screen
-	helpStatus              string
-	width                   int
-	height                  int
-	questionStarted         time.Time
-	recentDistracts         []int64
-	correctStreak           int
-	autoplayEnabled         bool
+	store                        *store.Store
+	quiz                         *quiz.Service
+	planOptions                  session.PlanOptions
+	startup                      *StartupRequest
+	settings                     config.Settings
+	configPath                   string
+	currentVersion               string
+	updateService                updatecheck.Service
+	speaker                      audio.Speaker
+	speakerFactory               func(audio.Config) audio.Speaker
+	updateLatestTag              string
+	selectedAnswerMode           string
+	screen                       Screen
+	keymap                       tui.KeyMap
+	styles                       tui.Styles
+	home                         store.HomeSnapshot
+	stats                        stats.Snapshot
+	runtime                      *session.Runtime
+	currentQ                     *quiz.Question
+	feedback                     *quiz.Feedback
+	summary                      *store.SessionSummary
+	cursor                       int
+	writeInput                   string
+	writeHintIndices             []int
+	writeHintCount               int
+	status                       string
+	err                          error
+	loading                      bool
+	settingsOpen                 bool
+	homeConfirm                  *homeConfirmState
+	settingsCursor               int
+	settingsInput                string
+	settingsEditing              bool
+	settingsWriteDifficulty      string
+	settingsAudioEnabled         bool
+	settingsAudioAutoplay        bool
+	settingsAudioAvailableCached bool
+	settingsLanguage             string
+	helpReturn                   Screen
+	helpStatus                   string
+	width                        int
+	height                       int
+	questionStarted              time.Time
+	recentDistracts              []int64
+	correctStreak                int
+	autoplayEnabled              bool
 }
 
 func NewModel(store *store.Store, options Options) RootModel {
@@ -226,6 +227,7 @@ func (m RootModel) openSettingsOverlay() RootModel {
 	m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(m.settings.WriteModeDifficulty)
 	m.settingsAudioEnabled = m.settings.AudioEnabled
 	m.settingsAudioAutoplay = m.settings.AudioAutoplay
+	m.settingsAudioAvailableCached = m.probeSettingsAudioAvailable()
 	if !m.settingsAudioAvailable() {
 		m.settingsAudioAutoplay = false
 	}
@@ -349,15 +351,20 @@ func normalizeAutoplaySetting(settings config.Settings, speaker audio.Speaker) c
 	return settings
 }
 
+func (m RootModel) probeSettingsAudioAvailable() bool {
+	settings := m.settings
+	settings.AudioEnabled = true
+	cfg := audioConfigFromSettings(settings)
+	speaker := m.speakerFactory(cfg)
+	return speaker != nil && speaker.Enabled()
+}
+
 func (m RootModel) speakerAvailable() bool {
 	return m.speaker != nil && m.speaker.Enabled()
 }
 
 func (m RootModel) settingsAudioAvailable() bool {
-	if !m.settingsAudioEnabled {
-		return false
-	}
-	return m.speakerFactory(audio.Config{Enabled: true}).Enabled()
+	return m.settingsAudioEnabled && m.settingsAudioAvailableCached
 }
 
 func (m RootModel) autoplayActive() bool {

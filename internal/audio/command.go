@@ -2,7 +2,7 @@ package audio
 
 import (
 	"context"
-	"os/exec"
+	"errors"
 	"strings"
 )
 
@@ -16,16 +16,15 @@ type commandSpeaker struct {
 
 func (s commandSpeaker) Speak(ctx context.Context, text string) error {
 	trimmed := strings.TrimSpace(text)
-	if trimmed == "" {
+	if trimmed == "" || !s.Enabled() {
 		return nil
+	}
+	if s.buildArgs == nil || s.runCommand == nil {
+		return errors.New("audio command speaker is not initialized")
 	}
 	return s.runCommand(ctx, s.command, s.buildArgs(trimmed)...)
 }
 
 func (s commandSpeaker) Enabled() bool {
 	return strings.TrimSpace(s.command) != ""
-}
-
-func defaultRunCommand(ctx context.Context, name string, args ...string) error {
-	return exec.CommandContext(ctx, name, args...).Run()
 }

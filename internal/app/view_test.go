@@ -319,7 +319,10 @@ func TestRenderWriteQuizAndHelpShowCtrlShortcuts(t *testing.T) {
 func TestRenderWriteFeedbackHelpShowsEnterOnly(t *testing.T) {
 	t.Parallel()
 
-	model := NewModel(nil, Options{})
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
+	})
 	model.loading = false
 	model.screen = ScreenFeedback
 	model.feedback = &quiz.Feedback{
@@ -360,7 +363,8 @@ func TestRenderWriteFeedbackShowsAudioControls(t *testing.T) {
 	t.Parallel()
 
 	model := NewModel(nil, Options{
-		SpeakerFactory: func(audio.Config) audio.Speaker { return &stubSpeaker{enabled: true} },
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
 	})
 	model.loading = false
 	model.autoplayEnabled = true
@@ -387,7 +391,8 @@ func TestRenderHomeWithSettingsOverlayUsesScreenSwitch(t *testing.T) {
 	t.Parallel()
 
 	model := NewModel(nil, Options{
-		SpeakerFactory: func(audio.Config) audio.Speaker { return &stubSpeaker{enabled: true} },
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
 	})
 	model.loading = false
 	model.settingsOpen = true
@@ -429,7 +434,7 @@ func TestRenderHomeWithSettingsOverlayShowsAutoplayOffWhenUnavailable(t *testing
 			AudioAutoplay:       true,
 			Language:            i18n.LangJA,
 		},
-		SpeakerFactory: func(audio.Config) audio.Speaker { return &stubSpeaker{enabled: false} },
+		SpeakerFactory: newStubSpeakerFactory(false),
 	})
 	model.loading = false
 	model.settingsOpen = true
@@ -442,6 +447,30 @@ func TestRenderHomeWithSettingsOverlayShowsAutoplayOffWhenUnavailable(t *testing
 	got := model.renderHomeWithSettingsOverlay()
 	if !strings.Contains(got, i18n.T(i18n.SettingsAudioAutoplay)) || !strings.Contains(got, i18n.T(i18n.AudioStateOff)) {
 		t.Fatalf("renderHomeWithSettingsOverlay() should show autoplay OFF:\n%s", got)
+	}
+}
+
+func TestRenderHomeWithSettingsOverlayDoesNotProbeAudioOnRender(t *testing.T) {
+	t.Parallel()
+
+	settings := newAudioEnabledSettings()
+	probes := 0
+	model := NewModel(nil, Options{
+		Settings: settings,
+		SpeakerFactory: func(cfg audio.Config) audio.Speaker {
+			probes++
+			return &stubSpeaker{enabled: cfg.Enabled}
+		},
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	initialProbes := probes
+
+	_ = model.renderHomeWithSettingsOverlay()
+	_ = model.renderHomeWithSettingsOverlay()
+
+	if probes != initialProbes {
+		t.Fatalf("speaker probes during render = %d, want %d", probes, initialProbes)
 	}
 }
 

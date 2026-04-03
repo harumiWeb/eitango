@@ -19,3 +19,4 @@
 - 補助機能を quiz へ足すときは、その操作が出題の答えを直接漏らさないかを answer mode ごとに確認する。特に `write` では音声や reveal 系 UI を prompt 画面で有効化せず、必要なら feedback 画面だけへ限定する。
 - 機能の利用可否が runtime 依存なら、保存値とセッション state と UI 表示を別々に持たない。`speaker.Enabled()==false` の環境では `autoplay` のような実行不能 state を ON に遷移させず、古い設定値も in-memory で正規化して表示と実動作を一致させる。
 - locale や voice を選ぶ fallback は厳密一致だけで終わらせない。`en_US` のような最優先候補が無い実機構成を想定し、同系統の `en_*` / `en-*` などへ退避するテストを追加して既定 voice への意図しない逆戻りを防ぐ。
+- render path から availability probe や subprocess を起動しない。settings 画面のように `View()` が頻繁に呼ばれる経路では、音声 backend の可用性判定を `Update` / overlay open 時に 1 回だけ計算して cache する。

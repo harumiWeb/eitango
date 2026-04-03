@@ -3,6 +3,7 @@
 package audio
 
 import (
+	"context"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -14,22 +15,25 @@ var darwinListVoices = defaultDarwinListVoices
 var darwinVoiceLocalePattern = regexp.MustCompile(`\s([[:alnum:]_-]+)\s+#`)
 
 func newPlatformSpeaker() Speaker {
-	command, err := darwinLookPath("say")
-	if err != nil {
+	if _, err := darwinLookPath("say"); err != nil {
 		return NoopSpeaker{}
 	}
 
 	voice := darwinPreferredVoice()
 	return commandSpeaker{
-		command: command,
+		command: "say",
 		buildArgs: func(text string) []string {
 			if voice != "" {
 				return []string{"-v", voice, text}
 			}
 			return []string{text}
 		},
-		runCommand: defaultRunCommand,
+		runCommand: runDarwinSay,
 	}
+}
+
+func runDarwinSay(ctx context.Context, _ string, args ...string) error {
+	return exec.CommandContext(ctx, "say", args...).Run()
 }
 
 func defaultDarwinListVoices() ([]byte, error) {

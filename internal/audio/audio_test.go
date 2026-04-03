@@ -49,3 +49,12 @@ func TestCommandSpeakerSkipsBlankInput(t *testing.T) {
 		t.Fatal("runCommand was called for blank input")
 	}
 }
+
+func TestCommandSpeakerReturnsErrorWhenUninitialized(t *testing.T) {
+	t.Parallel()
+
+	speaker := commandSpeaker{command: "say"}
+	if err := speaker.Speak(context.Background(), "begin"); err == nil {
+		t.Fatal("Speak() error = nil, want initialization error")
+	}
+}

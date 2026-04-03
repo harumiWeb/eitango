@@ -77,6 +77,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(settings.WriteModeDifficulty)
 		m.settingsAudioEnabled = settings.AudioEnabled
 		m.settingsAudioAutoplay = settings.AudioAutoplay
+		m.settingsAudioAvailableCached = m.probeSettingsAudioAvailable()
 		m.settingsLanguage = settings.Language
 		m.speaker = speaker
 		if !m.speakerAvailable() {
@@ -611,11 +612,7 @@ func (m RootModel) toggleAutoplay() RootModel {
 		return m
 	}
 	m.autoplayEnabled = true
-	if m.autoplayEnabled {
-		m.status = i18n.T(i18n.StatusAutoplayOn)
-	} else {
-		m.status = i18n.T(i18n.StatusAutoplayOff)
-	}
+	m.status = i18n.T(i18n.StatusAutoplayOn)
 	return m
 }
 
