@@ -224,11 +224,10 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m.startHomeRequest(m.sessionRequest(store.ModeReview, false), i18n.StatusStartingReview)
 	case key.Matches(msg, m.keymap.NewSession):
-		request := m.sessionRequest(store.ModeLearn, true)
 		if m.home.ActiveSession != nil {
-			return m.openHomeConfirm(request, i18n.StatusStartingNew), nil
+			return m.openHomeConfirm(m.sessionRequest(store.ModeLearn, true), i18n.StatusStartingNew), nil
 		}
-		return m.startHomeRequest(request, i18n.StatusStartingNew)
+		return m.startHomeRequest(m.sessionRequest(store.ModeLearn, false), i18n.StatusStartingNew)
 	case key.Matches(msg, m.keymap.Confirm):
 		if m.home.ActiveSession != nil {
 			if store.NormalizeAnswerMode(m.home.ActiveSession.AnswerMode) != store.NormalizeAnswerMode(m.selectedAnswerMode) {

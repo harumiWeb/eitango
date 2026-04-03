@@ -114,7 +114,7 @@ func (m RootModel) renderHomeConfirmOverlay() string {
 		"",
 		i18n.T(i18n.HomeConfirmBody),
 		"",
-		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.HomeConfirmCurrent), 14), i18n.Tf(i18n.HomeActiveDetail, active.AnsweredQuestions, active.TotalQuestions, active.Mode, answerModeLabel(active.AnswerMode))),
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.HomeConfirmCurrent), 14), i18n.Tf(i18n.HomeActiveDetail, active.AnsweredQuestions, active.TotalQuestions, sessionModeLabel(active.Mode), answerModeLabel(active.AnswerMode))),
 		fmt.Sprintf("%s: %s / %s", tui.AlignLabel(i18n.T(i18n.HomeConfirmTarget), 14), sessionModeLabel(request.Mode), answerModeLabel(request.AnswerMode)),
 		"",
 		m.styles.Muted.Render(i18n.T(i18n.HomeConfirmKeys)),

@@ -361,13 +361,23 @@ func TestRenderHomeWithConfirmOverlayUsesScreenSwitch(t *testing.T) {
 	}
 
 	got := model.renderHomeWithConfirmOverlay()
+	currentDetail := i18n.Tf(
+		i18n.HomeActiveDetail,
+		model.home.ActiveSession.AnsweredQuestions,
+		model.home.ActiveSession.TotalQuestions,
+		sessionModeLabel(model.home.ActiveSession.Mode),
+		answerModeLabel(model.home.ActiveSession.AnswerMode),
+	)
 	for _, want := range []string{
 		i18n.T(i18n.HomeConfirmTitle),
 		i18n.T(i18n.HomeConfirmBody),
 		i18n.T(i18n.HomeConfirmCurrent),
 		i18n.T(i18n.HomeConfirmTarget),
+		currentDetail,
+		i18n.T(i18n.StartModeLearn),
 		i18n.T(i18n.StartModeReview),
 		i18n.T(i18n.AnswerModeWrite),
+		i18n.T(i18n.HomeConfirmKeys),
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("renderHomeWithConfirmOverlay() missing %q:\n%s", want, got)

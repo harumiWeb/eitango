@@ -291,6 +291,40 @@ func TestUpdateHomeNewSessionWithActiveSessionOpensDiscardOverlay(t *testing.T) 
 	}
 }
 
+func TestUpdateHomeNewSessionWithoutActiveStartsImmediately(t *testing.T) {
+	t.Parallel()
+
+	st := newTestStore(t)
+	settings := config.DefaultSettings()
+	settings.WriteModeDifficulty = config.WriteModeDifficultyHard
+	model := NewModel(st, Options{Settings: settings})
+	model.loading = false
+	model.selectedAnswerMode = store.AnswerModeWrite
+
+	next, cmd := model.Update(tea.KeyPressMsg{Text: "n", Code: 'n'})
+	updated := next.(RootModel)
+	if updated.homeConfirm != nil {
+		t.Fatalf("homeConfirm = %+v, want nil", updated.homeConfirm)
+	}
+	if !updated.loading {
+		t.Fatal("loading = false, want true")
+	}
+	if updated.status != i18n.T(i18n.StatusStartingNew) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusStartingNew))
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want new session command")
+	}
+
+	loaded := mustSessionLoadedMsg(t, cmd())
+	if loaded.Runtime.Session.Mode != store.ModeLearn {
+		t.Fatalf("session mode = %q, want %q", loaded.Runtime.Session.Mode, store.ModeLearn)
+	}
+	if loaded.Runtime.Session.AnswerMode != store.AnswerModeWrite {
+		t.Fatalf("session answer mode = %q, want %q", loaded.Runtime.Session.AnswerMode, store.AnswerModeWrite)
+	}
+}
+
 func TestUpdateHomeReloadedErrMsgReplacesStaleActiveSnapshot(t *testing.T) {
 	t.Parallel()
 
