@@ -15,3 +15,4 @@
 - schema introspection 用の `PRAGMA table_info(...)` は table 名を `fmt.Sprintf` で組み立てない。現在の呼び出し元が定数でも、許可テーブルごとの定数 query に閉じて静的解析と将来の misuse を防ぐ。
 - Cobra の runnable 親コマンドに subcommand を足したら、`Args` を明示して typo 位置引数を拒否する。未指定だと `play wrtie` が default 実行へ落ちる。
 - format string を更新した i18n テストは「空でない」だけで終わらせない。`%!s(MISSING)` を見逃さないよう、期待文字列か少なくとも verb 数一致まで確認する。
+- 状態復旧メッセージは primary な整合回復を secondary snapshot の成功に依存させない。active session を消す補正では `home` 更新を最優先にし、`stats` など付随情報は取れた場合だけ上書きする。

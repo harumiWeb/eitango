@@ -291,3 +291,44 @@
 - cached `v0.2.0` が存在しても forced refresh 成功時は `v0.2.1` が返る回帰 test が通る。
 - forced refresh 失敗時は cached latest 情報へ fallback する回帰 test が通る。
 - `go test ./...` が通る。
+
+---
+
+# 2026-04-03 issue #15: 進行中セッション時のホーム開始競合確認
+
+## Goal
+
+- 進行中セッションがある状態でホームから別の開始操作を行ったとき、既存セッションを無言で再開せず、破棄確認を挟めるようにする。
+
+## Scope
+
+- `internal/app` のホーム画面 state machine / overlay / help
+- locale 文言
+- ホーム操作の回帰テスト
+
+## Non-Goals
+
+- CLI `play` / `review` の active session 再開ポリシー変更
+- store / DB schema の変更
+- review / write feedback 画面の操作変更
+
+## Required Behavior
+
+- active session がない場合、`Enter` / `r` / `n` は従来どおり即開始する。
+- active session がある場合:
+  - `Enter` は、ホームで選択中の `answer_mode` が active session と同じなら再開する。
+  - `Enter` は、選択中 `answer_mode` が active session と異なるなら、active session 破棄確認を開く。
+  - `r` は常に新しい review session 開始要求として扱い、active session があれば破棄確認を開く。
+  - `n` は常に新しい learn session 開始要求として扱い、active session があれば破棄確認を開く。
+- 破棄確認 overlay の `Enter` は active session を `abandoned` にしてから pending request を開始する。
+- 破棄確認 overlay の `Esc` / `b` はキャンセルし、active session は保持する。
+- 破棄確認をキャンセルしても、ホームで `Tab` で選んだ `answer_mode` は維持する。
+- 破棄確認 overlay は current active session の進行状況と、これから始める target mode / answer mode を明示する。
+
+## Acceptance
+
+- active learn/choice 中に `Tab` で write へ切替えて `Enter` すると、即再開ではなく破棄確認 overlay が出る。
+- 上記 overlay で `Enter` すると旧 session は `abandoned` になり、新 session は `learn/write` で開始する。
+- 上記 overlay で `Esc` すると旧 session は active のまま残り、ホームへ戻る。
+- active session 中の `r` と `n` も同様に破棄確認 overlay を経由する。
+- `go test ./internal/app ./internal/i18n` と必要なら `go test ./...` が通る。

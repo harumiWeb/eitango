@@ -22,6 +22,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case homeLoadedMsg:
 		m.home = msg.Home
+		m.homeConfirm = nil
 		if msg.Home.ActiveSession != nil {
 			m.selectedAnswerMode = store.NormalizeAnswerMode(msg.Home.ActiveSession.AnswerMode)
 		}
@@ -30,6 +31,23 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.err = nil
 		m.status = m.homeStatus()
+		return m, nil
+	case homeReloadedErrMsg:
+		m.home = msg.Home
+		if msg.Stats != nil {
+			m.stats = *msg.Stats
+		}
+		m.runtime = nil
+		m.currentQ = nil
+		m.feedback = nil
+		m.summary = nil
+		m.screen = ScreenHome
+		m.loading = false
+		m.homeConfirm = nil
+		m.err = msg.err
+		if msg.err != nil {
+			m.status = msg.err.Error()
+		}
 		return m, nil
 	case statsLoadedMsg:
 		m.stats = msg.Snapshot
@@ -51,6 +69,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.keymap = tui.NewKeyMap()
 		m.planOptions = planOptionsFromSettings(msg.Settings)
 		m.settingsOpen = false
+		m.homeConfirm = nil
 		m.settingsEditing = false
 		m.settingsInput = strconv.Itoa(msg.Settings.SessionSize)
 		m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(msg.Settings.WriteModeDifficulty)
@@ -78,6 +97,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.resetWriteState()
 		m.loading = false
 		m.err = nil
+		m.homeConfirm = nil
 		m.screen = ScreenQuiz
 		m.status = i18n.T(i18n.StatusSessionStarted)
 		m.questionStarted = time.Now().UTC()
@@ -90,6 +110,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.loading = false
 		m.err = nil
+		m.homeConfirm = nil
 		m.status = msg.Status
 		if msg.Summary != nil {
 			m.summary = msg.Summary
@@ -182,6 +203,9 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.settingsOpen {
 		return m.updateSettingsOverlay(msg)
 	}
+	if m.homeConfirm != nil {
+		return m.updateHomeConfirm(msg)
+	}
 
 	switch {
 	case key.Matches(msg, m.keymap.ToggleAnswerMode):
@@ -196,28 +220,43 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.openSettingsOverlay(), nil
 	case key.Matches(msg, m.keymap.Review):
 		if m.home.ActiveSession != nil {
-			m.status = i18n.T(i18n.StatusActiveFound)
-			return m, nil
+			return m.openHomeConfirm(m.sessionRequest(store.ModeReview, true), i18n.StatusStartingReview), nil
 		}
-		m.loading = true
-		m.status = i18n.T(i18n.StatusStartingReview)
-		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeReview, false), m.recentDistracts)
+		return m.startHomeRequest(m.sessionRequest(store.ModeReview, false), i18n.StatusStartingReview)
 	case key.Matches(msg, m.keymap.NewSession):
-		m.loading = true
-		m.status = i18n.T(i18n.StatusStartingNew)
-		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeLearn, true), m.recentDistracts)
+		request := m.sessionRequest(store.ModeLearn, true)
+		if m.home.ActiveSession != nil {
+			return m.openHomeConfirm(request, i18n.StatusStartingNew), nil
+		}
+		return m.startHomeRequest(request, i18n.StatusStartingNew)
 	case key.Matches(msg, m.keymap.Confirm):
 		if m.home.ActiveSession != nil {
-			m.loading = true
-			m.status = i18n.T(i18n.StatusResuming)
-			return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeLearn, false), m.recentDistracts)
+			if store.NormalizeAnswerMode(m.home.ActiveSession.AnswerMode) != store.NormalizeAnswerMode(m.selectedAnswerMode) {
+				return m.openHomeConfirm(m.sessionRequest(store.ModeLearn, true), i18n.StatusStartingLearn), nil
+			}
+			return m.startHomeRequest(m.sessionRequest(store.ModeLearn, false), i18n.StatusResuming)
 		}
-		m.loading = true
-		m.status = i18n.T(i18n.StatusStartingLearn)
-		return m, sessionCmd(m.store, m.quiz, m.sessionRequest(store.ModeLearn, false), m.recentDistracts)
+		return m.startHomeRequest(m.sessionRequest(store.ModeLearn, false), i18n.StatusStartingLearn)
 	}
 
 	return m, nil
+}
+
+func (m RootModel) updateHomeConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keymap.Back):
+		return m.closeHomeConfirm(), nil
+	case key.Matches(msg, m.keymap.Confirm):
+		return m.startHomeRequest(m.homeConfirm.Request, m.homeConfirm.StartStatus)
+	}
+	return m, nil
+}
+
+func (m RootModel) startHomeRequest(request sessionRequest, statusKey string) (tea.Model, tea.Cmd) {
+	m.loading = true
+	m.homeConfirm = nil
+	m.status = i18n.T(statusKey)
+	return m, sessionCmd(m.store, m.quiz, request, m.recentDistracts)
 }
 
 func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

@@ -5,18 +5,23 @@ package i18n
 
 // Home screen
 const (
-	HomeSubtitle     = "home.subtitle"
-	HomeAnswerMode   = "home.answer_mode"
-	HomeDue          = "home.due"
-	HomeNew          = "home.new"
-	HomeStreak       = "home.streak"
-	HomeWait         = "home.wait"
-	HomeActive       = "home.active"
-	HomeActiveDetail = "home.active_detail"
-	HomeUpdate       = "home.update"
-	HomeUpdateDetail = "home.update_detail"
-	HomeUpdateHint   = "home.update_hint"
-	HomeKeys         = "home.keys"
+	HomeSubtitle       = "home.subtitle"
+	HomeAnswerMode     = "home.answer_mode"
+	HomeDue            = "home.due"
+	HomeNew            = "home.new"
+	HomeStreak         = "home.streak"
+	HomeWait           = "home.wait"
+	HomeActive         = "home.active"
+	HomeActiveDetail   = "home.active_detail"
+	HomeConfirmTitle   = "home.confirm_title"
+	HomeConfirmBody    = "home.confirm_body"
+	HomeConfirmCurrent = "home.confirm_current"
+	HomeConfirmTarget  = "home.confirm_target"
+	HomeConfirmKeys    = "home.confirm_keys"
+	HomeUpdate         = "home.update"
+	HomeUpdateDetail   = "home.update_detail"
+	HomeUpdateHint     = "home.update_hint"
+	HomeKeys           = "home.keys"
 )
 
 // Home settings overlay
@@ -189,6 +194,7 @@ const (
 	StatusEscToReturn         = "status.esc_to_return"
 	StatusLoadingStats        = "status.loading_stats"
 	StatusActiveFound         = "status.active_found"
+	StatusConfirmDiscard      = "status.confirm_discard"
 	StatusStartingReview      = "status.starting_review"
 	StatusStartingNew         = "status.starting_new"
 	StatusStartingLearn       = "status.starting_learn"

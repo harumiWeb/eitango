@@ -341,3 +341,77 @@ func TestRenderHomeWithSettingsOverlayUsesScreenSwitch(t *testing.T) {
 		t.Fatalf("renderHomeWithSettingsOverlay() should not include home background when settings are open:\n%s", got)
 	}
 }
+
+func TestRenderHomeWithConfirmOverlayUsesScreenSwitch(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.home.ActiveSession = &store.SessionRecord{
+		Mode:              store.ModeLearn,
+		AnswerMode:        store.AnswerModeChoice,
+		AnsweredQuestions: 2,
+		TotalQuestions:    5,
+	}
+	model.homeConfirm = &homeConfirmState{
+		Request: sessionRequest{
+			Mode:       store.ModeReview,
+			AnswerMode: store.AnswerModeWrite,
+		},
+	}
+
+	got := model.renderHomeWithConfirmOverlay()
+	for _, want := range []string{
+		i18n.T(i18n.HomeConfirmTitle),
+		i18n.T(i18n.HomeConfirmBody),
+		i18n.T(i18n.HomeConfirmCurrent),
+		i18n.T(i18n.HomeConfirmTarget),
+		i18n.T(i18n.StartModeReview),
+		i18n.T(i18n.AnswerModeWrite),
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderHomeWithConfirmOverlay() missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, i18n.T(i18n.HomeSubtitle)) {
+		t.Fatalf("renderHomeWithConfirmOverlay() should not include home background when confirmation is open:\n%s", got)
+	}
+}
+
+func TestRenderHelpFromHomeConfirmShowsConfirmAndBack(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.home.ActiveSession = &store.SessionRecord{
+		Mode:              store.ModeLearn,
+		AnswerMode:        store.AnswerModeChoice,
+		AnsweredQuestions: 1,
+		TotalQuestions:    3,
+	}
+	model.homeConfirm = &homeConfirmState{
+		Request: sessionRequest{
+			Mode:       store.ModeLearn,
+			AnswerMode: store.AnswerModeWrite,
+		},
+	}
+
+	helpView := model.openHelp().renderHelp()
+	for _, want := range []string{
+		helpLine(model.keymap.Confirm),
+		helpLine(model.keymap.Back),
+	} {
+		if !strings.Contains(helpView, want) {
+			t.Fatalf("renderHelp() missing %q:\n%s", want, helpView)
+		}
+	}
+	for _, unwanted := range []string{
+		helpLine(model.keymap.NewSession),
+		helpLine(model.keymap.Review),
+		helpLine(model.keymap.ToggleAnswerMode),
+	} {
+		if strings.Contains(helpView, unwanted) {
+			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)
+		}
+	}
+}

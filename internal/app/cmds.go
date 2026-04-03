@@ -70,12 +70,6 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 		writeModeDifficulty := config.NormalizeWriteModeDifficulty(request.WriteModeDifficulty)
 		options := request.Plan.Normalize()
 
-		if request.ReplaceActive {
-			if err := st.AbandonActiveSession(ctx); err != nil {
-				return errMsg{err: err}
-			}
-		}
-
 		if !request.ReplaceActive {
 			record, items, err := st.LoadActiveRuntime(ctx)
 			if err != nil {
@@ -132,17 +126,43 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 			return errMsg{err: fmt.Errorf("no words available for this session")}
 		}
 
+		replacedActive := false
+		if request.ReplaceActive {
+			if err := st.AbandonActiveSession(ctx); err != nil {
+				return errMsg{err: err}
+			}
+			replacedActive = true
+		}
+
 		record, items, err := st.CreateSession(ctx, mode, answerMode, itemsPlan)
 		if err != nil {
-			return errMsg{err: err}
+			return sessionStartErrMsg(st, err, replacedActive)
 		}
 		runtime := session.NewRuntime(record, items)
 		question, err := buildCurrentQuestion(ctx, svc, runtime, recent)
 		if err != nil {
-			return errMsg{err: err}
+			return sessionStartErrMsg(st, err, replacedActive)
 		}
 		return sessionLoadedMsg{Runtime: runtime, Question: question}
 	}
+}
+
+func sessionStartErrMsg(st *store.Store, err error, reloadHome bool) tea.Msg {
+	if !reloadHome {
+		return errMsg{err: err}
+	}
+
+	ctx := context.Background()
+	home, loadErr := st.LoadHomeSnapshot(ctx)
+	if loadErr != nil {
+		return errMsg{err: err}
+	}
+	msg := homeReloadedErrMsg{Home: home, err: err}
+	snapshot, loadErr := st.LoadStatsSnapshot(ctx)
+	if loadErr == nil {
+		msg.Stats = &snapshot
+	}
+	return msg
 }
 
 func submitAnswerCmd(st *store.Store, svc *quiz.Service, runtime *session.Runtime, feedback quiz.Feedback, rating srs.Rating, recent []int64) tea.Cmd {

@@ -80,7 +80,9 @@ func TestAllJAKeysExistInEN(t *testing.T) {
 	// Ensure every defined key constant returns a non-key value for both languages.
 	keys := []string{
 		i18n.HomeSubtitle, i18n.HomeAnswerMode, i18n.HomeDue, i18n.HomeNew, i18n.HomeStreak,
-		i18n.HomeWait, i18n.HomeActive, i18n.HomeActiveDetail, i18n.HomeUpdate,
+		i18n.HomeWait, i18n.HomeActive, i18n.HomeActiveDetail, i18n.HomeConfirmTitle,
+		i18n.HomeConfirmBody, i18n.HomeConfirmCurrent, i18n.HomeConfirmTarget,
+		i18n.HomeConfirmKeys, i18n.HomeUpdate,
 		i18n.HomeUpdateDetail, i18n.HomeUpdateHint, i18n.HomeKeys,
 		i18n.SettingsTitle, i18n.SettingsQuestions, i18n.SettingsWriteDifficulty,
 		i18n.SettingsWriteDifficultyBasic, i18n.SettingsWriteDifficultyHard,
@@ -114,7 +116,7 @@ func TestAllJAKeysExistInEN(t *testing.T) {
 		i18n.StatusStatsLoaded, i18n.StatusSessionStarted, i18n.StatusSaved,
 		i18n.StatusCheckRate, i18n.StatusCorrect, i18n.StatusSelectRating,
 		i18n.StatusEscThenRate, i18n.StatusEscToReturn, i18n.StatusLoadingStats,
-		i18n.StatusActiveFound, i18n.StatusStartingReview, i18n.StatusStartingNew,
+		i18n.StatusActiveFound, i18n.StatusConfirmDiscard, i18n.StatusStartingReview, i18n.StatusStartingNew,
 		i18n.StatusStartingLearn, i18n.StatusResuming, i18n.StatusSaving,
 		i18n.StatusReturningHome, i18n.StatusBackHome, i18n.StatusHelp, i18n.StatusWriteContinue,
 		i18n.StatusWriteBasicEmpty,
