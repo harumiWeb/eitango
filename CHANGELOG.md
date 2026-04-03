@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-03
+
+### Added
+
+- macOS / Windows 向けの音声再生を追加し、quiz / feedback 画面で `Ctrl+P` から現在の単語を手動再生できるようにしました。
+- ホーム設定画面と `config.toml` に `audio_enabled` / `audio_autoplay` を追加し、音声機能の既定値を保存できるようにしました。
+
+### Changed
+
+- quiz / feedback 画面に自動再生状態の表示を追加し、`Shift+Tab` でセッション単位の autoplay を切り替えられるようにしました。
+- `write` モードでは答えを直接漏らさないため、音声再生と autoplay をフィードバック画面だけで有効にしました。
+
+### Fixed
+
+- 音声が無効、または未対応の環境では autoplay を ON に保持しないようにし、設定値、セッション state、UI 表示を実際の動作に合わせて正規化しました。
+- macOS で `en_US` 音声が無い場合でも、`en_GB` など他の英語音声へフォールバックして英語読み上げを継続するようにしました。
+
 ## [0.4.2] - 2026-04-03
 
 ### Added
@@ -94,7 +111,8 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/harumiWeb/eitango/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/harumiWeb/eitango/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/harumiWeb/eitango/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/harumiWeb/eitango/compare/v0.3.0...v0.4.0
