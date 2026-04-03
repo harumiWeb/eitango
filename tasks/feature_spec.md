@@ -332,3 +332,47 @@
 - 上記 overlay で `Esc` すると旧 session は active のまま残り、ホームへ戻る。
 - active session 中の `r` と `n` も同様に破棄確認 overlay を経由する。
 - `go test ./internal/app ./internal/i18n` と必要なら `go test ./...` が通る。
+
+---
+
+# 2026-04-03 issue #19: macOS / Windows 音声再生
+
+## Goal
+
+- macOS / Windows で現在の英単語を発話できるようにする。
+- `Ctrl+P` の手動再生と、`Shift+Tab` で切り替えるセッション内自動再生を TUI に追加する。
+- 音声が使えない環境でも学習フローを壊さず、Linux では no-op で継続できるようにする。
+
+## Scope
+
+- `internal/audio` の追加と OS 別 backend
+- `config.Settings` / `config.toml` の音声設定
+- `internal/app` / `internal/tui` の keymap・state・表示
+- locale 文言、README、回帰テスト
+
+## Non-Goals
+
+- Linux の音声 backend 実装
+- 例文読み上げ
+- stop / pause / seek
+- voice / speed / volume の詳細設定
+- 音声ファイル cache
+
+## Required Behavior
+
+- `internal/audio` に `Speaker` interface を置き、音声 backend の差分を app 層から分離する。
+- macOS は `say`、Windows は `powershell.exe` + `System.Speech.Synthesis.SpeechSynthesizer` を使う。
+- `audio_enabled` と `audio_autoplay` を flat config key として追加し、既定値は `true` / `false` とする。
+- ホーム設定 overlay で audio on/off と autoplay on/off を `←/→` で切り替えて保存できる。
+- quiz / feedback 画面で `Ctrl+P` が現在語を再生する。
+- quiz / feedback 画面で `Shift+Tab` が現在セッションだけの autoplay on/off を切り替える。config は即時保存しない。
+- autoplay は session 開始直後と次の問題読込直後にだけ発火する。
+- 音声 unavailable / 再生失敗は status line の非致命メッセージにとどめ、学習セッションは継続する。
+- quiz / feedback に autoplay state を明示し、help / key guide / README も新操作へ追従する。
+
+## Acceptance
+
+- `go test ./internal/audio ./internal/config ./internal/app ./internal/i18n` が通る。
+- `go test ./...` が通る。
+- macOS / Windows CI で `internal/audio` が build / test できる。
+- `Ctrl+P` 手動再生、`Shift+Tab` セッション内 toggle、`audio_enabled` / `audio_autoplay` の回帰テストがある。

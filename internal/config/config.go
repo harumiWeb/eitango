@@ -34,6 +34,8 @@ type Settings struct {
 	ReviewRatio         float64
 	FocusModeDefault    bool
 	WriteModeDifficulty string
+	AudioEnabled        bool
+	AudioAutoplay       bool
 	Language            string
 }
 
@@ -42,6 +44,8 @@ type fileSettings struct {
 	ReviewRatio         *float64 `toml:"review_ratio"`
 	FocusModeDefault    *bool    `toml:"focus_mode_default"`
 	WriteModeDifficulty *string  `toml:"write_mode_difficulty"`
+	AudioEnabled        *bool    `toml:"audio_enabled"`
+	AudioAutoplay       *bool    `toml:"audio_autoplay"`
 	Language            *string  `toml:"language"`
 }
 
@@ -50,6 +54,8 @@ func DefaultSettings() Settings {
 		SessionSize:         session.DefaultQuestionCount,
 		ReviewRatio:         session.DefaultReviewRatio,
 		WriteModeDifficulty: WriteModeDifficultyBasic,
+		AudioEnabled:        true,
+		AudioAutoplay:       false,
 		Language:            i18n.DefaultLang,
 	}
 }
@@ -89,6 +95,12 @@ func Load(path string) (Settings, error) {
 		}
 		settings.WriteModeDifficulty = writeModeDifficulty
 	}
+	if raw.AudioEnabled != nil {
+		settings.AudioEnabled = *raw.AudioEnabled
+	}
+	if raw.AudioAutoplay != nil {
+		settings.AudioAutoplay = *raw.AudioAutoplay
+	}
 	if raw.Language != nil {
 		settings.Language = *raw.Language
 	}
@@ -120,12 +132,16 @@ func Save(path string, settings Settings) error {
 		ReviewRatio         float64 `toml:"review_ratio"`
 		FocusModeDefault    bool    `toml:"focus_mode_default"`
 		WriteModeDifficulty string  `toml:"write_mode_difficulty"`
+		AudioEnabled        bool    `toml:"audio_enabled"`
+		AudioAutoplay       bool    `toml:"audio_autoplay"`
 		Language            string  `toml:"language"`
 	}{
 		SessionSize:         settings.SessionSize,
 		ReviewRatio:         settings.ReviewRatio,
 		FocusModeDefault:    settings.FocusModeDefault,
 		WriteModeDifficulty: settings.WriteModeDifficulty,
+		AudioEnabled:        settings.AudioEnabled,
+		AudioAutoplay:       settings.AudioAutoplay,
 		Language:            settings.Language,
 	}); err != nil {
 		return fmt.Errorf("encode config %s: %w", path, err)

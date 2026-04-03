@@ -16,3 +16,5 @@
 - Cobra の runnable 親コマンドに subcommand を足したら、`Args` を明示して typo 位置引数を拒否する。未指定だと `play wrtie` が default 実行へ落ちる。
 - format string を更新した i18n テストは「空でない」だけで終わらせない。`%!s(MISSING)` を見逃さないよう、期待文字列か少なくとも verb 数一致まで確認する。
 - 状態復旧メッセージは primary な整合回復を secondary snapshot の成功に依存させない。active session を消す補正では `home` 更新を最優先にし、`stats` など付随情報は取れた場合だけ上書きする。
+- 補助機能を quiz へ足すときは、その操作が出題の答えを直接漏らさないかを answer mode ごとに確認する。特に `write` では音声や reveal 系 UI を prompt 画面で有効化せず、必要なら feedback 画面だけへ限定する。
+- 機能の利用可否が runtime 依存なら、保存値とセッション state と UI 表示を別々に持たない。`speaker.Enabled()==false` の環境では `autoplay` のような実行不能 state を ON に遷移させず、古い設定値も in-memory で正規化して表示と実動作を一致させる。

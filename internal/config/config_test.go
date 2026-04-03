@@ -29,6 +29,8 @@ session_size = 12
 review_ratio = 0.4
 focus_mode_default = true
 write_mode_difficulty = "hard"
+audio_enabled = false
+audio_autoplay = true
 `), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -48,6 +50,12 @@ write_mode_difficulty = "hard"
 	}
 	if settings.WriteModeDifficulty != WriteModeDifficultyHard {
 		t.Fatalf("WriteModeDifficulty = %q, want %q", settings.WriteModeDifficulty, WriteModeDifficultyHard)
+	}
+	if settings.AudioEnabled {
+		t.Fatal("AudioEnabled = true, want false")
+	}
+	if !settings.AudioAutoplay {
+		t.Fatal("AudioAutoplay = false, want true")
 	}
 }
 
@@ -116,6 +124,8 @@ func TestSaveRoundTripsSettings(t *testing.T) {
 		ReviewRatio:         0.6,
 		FocusModeDefault:    true,
 		WriteModeDifficulty: WriteModeDifficultyHard,
+		AudioEnabled:        false,
+		AudioAutoplay:       true,
 		Language:            "en",
 	}
 
@@ -157,6 +167,8 @@ func TestSaveRejectsInvalidSettings(t *testing.T) {
 		SessionSize:         0,
 		ReviewRatio:         0.4,
 		WriteModeDifficulty: WriteModeDifficultyBasic,
+		AudioEnabled:        true,
+		AudioAutoplay:       false,
 		Language:            "ja",
 	})
 	if err == nil {
@@ -175,6 +187,8 @@ func TestSaveRejectsInvalidWriteModeDifficulty(t *testing.T) {
 		SessionSize:         10,
 		ReviewRatio:         0.4,
 		WriteModeDifficulty: "invalid",
+		AudioEnabled:        true,
+		AudioAutoplay:       false,
 		Language:            "ja",
 	})
 	if err == nil {
@@ -193,6 +207,8 @@ func TestSaveNormalizesWriteModeDifficulty(t *testing.T) {
 		SessionSize:         10,
 		ReviewRatio:         0.4,
 		WriteModeDifficulty: " Hard ",
+		AudioEnabled:        true,
+		AudioAutoplay:       true,
 		Language:            "ja",
 	}); err != nil {
 		t.Fatalf("Save() error = %v", err)
@@ -226,5 +242,25 @@ language = "ja"
 	}
 	if !strings.Contains(err.Error(), "write_mode_difficulty") {
 		t.Fatalf("Load() error = %v, want write_mode_difficulty validation", err)
+	}
+}
+
+func TestLoadMissingAudioSettingsDefaults(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("session_size = 10\nreview_ratio = 0.4\nlanguage = \"ja\"\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	settings, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !settings.AudioEnabled {
+		t.Fatal("AudioEnabled = false, want true")
+	}
+	if settings.AudioAutoplay {
+		t.Fatal("AudioAutoplay = true, want false")
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/harumiWeb/eitango/internal/audio"
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
 	"github.com/harumiWeb/eitango/internal/quiz"
@@ -86,6 +87,8 @@ func TestHelpScreenRoundTripFromAllScreens(t *testing.T) {
 				model.settingsOpen = true
 				model.settingsInput = "10"
 				model.settingsWriteDifficulty = config.WriteModeDifficultyBasic
+				model.settingsAudioEnabled = true
+				model.settingsAudioAutoplay = false
 				model.settingsLanguage = i18n.LangJA
 			},
 		},
@@ -265,6 +268,7 @@ func TestRenderWriteQuizAndHelpShowCtrlShortcuts(t *testing.T) {
 	model.loading = false
 	model.screen = ScreenQuiz
 	model.writeInput = "begin"
+	model.autoplayEnabled = true
 	model.currentQ = &quiz.Question{
 		AnswerMode: store.AnswerModeWrite,
 		Word: store.Word{
@@ -283,6 +287,11 @@ func TestRenderWriteQuizAndHelpShowCtrlShortcuts(t *testing.T) {
 			t.Fatalf("renderQuiz() missing %q:\n%s", want, quizView)
 		}
 	}
+	for _, unwanted := range []string{"Ctrl+P", "Shift+Tab", "ON"} {
+		if strings.Contains(quizView, unwanted) {
+			t.Fatalf("renderQuiz() unexpectedly contains %q:\n%s", unwanted, quizView)
+		}
+	}
 	if !strings.Contains(quizView, "b e g i n") {
 		t.Fatalf("renderQuiz() should render spaced input:\n%s", quizView)
 	}
@@ -295,6 +304,11 @@ func TestRenderWriteQuizAndHelpShowCtrlShortcuts(t *testing.T) {
 	for _, want := range []string{"tab", "ctrl+s", "esc"} {
 		if !strings.Contains(helpView, want) {
 			t.Fatalf("renderHelp() missing %q:\n%s", want, helpView)
+		}
+	}
+	for _, unwanted := range []string{"ctrl+p", "shift+tab"} {
+		if strings.Contains(helpView, unwanted) {
+			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)
 		}
 	}
 	if strings.Contains(helpView, "A-Z") {
@@ -322,6 +336,8 @@ func TestRenderWriteFeedbackHelpShowsEnterOnly(t *testing.T) {
 	helpView := model.openHelp().renderHelp()
 	for _, want := range []string{
 		helpLine(model.keymap.Confirm),
+		helpLine(model.keymap.Speak),
+		helpLine(model.keymap.ToggleAutoplay),
 		fmt.Sprintf("%-10s %s", "q", i18n.T(i18n.HelpQuitDisabledWrite)),
 	} {
 		if !strings.Contains(helpView, want) {
@@ -340,27 +356,92 @@ func TestRenderWriteFeedbackHelpShowsEnterOnly(t *testing.T) {
 	}
 }
 
+func TestRenderWriteFeedbackShowsAudioControls(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		SpeakerFactory: func(audio.Config) audio.Speaker { return &stubSpeaker{enabled: true} },
+	})
+	model.loading = false
+	model.autoplayEnabled = true
+	model.feedback = &quiz.Feedback{
+		Question: quiz.Question{
+			AnswerMode: store.AnswerModeWrite,
+			Word: store.Word{
+				Lemma:     "begin",
+				MeaningJA: "始める",
+			},
+		},
+		Correct: true,
+	}
+
+	got := model.renderFeedback()
+	for _, want := range []string{"Ctrl+P", "Shift+Tab", "ON"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderFeedback() missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestRenderHomeWithSettingsOverlayUsesScreenSwitch(t *testing.T) {
 	t.Parallel()
 
-	model := NewModel(nil, Options{})
+	model := NewModel(nil, Options{
+		SpeakerFactory: func(audio.Config) audio.Speaker { return &stubSpeaker{enabled: true} },
+	})
 	model.loading = false
 	model.settingsOpen = true
 	model.settingsInput = "10"
 	model.settingsWriteDifficulty = config.WriteModeDifficultyHard
+	model.settingsAudioEnabled = true
+	model.settingsAudioAutoplay = true
 	model.settingsLanguage = i18n.LangJA
 
 	got := model.renderHomeWithSettingsOverlay()
 	if !strings.Contains(got, i18n.T(i18n.SettingsTitle)) {
 		t.Fatalf("renderHomeWithSettingsOverlay() missing settings title:\n%s", got)
 	}
-	for _, want := range []string{i18n.T(i18n.SettingsWriteDifficulty), i18n.T(i18n.SettingsWriteDifficultyHard)} {
+	for _, want := range []string{
+		i18n.T(i18n.SettingsWriteDifficulty),
+		i18n.T(i18n.SettingsWriteDifficultyHard),
+		i18n.T(i18n.SettingsAudioEnabled),
+		i18n.T(i18n.SettingsAudioAutoplay),
+		i18n.T(i18n.AudioStateOn),
+	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("renderHomeWithSettingsOverlay() missing %q:\n%s", want, got)
 		}
 	}
 	if strings.Contains(got, i18n.T(i18n.HomeSubtitle)) {
 		t.Fatalf("renderHomeWithSettingsOverlay() should not include home background when settings are open:\n%s", got)
+	}
+}
+
+func TestRenderHomeWithSettingsOverlayShowsAutoplayOffWhenUnavailable(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings: config.Settings{
+			SessionSize:         10,
+			ReviewRatio:         0.4,
+			WriteModeDifficulty: config.WriteModeDifficultyHard,
+			AudioEnabled:        true,
+			AudioAutoplay:       true,
+			Language:            i18n.LangJA,
+		},
+		SpeakerFactory: func(audio.Config) audio.Speaker { return &stubSpeaker{enabled: false} },
+	})
+	model.loading = false
+	model.settingsOpen = true
+	model.settingsInput = "10"
+	model.settingsWriteDifficulty = config.WriteModeDifficultyHard
+	model.settingsAudioEnabled = true
+	model.settingsAudioAutoplay = true
+	model.settingsLanguage = i18n.LangJA
+
+	got := model.renderHomeWithSettingsOverlay()
+	if !strings.Contains(got, i18n.T(i18n.SettingsAudioAutoplay)) || !strings.Contains(got, i18n.T(i18n.AudioStateOff)) {
+		t.Fatalf("renderHomeWithSettingsOverlay() should show autoplay OFF:\n%s", got)
 	}
 }
 

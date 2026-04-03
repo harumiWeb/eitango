@@ -28,6 +28,16 @@
 - [x] locale 文言と help 表示を確認 overlay に対応させる
 - [x] `internal/app` / `internal/i18n` の回帰テストを追加して通す
 
+## 2026-04-03 issue #19: macOS / Windows 音声再生
+
+- [x] `tasks/feature_spec.md` に音声再生仕様を追加する
+- [x] `internal/audio` に speaker abstraction と macOS / Windows / noop backend を追加する
+- [x] `config.toml` とホーム設定に `audio_enabled` / `audio_autoplay` を追加する
+- [x] quiz / feedback に `Ctrl+P` 手動再生と `Shift+Tab` セッション内 autoplay toggle を追加する
+- [x] session 開始直後と次問題読込直後の autoplay を追加する
+- [x] locale / README / help 表示を音声操作へ追従させる
+- [x] `internal/audio` / `internal/config` / `internal/app` / `internal/i18n` の回帰テストを追加して通す
+
 ## 2026-03-30 issue #3: go install version 表示
 
 - [x] `dev` のときだけ build info の `Main.Version` を使う解決ロジックを追加する
