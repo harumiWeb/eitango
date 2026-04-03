@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-04-03
+
+### Added
+
+- 進行中のセッションがある状態で `Enter` / `n` / `r` から別セッションを始めるとき、破棄確認ダイアログを表示するようにしました。
+- 破棄確認ダイアログに、現在のセッション状況と開始予定のモードを表示するようにしました。
+
+### Fixed
+
+- 既存セッションを破棄して新規開始しようとした直後に開始失敗した場合でも、ホーム画面に古い active session 表示が残らないようにしました。
+- 破棄後の復旧で stats の再読込に失敗しても、ホーム画面の active session 状態だけは正しく再同期するようにしました。
+
 ## [0.4.1] - 2026-04-03
 
 ### Fixed
@@ -82,7 +94,8 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/harumiWeb/eitango/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/harumiWeb/eitango/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/harumiWeb/eitango/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/harumiWeb/eitango/compare/v0.2.2...v0.3.0
