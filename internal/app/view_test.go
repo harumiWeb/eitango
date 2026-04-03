@@ -209,6 +209,28 @@ func TestRenderHomeShowsWaitToday(t *testing.T) {
 	}
 }
 
+func TestRenderHomeLocalizesActiveSessionMode(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.home.ActiveSession = &store.SessionRecord{
+		Mode:              store.ModeLearn,
+		AnswerMode:        store.AnswerModeChoice,
+		AnsweredQuestions: 2,
+		TotalQuestions:    5,
+	}
+
+	got := model.renderHome()
+	wantDetail := i18n.Tf(i18n.HomeActiveDetail, 2, 5, i18n.T(i18n.StartModeLearn), i18n.T(i18n.AnswerModeChoice))
+	if !strings.Contains(got, wantDetail) {
+		t.Fatalf("renderHome() missing localized active session detail %q:\n%s", wantDetail, got)
+	}
+	if strings.Contains(got, "learn / "+i18n.T(i18n.AnswerModeChoice)) {
+		t.Fatalf("renderHome() unexpectedly contains raw session mode:\n%s", got)
+	}
+}
+
 func TestRenderWriteFeedbackShowsMeaningHintsAndSkippedState(t *testing.T) {
 	t.Parallel()
 

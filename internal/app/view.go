@@ -56,7 +56,7 @@ func (m RootModel) renderHome() string {
 		lines = append(lines,
 			"",
 			m.styles.Subtitle.Render(i18n.T(i18n.HomeActive)),
-			i18n.Tf(i18n.HomeActiveDetail, m.home.ActiveSession.AnsweredQuestions, m.home.ActiveSession.TotalQuestions, m.home.ActiveSession.Mode, answerModeLabel(m.home.ActiveSession.AnswerMode)),
+			i18n.Tf(i18n.HomeActiveDetail, m.home.ActiveSession.AnsweredQuestions, m.home.ActiveSession.TotalQuestions, sessionModeLabel(m.home.ActiveSession.Mode), answerModeLabel(m.home.ActiveSession.AnswerMode)),
 		)
 	}
 	if strings.TrimSpace(m.updateLatestTag) != "" {
