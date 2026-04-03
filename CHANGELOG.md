@@ -5,6 +5,13 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-04-03
+
+### Fixed
+
+- `write` モードで最後のヒントまで使って答えがすべて開示された場合、そのまま自動でフィードバック画面へ進み、不正解 (`Again`) として保存するようにしました。
+- 最後のヒントで正解文字列が入力欄に揃っていた場合でも、正答扱いで進捗が保存されないようにしました。
+
 ## [0.4.0] - 2026-04-02
 
 ### Added
@@ -75,7 +82,8 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/harumiWeb/eitango/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/harumiWeb/eitango/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/harumiWeb/eitango/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/harumiWeb/eitango/compare/v0.2.0...v0.2.2
