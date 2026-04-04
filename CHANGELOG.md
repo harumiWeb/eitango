@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-04-04
+
+### Changed
+
+- winget manifest の公開フローは `harumiWeb/winget-pkgs` fork への push までを自動化し、`microsoft/winget-pkgs` への PR は手動作成に切り替えました。
+
+### Fixed
+
+- fine-grained PAT で upstream への cross-repository PR 作成が 403 になり、release workflow 全体が失敗する問題を回避しました。
+
 ## [0.5.1] - 2026-04-04
 
 ### Added

@@ -15,7 +15,7 @@
 - release artifact には実行バイナリに加えて `LICENSE`, `README.md`, `README.en.md`, `THIRD_PARTY_NOTICES.md`, `third_party/licenses/**` を同梱する。
 - macOS / linux では `install.sh` を bootstrap 導線として許可するが、installer 自体は GitHub Releases の archive と `checksums.txt` を取得する薄い wrapper に留める。
 - `install.sh` は `checksums.txt` で SHA256 を必須検証し、法務ファイルを `~/.eitango/share/` へ保持する。
-- winget manifest は GoReleaser で release 時に生成し、`harumiWeb/winget-pkgs` fork へ push したうえで `microsoft/winget-pkgs` へ cross-repository PR を作成する。push/PR 用 token は release 用 `GITHUB_TOKEN` と分離し、`WINGET_GITHUB_TOKEN` を使う。
+- winget manifest は GoReleaser で release 時に生成し、`harumiWeb/winget-pkgs` fork へ push する。`microsoft/winget-pkgs` への PR は手動で作成し、fork への push 用 token は release 用 `GITHUB_TOKEN` と分離した `WINGET_GITHUB_TOKEN` を使う。
 - 更新は自動適用しない。新しい版の取得は release archive の再取得か `go install ...@latest` の再実行で行う。
 - update check は GitHub Releases の latest を参照する補助機能とし、学習フローを止めない best-effort 動作に限定する。
 - update check の state は data dir の `update-check.json` に保存し、ホーム画面の通知は起動ごとに latest release を非同期で再検証する。HTTP timeout は 1.5 秒とし、保存 state は request failure 時の fallback に使う。
@@ -33,7 +33,7 @@
 - 自動更新を持たないため、更新失敗が学習データを壊す経路を増やさずに済む。
 - update check は起動ごとに 1 回の best-effort request を行うが、最新 release 反映の遅延は大きく減り、更新作業は引き続き手動のまま保てる。
 - 保存済み state があるため、GitHub API が失敗しても直前の latest 情報を fallback として使える。
-- fork 側 PAT の期限切れや権限不足があると winget PR だけ失敗しうるため、release 失敗時は token 権限と fork 状態を先に確認する運用が必要になる。
+- fork 側 PAT の期限切れや権限不足があると winget manifest push が失敗しうるため、release 失敗時は token 権限と fork 状態を先に確認する運用が必要になる。upstream PR は手動運用なので、release 後に compare URL から提出する手順を別途維持する必要がある。
 - GitHub Releases が update metadata と Windows zip の単一ソースになるため、別チャネルを増やす場合は新しい判断が必要になる。
 
 ## Rationale
