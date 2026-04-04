@@ -9,7 +9,8 @@
 - [x] `winget` publish 設定を追加し、`HarumiWeb.Eitango` と `WINGET_GITHUB_TOKEN` を使う
 - [x] `.github/workflows/release.yml` で GoReleaser step へ `WINGET_GITHUB_TOKEN` を渡す
 - [x] README / README.en / ADR に Windows の winget 導線を反映する
-- [ ] 実タグ release で fork `harumiWeb/winget-pkgs` への push と upstream PR 作成を確認する
+- [x] 実タグ release で fork `harumiWeb/winget-pkgs` への push まで確認した
+- [ ] `microsoft/winget-pkgs` への PR を手動で作成し、運用手順を確認する
 
 ## 2026-04-01 PR #12: Codacy follow-up
 

@@ -25,3 +25,4 @@
 - 外部コマンドの availability probe は本実行と別経路でも放置しない。`LookPath` で解決した実行パスをそのまま probe/run に渡し、startup 判定の subprocess には短い timeout を付けて hang で UI 初期化を止めない。
 - 非同期エラーを UI 用 message へ潰すときも root cause を落とさない。`audioErrMsg` のような軽量 message でも trigger source と元 error を保持し、status は短く保ったまま診断と回帰テストに使える形で残す。
 - 外部コマンド実行を security lint が見ている箇所は、validated な入力でも `exec.CommandContext(name, ...)` の形を避ける。`LookPath` は存在確認と allowlist 判定に使い、実行は静的 literal のコマンドに正規化して Semgrep/Codacy と実装意図を一致させる。
+- `winget-pkgs` のような fork 経由の upstream PR を自動化する前に、PAT の owner 境界を確認する。fine-grained PAT は選択した owner 配下の repo にしか権限を持てないので、fork への push はできても別 owner への cross-repository PR 作成は失敗しうる。

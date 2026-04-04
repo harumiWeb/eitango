@@ -3,7 +3,7 @@
 ## Goal
 
 - GitHub Releases の Windows zip を使って winget community repository へ manifest を提出できるようにする。
-- release 実行時に `harumiWeb/winget-pkgs` fork へ push し、`microsoft/winget-pkgs` への PR を自動生成する。
+- release 実行時に `harumiWeb/winget-pkgs` fork へ manifest を push し、`microsoft/winget-pkgs` への PR は手動で作成する。
 
 ## Scope
 
@@ -26,6 +26,7 @@
 - `winget.license` はリポジトリ実態に合わせて `Apache-2.0` を使う。
 - winget publish 用の token は `repository.token: "{{ .Env.WINGET_GITHUB_TOKEN }}"` として `GITHUB_TOKEN` から分離する。
 - release workflow は `WINGET_GITHUB_TOKEN` を GoReleaser step へ渡す。
+- GoReleaser は fork への push までを自動化し、upstream への cross-repository PR 作成は行わない。
 - README / README.en は Windows の primary install 導線として `winget install HarumiWeb.Eitango` を案内する。
 
 ## Acceptance
