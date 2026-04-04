@@ -1350,6 +1350,7 @@ func TestUpdateWriteQuizSkipAutoplaySpeaksOnFeedback(t *testing.T) {
 func TestUpdateAudioErrMsgFromAutoplayDisablesAutoplay(t *testing.T) {
 	t.Parallel()
 
+	wantErr := errors.New("boom")
 	model := NewModel(nil, Options{
 		Settings:       newAudioEnabledSettings(),
 		SpeakerFactory: newStubSpeakerFactory(true),
@@ -1357,7 +1358,7 @@ func TestUpdateAudioErrMsgFromAutoplayDisablesAutoplay(t *testing.T) {
 	model.loading = false
 	model.autoplayEnabled = true
 
-	next, cmd := model.Update(audioErrMsg{fromAutoplay: true})
+	next, cmd := model.Update(audioErrMsg{fromAutoplay: true, err: wantErr})
 	updated := next.(RootModel)
 	if cmd != nil {
 		t.Fatalf("cmd = %v, want nil", cmd)
@@ -1367,6 +1368,9 @@ func TestUpdateAudioErrMsgFromAutoplayDisablesAutoplay(t *testing.T) {
 	}
 	if updated.status != i18n.T(i18n.StatusAudioFailed) {
 		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusAudioFailed))
+	}
+	if !errors.Is(updated.err, wantErr) {
+		t.Fatalf("err = %v, want %v", updated.err, wantErr)
 	}
 }
 
@@ -1407,6 +1411,9 @@ func TestSpeakCmdReturnsAutoplayAudioErrMsg(t *testing.T) {
 	}
 	if !errMsg.fromAutoplay {
 		t.Fatal("fromAutoplay = false, want true")
+	}
+	if errMsg.err == nil || errMsg.err.Error() != "boom" {
+		t.Fatalf("err = %v, want boom", errMsg.err)
 	}
 }
 

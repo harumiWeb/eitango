@@ -151,6 +151,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.fromAutoplay {
 			m.autoplayEnabled = false
 		}
+		m.err = msg.err
 		m.status = i18n.T(i18n.StatusAudioFailed)
 		return m, nil
 	case tea.KeyPressMsg:
@@ -404,7 +405,7 @@ func (m RootModel) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keymap.ToggleAutoplay):
 		return m.toggleAutoplay(), nil
 	case key.Matches(msg, m.keymap.Speak):
-		return m.maybeSpeakCurrentWord(true)
+		return m.maybeSpeakCurrentWord()
 	}
 	if len(m.currentQ.Choices) == 0 {
 		return m, nil
@@ -443,7 +444,7 @@ func (m RootModel) updateFeedback(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keymap.ToggleAutoplay):
 		return m.toggleAutoplay(), nil
 	case key.Matches(msg, m.keymap.Speak):
-		return m.maybeSpeakCurrentWord(true)
+		return m.maybeSpeakCurrentWord()
 	}
 
 	if m.feedback == nil || m.runtime == nil {
@@ -625,15 +626,13 @@ func (m RootModel) toggleAutoplay() RootModel {
 	return m
 }
 
-func (m RootModel) maybeSpeakCurrentWord(manual bool) (tea.Model, tea.Cmd) {
+func (m RootModel) maybeSpeakCurrentWord() (tea.Model, tea.Cmd) {
 	text := m.currentAudioText()
 	if text == "" {
 		return m, nil
 	}
 	if !m.speakerAvailable() {
-		if manual {
-			m.status = m.audioBlockedStatus(m.settings.AudioEnabled)
-		}
+		m.status = m.audioBlockedStatus(m.settings.AudioEnabled)
 		return m, nil
 	}
 	return m, speakCmd(m.speaker, text, false)

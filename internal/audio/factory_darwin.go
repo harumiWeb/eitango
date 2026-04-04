@@ -4,7 +4,9 @@ package audio
 
 import (
 	"context"
+	"errors"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -18,6 +20,10 @@ var darwinVoiceLocalePattern = regexp.MustCompile(`\s([[:alnum:]_-]+)\s+#`)
 func newPlatformSpeaker() Speaker {
 	command, err := darwinLookPath("say")
 	if err != nil {
+		return NoopSpeaker{}
+	}
+	command, ok := normalizeDarwinSayCommand(command)
+	if !ok {
 		return NoopSpeaker{}
 	}
 
@@ -35,13 +41,19 @@ func newPlatformSpeaker() Speaker {
 }
 
 func runDarwinSay(ctx context.Context, name string, args ...string) error {
-	return exec.CommandContext(ctx, name, args...).Run()
+	if _, ok := normalizeDarwinSayCommand(name); !ok {
+		return errors.New("unsupported say command")
+	}
+	return exec.CommandContext(ctx, "/usr/bin/say", args...).Run()
 }
 
 func defaultDarwinListVoices(name string) ([]byte, error) {
+	if _, ok := normalizeDarwinSayCommand(name); !ok {
+		return nil, errors.New("unsupported say command")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	return exec.CommandContext(ctx, name, "-v", "?").Output()
+	return exec.CommandContext(ctx, "/usr/bin/say", "-v", "?").Output()
 }
 
 func darwinPreferredVoice(command string) string {
@@ -76,4 +88,14 @@ func parseDarwinVoiceLine(line string) (voice string, locale string, ok bool) {
 		return "", "", false
 	}
 	return voice, locale, true
+}
+
+func normalizeDarwinSayCommand(name string) (string, bool) {
+	cleaned := filepath.Clean(strings.TrimSpace(name))
+	switch cleaned {
+	case "say", "/usr/bin/say":
+		return "/usr/bin/say", true
+	default:
+		return "", false
+	}
 }

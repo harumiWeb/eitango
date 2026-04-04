@@ -233,7 +233,7 @@ func speakCmd(speaker audio.Speaker, text string, fromAutoplay bool) tea.Cmd {
 		defer cancel()
 
 		if err := speaker.Speak(ctx, text); err != nil {
-			return audioErrMsg{fromAutoplay: fromAutoplay}
+			return audioErrMsg{fromAutoplay: fromAutoplay, err: err}
 		}
 		return nil
 	}

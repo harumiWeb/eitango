@@ -34,8 +34,8 @@ func TestNewSpeakerOnDarwinUsesSayWhenAvailable(t *testing.T) {
 	if !ok {
 		t.Fatalf("speaker type = %T, want commandSpeaker", speaker)
 	}
-	if command.command != path {
-		t.Fatalf("command = %q, want %q", command.command, path)
+	if command.command != "/usr/bin/say" {
+		t.Fatalf("command = %q, want %q", command.command, "/usr/bin/say")
 	}
 	args := command.buildArgs("begin")
 	if len(args) != 3 {

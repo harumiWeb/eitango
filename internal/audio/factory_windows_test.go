@@ -18,8 +18,8 @@ func TestNewSpeakerOnWindowsUsesPowerShellWhenAvailable(t *testing.T) {
 		return path, nil
 	}
 	windowsVoiceProbe = func(command string) bool {
-		if command != path {
-			t.Fatalf("probe command = %q, want %q", command, path)
+		if command != "powershell.exe" {
+			t.Fatalf("probe command = %q, want %q", command, "powershell.exe")
 		}
 		return true
 	}
@@ -36,8 +36,8 @@ func TestNewSpeakerOnWindowsUsesPowerShellWhenAvailable(t *testing.T) {
 	if !ok {
 		t.Fatalf("speaker type = %T, want commandSpeaker", speaker)
 	}
-	if command.command != path {
-		t.Fatalf("command = %q, want %q", command.command, path)
+	if command.command != "powershell.exe" {
+		t.Fatalf("command = %q, want %q", command.command, "powershell.exe")
 	}
 }
 
@@ -49,8 +49,8 @@ func TestNewSpeakerOnWindowsReturnsNoopWhenEnglishVoiceUnavailable(t *testing.T)
 		return path, nil
 	}
 	windowsVoiceProbe = func(command string) bool {
-		if command != path {
-			t.Fatalf("probe command = %q, want %q", command, path)
+		if command != "powershell.exe" {
+			t.Fatalf("probe command = %q, want %q", command, "powershell.exe")
 		}
 		return false
 	}

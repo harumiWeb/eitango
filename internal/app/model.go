@@ -79,6 +79,7 @@ type errMsg struct {
 
 type audioErrMsg struct {
 	fromAutoplay bool
+	err          error
 }
 
 type StartupRequest struct {

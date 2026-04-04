@@ -23,3 +23,5 @@
 - ステータスメッセージは「ユーザー設定で無効」と「環境的に利用不可」を同じ文言にしない。音声のように feature flag と runtime backend の両方で塞がる機能は、blocked reason ごとに分けて UI とテストへ反映する。
 - 自動実行の副作用が失敗し続ける機能は、失敗 source を失わない。autoplay のように自動で再試行される経路は、manual 操作と同じエラー型に潰さず source を持たせ、連続失敗時は session-local state を安全側へ倒す。
 - 外部コマンドの availability probe は本実行と別経路でも放置しない。`LookPath` で解決した実行パスをそのまま probe/run に渡し、startup 判定の subprocess には短い timeout を付けて hang で UI 初期化を止めない。
+- 非同期エラーを UI 用 message へ潰すときも root cause を落とさない。`audioErrMsg` のような軽量 message でも trigger source と元 error を保持し、status は短く保ったまま診断と回帰テストに使える形で残す。
+- 外部コマンド実行を security lint が見ている箇所は、validated な入力でも `exec.CommandContext(name, ...)` の形を避ける。`LookPath` は存在確認と allowlist 判定に使い、実行は静的 literal のコマンドに正規化して Semgrep/Codacy と実装意図を一致させる。
