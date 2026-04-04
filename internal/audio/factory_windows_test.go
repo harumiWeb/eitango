@@ -10,13 +10,19 @@ import (
 func TestNewSpeakerOnWindowsUsesPowerShellWhenAvailable(t *testing.T) {
 	previous := windowsLookPath
 	previousProbe := windowsVoiceProbe
+	const path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 	windowsLookPath = func(file string) (string, error) {
 		if file != "powershell.exe" {
 			t.Fatalf("lookPath file = %q, want powershell.exe", file)
 		}
-		return "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", nil
+		return path, nil
 	}
-	windowsVoiceProbe = func() bool { return true }
+	windowsVoiceProbe = func(command string) bool {
+		if command != path {
+			t.Fatalf("probe command = %q, want %q", command, path)
+		}
+		return true
+	}
 	t.Cleanup(func() {
 		windowsLookPath = previous
 		windowsVoiceProbe = previousProbe
@@ -26,15 +32,28 @@ func TestNewSpeakerOnWindowsUsesPowerShellWhenAvailable(t *testing.T) {
 	if !speaker.Enabled() {
 		t.Fatal("Enabled() = false, want true")
 	}
+	command, ok := speaker.(commandSpeaker)
+	if !ok {
+		t.Fatalf("speaker type = %T, want commandSpeaker", speaker)
+	}
+	if command.command != path {
+		t.Fatalf("command = %q, want %q", command.command, path)
+	}
 }
 
 func TestNewSpeakerOnWindowsReturnsNoopWhenEnglishVoiceUnavailable(t *testing.T) {
 	previous := windowsLookPath
 	previousProbe := windowsVoiceProbe
+	const path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 	windowsLookPath = func(string) (string, error) {
-		return "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", nil
+		return path, nil
 	}
-	windowsVoiceProbe = func() bool { return false }
+	windowsVoiceProbe = func(command string) bool {
+		if command != path {
+			t.Fatalf("probe command = %q, want %q", command, path)
+		}
+		return false
+	}
 	t.Cleanup(func() {
 		windowsLookPath = previous
 		windowsVoiceProbe = previousProbe

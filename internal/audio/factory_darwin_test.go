@@ -7,13 +7,17 @@ import "testing"
 func TestNewSpeakerOnDarwinUsesSayWhenAvailable(t *testing.T) {
 	previous := darwinLookPath
 	previousVoices := darwinListVoices
+	const path = "/usr/bin/say"
 	darwinLookPath = func(file string) (string, error) {
 		if file != "say" {
 			t.Fatalf("lookPath file = %q, want say", file)
 		}
-		return "/usr/bin/say", nil
+		return path, nil
 	}
-	darwinListVoices = func() ([]byte, error) {
+	darwinListVoices = func(command string) ([]byte, error) {
+		if command != path {
+			t.Fatalf("listVoices command = %q, want %q", command, path)
+		}
 		return []byte("Samantha  en_US  # Hello, my name is Samantha.\nKyoko  ja_JP  # こんにちは、私の名前はKyokoです。"), nil
 	}
 	t.Cleanup(func() {
@@ -29,6 +33,9 @@ func TestNewSpeakerOnDarwinUsesSayWhenAvailable(t *testing.T) {
 	command, ok := speaker.(commandSpeaker)
 	if !ok {
 		t.Fatalf("speaker type = %T, want commandSpeaker", speaker)
+	}
+	if command.command != path {
+		t.Fatalf("command = %q, want %q", command.command, path)
 	}
 	args := command.buildArgs("begin")
 	if len(args) != 3 {
@@ -56,14 +63,18 @@ func TestParseDarwinVoiceLineExtractsVoiceAndLocale(t *testing.T) {
 
 func TestDarwinPreferredVoiceFallsBackToOtherEnglishLocale(t *testing.T) {
 	previousVoices := darwinListVoices
-	darwinListVoices = func() ([]byte, error) {
+	const path = "/usr/bin/say"
+	darwinListVoices = func(command string) ([]byte, error) {
+		if command != path {
+			t.Fatalf("listVoices command = %q, want %q", command, path)
+		}
 		return []byte("Daniel  en_GB  # Hello, my name is Daniel.\nKyoko  ja_JP  # こんにちは。"), nil
 	}
 	t.Cleanup(func() {
 		darwinListVoices = previousVoices
 	})
 
-	voice := darwinPreferredVoice()
+	voice := darwinPreferredVoice(path)
 	if voice != "Daniel" {
 		t.Fatalf("voice = %q, want %q", voice, "Daniel")
 	}

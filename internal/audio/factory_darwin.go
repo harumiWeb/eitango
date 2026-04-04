@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 )
 
 var darwinLookPath = exec.LookPath
@@ -15,13 +16,14 @@ var darwinListVoices = defaultDarwinListVoices
 var darwinVoiceLocalePattern = regexp.MustCompile(`\s([[:alnum:]_-]+)\s+#`)
 
 func newPlatformSpeaker() Speaker {
-	if _, err := darwinLookPath("say"); err != nil {
+	command, err := darwinLookPath("say")
+	if err != nil {
 		return NoopSpeaker{}
 	}
 
-	voice := darwinPreferredVoice()
+	voice := darwinPreferredVoice(command)
 	return commandSpeaker{
-		command: "say",
+		command: command,
 		buildArgs: func(text string) []string {
 			if voice != "" {
 				return []string{"-v", voice, text}
@@ -32,16 +34,18 @@ func newPlatformSpeaker() Speaker {
 	}
 }
 
-func runDarwinSay(ctx context.Context, _ string, args ...string) error {
-	return exec.CommandContext(ctx, "say", args...).Run()
+func runDarwinSay(ctx context.Context, name string, args ...string) error {
+	return exec.CommandContext(ctx, name, args...).Run()
 }
 
-func defaultDarwinListVoices() ([]byte, error) {
-	return exec.Command("say", "-v", "?").Output()
+func defaultDarwinListVoices(name string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return exec.CommandContext(ctx, name, "-v", "?").Output()
 }
 
-func darwinPreferredVoice() string {
-	output, err := darwinListVoices()
+func darwinPreferredVoice(command string) string {
+	output, err := darwinListVoices(command)
 	if err != nil {
 		return ""
 	}

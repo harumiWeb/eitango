@@ -6,20 +6,22 @@ import (
 	"context"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 var windowsLookPath = exec.LookPath
 var windowsVoiceProbe = probeWindowsEnglishVoice
 
 func newPlatformSpeaker() Speaker {
-	if _, err := windowsLookPath("powershell.exe"); err != nil {
+	command, err := windowsLookPath("powershell.exe")
+	if err != nil {
 		return NoopSpeaker{}
 	}
-	if !windowsVoiceProbe() {
+	if !windowsVoiceProbe(command) {
 		return NoopSpeaker{}
 	}
 	return commandSpeaker{
-		command:    "powershell.exe",
+		command:    command,
 		buildArgs:  windowsSpeechArgs,
 		runCommand: runWindowsPowerShell,
 	}
@@ -61,12 +63,14 @@ func windowsEnglishVoiceSelectionScript() string {
 		"$synth.SelectVoice($voice.Name); "
 }
 
-func probeWindowsEnglishVoice() bool {
-	return exec.Command("powershell.exe", windowsSpeechProbeArgs()...).Run() == nil
+func probeWindowsEnglishVoice(command string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return exec.CommandContext(ctx, command, windowsSpeechProbeArgs()...).Run() == nil
 }
 
-func runWindowsPowerShell(ctx context.Context, _ string, args ...string) error {
-	return exec.CommandContext(ctx, "powershell.exe", args...).Run()
+func runWindowsPowerShell(ctx context.Context, name string, args ...string) error {
+	return exec.CommandContext(ctx, name, args...).Run()
 }
 
 func escapePowerShellSingleQuoted(text string) string {
