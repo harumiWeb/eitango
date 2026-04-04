@@ -31,6 +31,8 @@ const (
 	SettingsWriteDifficulty      = "settings.write_difficulty"
 	SettingsWriteDifficultyBasic = "settings.write_difficulty_basic"
 	SettingsWriteDifficultyHard  = "settings.write_difficulty_hard"
+	SettingsAudioEnabled         = "settings.audio_enabled"
+	SettingsAudioAutoplay        = "settings.audio_autoplay"
 	SettingsLanguage             = "settings.language"
 	SettingsLanguageJA           = "settings.language_ja"
 	SettingsLanguageEN           = "settings.language_en"
@@ -57,8 +59,15 @@ const (
 	QuizInput      = "quiz.input"
 	QuizHints      = "quiz.hints"
 	QuizHintNone   = "quiz.hint_none"
+	QuizAudio      = "quiz.audio"
 	QuizKeysChoice = "quiz.keys_choice"
 	QuizKeysWrite  = "quiz.keys_write"
+)
+
+// Audio labels
+const (
+	AudioStateOn  = "audio.on"
+	AudioStateOff = "audio.off"
 )
 
 // Kind labels
@@ -164,8 +173,10 @@ const (
 	KeyConfirm    = "key.confirm"
 	KeyQuit       = "key.quit"
 	KeyHelp       = "key.help"
+	KeySpeak      = "key.speak"
 	KeyHint       = "key.hint"
 	KeySkip       = "key.skip"
+	KeyToggleAuto = "key.toggle_autoplay"
 	KeyAgain      = "key.again"
 	KeyHard       = "key.hard"
 	KeyGood       = "key.good"
@@ -209,6 +220,11 @@ const (
 	StatusSettingsSavedFocus  = "status.settings_saved_focus_mode"
 	StatusWriteContinue       = "status.write_continue"
 	StatusWriteBasicEmpty     = "status.write_basic_empty"
+	StatusAudioDisabled       = "status.audio_disabled"
+	StatusAudioUnavailable    = "status.audio_unavailable"
+	StatusAudioFailed         = "status.audio_failed"
+	StatusAutoplayOn          = "status.autoplay_on"
+	StatusAutoplayOff         = "status.autoplay_off"
 )
 
 // CLI report messages

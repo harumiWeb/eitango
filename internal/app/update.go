@@ -63,17 +63,26 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = err.Error()
 			return m, nil
 		}
+		speaker := m.speakerFactory(audioConfigFromSettings(msg.Settings))
+		settings := normalizeAutoplaySetting(msg.Settings, speaker)
 		m.loading = false
 		m.err = nil
-		m.settings = msg.Settings
+		m.settings = settings
 		m.keymap = tui.NewKeyMap()
-		m.planOptions = planOptionsFromSettings(msg.Settings)
+		m.planOptions = planOptionsFromSettings(settings)
 		m.settingsOpen = false
 		m.homeConfirm = nil
 		m.settingsEditing = false
-		m.settingsInput = strconv.Itoa(msg.Settings.SessionSize)
-		m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(msg.Settings.WriteModeDifficulty)
-		m.settingsLanguage = msg.Settings.Language
+		m.settingsInput = strconv.Itoa(settings.SessionSize)
+		m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(settings.WriteModeDifficulty)
+		m.settingsAudioEnabled = settings.AudioEnabled
+		m.settingsAudioAutoplay = settings.AudioAutoplay
+		m.settingsAudioAvailableCached = m.probeSettingsAudioAvailable()
+		m.settingsLanguage = settings.Language
+		m.speaker = speaker
+		if !m.speakerAvailable() {
+			m.autoplayEnabled = false
+		}
 		if msg.FocusModeDisabled {
 			m.status = i18n.T(i18n.StatusSettingsSavedFocus)
 		} else {
@@ -102,7 +111,8 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status = i18n.T(i18n.StatusSessionStarted)
 		m.questionStarted = time.Now().UTC()
 		m.recentDistracts = appendRecent(m.recentDistracts, msg.Question.DistractorIDs()...)
-		return m, nil
+		m.autoplayEnabled = m.settings.AudioAutoplay && m.speakerAvailable()
+		return m, m.autoplayCmd()
 	case answerSavedMsg:
 		m.runtime = msg.Runtime
 		if msg.Runtime != nil {
@@ -127,6 +137,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.screen = ScreenQuiz
 			m.questionStarted = time.Now().UTC()
 			m.recentDistracts = appendRecent(m.recentDistracts, msg.NextQuestion.DistractorIDs()...)
+			return m, m.autoplayCmd()
 		}
 		return m, nil
 	case errMsg:
@@ -135,6 +146,13 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.status = msg.err.Error()
 		}
+		return m, nil
+	case audioErrMsg:
+		if msg.fromAutoplay {
+			m.autoplayEnabled = false
+		}
+		m.err = msg.err
+		m.status = i18n.T(i18n.StatusAudioFailed)
 		return m, nil
 	case tea.KeyPressMsg:
 		if m.screen == ScreenQuiz && m.currentQ != nil && m.currentQ.AnswerMode == store.AnswerModeWrite {
@@ -290,6 +308,11 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			m.settingsInput = strconv.Itoa(count)
 		case settingsRowWriteDifficulty:
 			m.settingsWriteDifficulty = config.WriteModeDifficultyBasic
+		case settingsRowAudioEnabled:
+			m.settingsAudioEnabled = false
+			m.settingsAudioAutoplay = false
+		case settingsRowAudioAutoplay:
+			m.settingsAudioAutoplay = false
 		case settingsRowLanguage:
 			m.settingsLanguage = i18n.LangJA
 		}
@@ -307,6 +330,22 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			m.settingsInput = strconv.Itoa(count)
 		case settingsRowWriteDifficulty:
 			m.settingsWriteDifficulty = config.WriteModeDifficultyHard
+		case settingsRowAudioEnabled:
+			m.settingsAudioEnabled = true
+		case settingsRowAudioAutoplay:
+			if !m.settingsAudioEnabled {
+				m.settingsAudioAutoplay = false
+				m.settingsEditing = false
+				m.status = m.audioBlockedStatus(false)
+				return m, nil
+			}
+			if !m.settingsAudioAvailable() {
+				m.settingsAudioAutoplay = false
+				m.settingsEditing = false
+				m.status = m.audioBlockedStatus(true)
+				return m, nil
+			}
+			m.settingsAudioAutoplay = true
 		case settingsRowLanguage:
 			m.settingsLanguage = i18n.LangEN
 		}
@@ -362,6 +401,12 @@ func (m RootModel) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.currentQ.AnswerMode == store.AnswerModeWrite {
 		return m.updateWriteQuiz(msg)
 	}
+	switch {
+	case key.Matches(msg, m.keymap.ToggleAutoplay):
+		return m.toggleAutoplay(), nil
+	case key.Matches(msg, m.keymap.Speak):
+		return m.maybeSpeakCurrentWord()
+	}
 	if len(m.currentQ.Choices) == 0 {
 		return m, nil
 	}
@@ -396,6 +441,10 @@ func (m RootModel) updateFeedback(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, m.keymap.Help):
 		return m.openHelp(), nil
+	case key.Matches(msg, m.keymap.ToggleAutoplay):
+		return m.toggleAutoplay(), nil
+	case key.Matches(msg, m.keymap.Speak):
+		return m.maybeSpeakCurrentWord()
 	}
 
 	if m.feedback == nil || m.runtime == nil {
@@ -490,14 +539,17 @@ func (m RootModel) updateWriteQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.writeHintIndices = next
 			m.writeHintCount++
 			if len(next) == len([]rune(m.currentQ.Word.Lemma)) {
-				return m.showWriteFeedback(false, true), nil
+				m = m.showWriteFeedback(false, true)
+				return m, m.autoplayCmd()
 			}
 		}
 		return m, nil
 	case key.Matches(msg, m.keymap.Skip):
-		return m.showWriteFeedback(true, false), nil
+		m = m.showWriteFeedback(true, false)
+		return m, m.autoplayCmd()
 	case key.Matches(msg, m.keymap.Confirm):
-		return m.showWriteFeedback(false, false), nil
+		m = m.showWriteFeedback(false, false)
+		return m, m.autoplayCmd()
 	}
 
 	switch msg.Code {
@@ -557,6 +609,68 @@ func appendRecent(existing []int64, ids ...int64) []int64 {
 		return combined
 	}
 	return combined[len(combined)-12:]
+}
+
+func (m RootModel) toggleAutoplay() RootModel {
+	if m.autoplayEnabled {
+		m.autoplayEnabled = false
+		m.status = i18n.T(i18n.StatusAutoplayOff)
+		return m
+	}
+	if !m.speakerAvailable() {
+		m.status = m.audioBlockedStatus(m.settings.AudioEnabled)
+		return m
+	}
+	m.autoplayEnabled = true
+	m.status = i18n.T(i18n.StatusAutoplayOn)
+	return m
+}
+
+func (m RootModel) maybeSpeakCurrentWord() (tea.Model, tea.Cmd) {
+	text := m.currentAudioText()
+	if text == "" {
+		return m, nil
+	}
+	if !m.speakerAvailable() {
+		m.status = m.audioBlockedStatus(m.settings.AudioEnabled)
+		return m, nil
+	}
+	return m, speakCmd(m.speaker, text, false)
+}
+
+func (m RootModel) audioBlockedStatus(audioEnabled bool) string {
+	if !audioEnabled {
+		return i18n.T(i18n.StatusAudioDisabled)
+	}
+	return i18n.T(i18n.StatusAudioUnavailable)
+}
+
+func (m RootModel) autoplayCmd() tea.Cmd {
+	if !m.autoplayActive() {
+		return nil
+	}
+
+	text := ""
+	switch {
+	case m.screen == ScreenFeedback && m.feedback != nil:
+		text = m.feedback.Question.Word.Lemma
+	case m.currentQ != nil && m.currentQ.AnswerMode != store.AnswerModeWrite:
+		text = m.currentQ.Word.Lemma
+	}
+	if text == "" {
+		return nil
+	}
+	return speakCmd(m.speaker, text, true)
+}
+
+func (m RootModel) currentAudioText() string {
+	if m.screen == ScreenFeedback && m.feedback != nil {
+		return m.feedback.Question.Word.Lemma
+	}
+	if m.currentQ != nil {
+		return m.currentQ.Word.Lemma
+	}
+	return ""
 }
 
 func (m RootModel) openHelp() RootModel {

@@ -18,7 +18,7 @@
 
 `eitango` is an offline English vocabulary trainer with a terminal UI. It uses Bubble Tea for the interactive interface and a local SQLite database for progress tracking.
 
-In addition to SRS-based review, it offers two modes: multiple-choice `choice` and input-based `write`.
+In addition to SRS-based review, it offers two modes: multiple-choice `choice` and input-based `write`. Audio playback is also supported.
 
 The embedded vocabulary currently contains about **5200** words, and external dictionary import from CSV / JSONL is also supported. The tool includes learning statistics, progress management, update notifications, and diagnostic tools.
 
@@ -46,6 +46,7 @@ The embedded vocabulary currently contains about **5200** words, and external di
 
 - on the home screen, `Tab` switches `choice / write`, `Enter` starts play, and `r` starts review
 - the home settings screen can switch Write difficulty between `basic` and `hard`
+- on macOS / Windows, `Ctrl+P` plays the current word and `Shift+Tab` toggles session-local autoplay
 - `eitango play [choice|write]` starts a standard learning session
 - `eitango review [choice|write]` starts a due-only review session
 - `eitango stats` shows learning statistics
@@ -154,6 +155,20 @@ You can set it in `config.toml`:
 write_mode_difficulty = "basic"
 ```
 
+## Audio Playback
+
+- the initial audio implementation targets macOS and Windows only; Linux falls back to silent no-op behavior
+- press `Ctrl+P` to play the current word manually
+- press `Shift+Tab` to toggle autoplay for the current session only
+- autoplay runs when a session starts and whenever the next question is shown
+
+Set the defaults in `config.toml`:
+
+```toml
+audio_enabled = true
+audio_autoplay = false
+```
+
 ## Data Directory
 
 - Windows: `%AppData%\\eitango-cli\\`
@@ -211,7 +226,7 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 | `eitango reset --progress` / `eitango reset --reseed` | Reset learning history / reseed the bundled core |
 
 In the TUI home screen, `Tab` switches `choice / write`, `Enter` starts play, and `r` starts review. `write` shows the Japanese meaning and asks you to type the English word, with staged hints on `Tab` and skip on `Ctrl+S`.
-Write difficulty is controlled by the home settings screen or `config.toml` via `write_mode_difficulty`; there is no CLI flag override.
+During quiz and feedback screens, `Ctrl+P` plays the current word and `Shift+Tab` toggles autoplay for that session only. In `write`, both actions are limited to the correct/incorrect feedback screen so the prompt itself does not give away the answer. Write difficulty and audio defaults are controlled by the home settings screen or `config.toml`; there is no CLI flag override.
 
 ## Dictionary Data and Licensing
 

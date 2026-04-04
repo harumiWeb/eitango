@@ -92,6 +92,8 @@ func (m RootModel) renderSettingsOverlay() string {
 		"",
 		m.renderSettingsRow(settingsRowQuestionCount, i18n.T(i18n.SettingsQuestions), m.settingsQuestionDisplay()),
 		m.renderSettingsRow(settingsRowWriteDifficulty, i18n.T(i18n.SettingsWriteDifficulty), m.settingsWriteDifficultyLabel()),
+		m.renderSettingsRow(settingsRowAudioEnabled, i18n.T(i18n.SettingsAudioEnabled), audioStateLabel(m.settingsAudioEnabled)),
+		m.renderSettingsRow(settingsRowAudioAutoplay, i18n.T(i18n.SettingsAudioAutoplay), audioStateLabel(m.settingsAudioAutoplay && m.settingsAudioAvailable())),
 		m.renderSettingsRow(settingsRowLanguage, i18n.T(i18n.SettingsLanguage), m.settingsLanguageLabel()),
 		"",
 		m.styles.Muted.Render(i18n.T(i18n.SettingsKeys)),
@@ -148,7 +150,11 @@ func (m RootModel) renderChoiceQuiz() string {
 			lines = append(lines, m.styles.Choice.Render(text))
 		}
 	}
-	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.QuizKeysChoice)))
+	lines = append(lines,
+		"",
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.QuizAudio), 14), audioStateLabel(m.autoplayActive())),
+		m.styles.Muted.Render(i18n.T(i18n.QuizKeysChoice)),
+	)
 	return m.styles.Panel.Render(strings.Join(lines, "\n"))
 }
 
@@ -214,7 +220,11 @@ func (m RootModel) renderChoiceFeedback() string {
 			lines = append(lines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.FbExampleJA), 14), m.feedback.Question.Word.ExampleJA))
 		}
 	}
-	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.FbKeys)))
+	lines = append(lines,
+		"",
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.QuizAudio), 14), audioStateLabel(m.autoplayActive())),
+		m.styles.Muted.Render(i18n.T(i18n.FbKeys)),
+	)
 	return panel.Render(strings.Join(lines, "\n"))
 }
 
@@ -259,7 +269,11 @@ func (m RootModel) renderWriteFeedback() string {
 		}
 	}
 
-	lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.FbKeysWrite)))
+	lines = append(lines,
+		"",
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.QuizAudio), 14), audioStateLabel(m.autoplayActive())),
+		m.styles.Muted.Render(i18n.T(i18n.FbKeysWrite)),
+	)
 	return panel.Render(strings.Join(lines, "\n"))
 }
 
@@ -402,6 +416,8 @@ func (m RootModel) helpSections(screen Screen) []helpSection {
 				helpLine(m.keymap.Select3),
 				helpLine(m.keymap.Select4),
 				helpLine(m.keymap.Confirm),
+				helpLine(m.keymap.Speak),
+				helpLine(m.keymap.ToggleAutoplay),
 			}},
 			{title: i18n.T(i18n.HelpSectionMove), lines: []string{
 				helpLine(m.keymap.Up),
@@ -417,6 +433,8 @@ func (m RootModel) helpSections(screen Screen) []helpSection {
 			return []helpSection{
 				{title: i18n.T(i18n.HelpSectionNav), lines: []string{
 					helpLine(m.keymap.Confirm),
+					helpLine(m.keymap.Speak),
+					helpLine(m.keymap.ToggleAutoplay),
 				}},
 				{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
 					helpLine(m.keymap.Help),
@@ -430,6 +448,8 @@ func (m RootModel) helpSections(screen Screen) []helpSection {
 				helpLine(m.keymap.Hard),
 				helpLine(m.keymap.Good),
 				helpLine(m.keymap.Easy),
+				helpLine(m.keymap.Speak),
+				helpLine(m.keymap.ToggleAutoplay),
 			}},
 			{title: i18n.T(i18n.HelpSectionGeneral), lines: []string{
 				helpLine(m.keymap.Help),
@@ -479,6 +499,13 @@ func (m RootModel) helpSections(screen Screen) []helpSection {
 func helpLine(binding key.Binding) string {
 	help := binding.Help()
 	return fmt.Sprintf("%-10s %s", help.Key, help.Desc)
+}
+
+func audioStateLabel(enabled bool) string {
+	if enabled {
+		return i18n.T(i18n.AudioStateOn)
+	}
+	return i18n.T(i18n.AudioStateOff)
 }
 
 func (m RootModel) isWriteFeedback() bool {

@@ -16,3 +16,12 @@
 - Cobra の runnable 親コマンドに subcommand を足したら、`Args` を明示して typo 位置引数を拒否する。未指定だと `play wrtie` が default 実行へ落ちる。
 - format string を更新した i18n テストは「空でない」だけで終わらせない。`%!s(MISSING)` を見逃さないよう、期待文字列か少なくとも verb 数一致まで確認する。
 - 状態復旧メッセージは primary な整合回復を secondary snapshot の成功に依存させない。active session を消す補正では `home` 更新を最優先にし、`stats` など付随情報は取れた場合だけ上書きする。
+- 補助機能を quiz へ足すときは、その操作が出題の答えを直接漏らさないかを answer mode ごとに確認する。特に `write` では音声や reveal 系 UI を prompt 画面で有効化せず、必要なら feedback 画面だけへ限定する。
+- 機能の利用可否が runtime 依存なら、保存値とセッション state と UI 表示を別々に持たない。`speaker.Enabled()==false` の環境では `autoplay` のような実行不能 state を ON に遷移させず、古い設定値も in-memory で正規化して表示と実動作を一致させる。
+- locale や voice を選ぶ fallback は厳密一致だけで終わらせない。`en_US` のような最優先候補が無い実機構成を想定し、同系統の `en_*` / `en-*` などへ退避するテストを追加して既定 voice への意図しない逆戻りを防ぐ。
+- render path から availability probe や subprocess を起動しない。settings 画面のように `View()` が頻繁に呼ばれる経路では、音声 backend の可用性判定を `Update` / overlay open 時に 1 回だけ計算して cache する。
+- ステータスメッセージは「ユーザー設定で無効」と「環境的に利用不可」を同じ文言にしない。音声のように feature flag と runtime backend の両方で塞がる機能は、blocked reason ごとに分けて UI とテストへ反映する。
+- 自動実行の副作用が失敗し続ける機能は、失敗 source を失わない。autoplay のように自動で再試行される経路は、manual 操作と同じエラー型に潰さず source を持たせ、連続失敗時は session-local state を安全側へ倒す。
+- 外部コマンドの availability probe は本実行と別経路でも放置しない。`LookPath` で解決した実行パスをそのまま probe/run に渡し、startup 判定の subprocess には短い timeout を付けて hang で UI 初期化を止めない。
+- 非同期エラーを UI 用 message へ潰すときも root cause を落とさない。`audioErrMsg` のような軽量 message でも trigger source と元 error を保持し、status は短く保ったまま診断と回帰テストに使える形で残す。
+- 外部コマンド実行を security lint が見ている箇所は、validated な入力でも `exec.CommandContext(name, ...)` の形を避ける。`LookPath` は存在確認と allowlist 判定に使い、実行は静的 literal のコマンドに正規化して Semgrep/Codacy と実装意図を一致させる。

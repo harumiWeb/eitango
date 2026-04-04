@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/harumiWeb/eitango/internal/audio"
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
 	"github.com/harumiWeb/eitango/internal/quiz"
@@ -219,6 +220,22 @@ func saveSettingsCmd(path string, settings config.Settings, focusModeDisabled bo
 			Settings:          settings,
 			FocusModeDisabled: focusModeDisabled,
 		}
+	}
+}
+
+func speakCmd(speaker audio.Speaker, text string, fromAutoplay bool) tea.Cmd {
+	return func() tea.Msg {
+		if speaker == nil || !speaker.Enabled() {
+			return nil
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := speaker.Speak(ctx, text); err != nil {
+			return audioErrMsg{fromAutoplay: fromAutoplay, err: err}
+		}
+		return nil
 	}
 }
 

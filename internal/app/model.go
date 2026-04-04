@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/harumiWeb/eitango/internal/audio"
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
 	"github.com/harumiWeb/eitango/internal/quiz"
@@ -30,6 +31,8 @@ const (
 const (
 	settingsRowQuestionCount = iota
 	settingsRowWriteDifficulty
+	settingsRowAudioEnabled
+	settingsRowAudioAutoplay
 	settingsRowLanguage
 	settingsRowCount
 )
@@ -74,6 +77,11 @@ type errMsg struct {
 	err error
 }
 
+type audioErrMsg struct {
+	fromAutoplay bool
+	err          error
+}
+
 type StartupRequest struct {
 	Mode          string
 	AnswerMode    string
@@ -87,6 +95,7 @@ type Options struct {
 	ConfigPath     string
 	CurrentVersion string
 	UpdateService  updatecheck.Service
+	SpeakerFactory func(audio.Config) audio.Speaker
 }
 
 type homeConfirmState struct {
@@ -95,46 +104,52 @@ type homeConfirmState struct {
 }
 
 type RootModel struct {
-	store                   *store.Store
-	quiz                    *quiz.Service
-	planOptions             session.PlanOptions
-	startup                 *StartupRequest
-	settings                config.Settings
-	configPath              string
-	currentVersion          string
-	updateService           updatecheck.Service
-	updateLatestTag         string
-	selectedAnswerMode      string
-	screen                  Screen
-	keymap                  tui.KeyMap
-	styles                  tui.Styles
-	home                    store.HomeSnapshot
-	stats                   stats.Snapshot
-	runtime                 *session.Runtime
-	currentQ                *quiz.Question
-	feedback                *quiz.Feedback
-	summary                 *store.SessionSummary
-	cursor                  int
-	writeInput              string
-	writeHintIndices        []int
-	writeHintCount          int
-	status                  string
-	err                     error
-	loading                 bool
-	settingsOpen            bool
-	homeConfirm             *homeConfirmState
-	settingsCursor          int
-	settingsInput           string
-	settingsEditing         bool
-	settingsWriteDifficulty string
-	settingsLanguage        string
-	helpReturn              Screen
-	helpStatus              string
-	width                   int
-	height                  int
-	questionStarted         time.Time
-	recentDistracts         []int64
-	correctStreak           int
+	store                        *store.Store
+	quiz                         *quiz.Service
+	planOptions                  session.PlanOptions
+	startup                      *StartupRequest
+	settings                     config.Settings
+	configPath                   string
+	currentVersion               string
+	updateService                updatecheck.Service
+	speaker                      audio.Speaker
+	speakerFactory               func(audio.Config) audio.Speaker
+	updateLatestTag              string
+	selectedAnswerMode           string
+	screen                       Screen
+	keymap                       tui.KeyMap
+	styles                       tui.Styles
+	home                         store.HomeSnapshot
+	stats                        stats.Snapshot
+	runtime                      *session.Runtime
+	currentQ                     *quiz.Question
+	feedback                     *quiz.Feedback
+	summary                      *store.SessionSummary
+	cursor                       int
+	writeInput                   string
+	writeHintIndices             []int
+	writeHintCount               int
+	status                       string
+	err                          error
+	loading                      bool
+	settingsOpen                 bool
+	homeConfirm                  *homeConfirmState
+	settingsCursor               int
+	settingsInput                string
+	settingsEditing              bool
+	settingsWriteDifficulty      string
+	settingsAudioEnabled         bool
+	settingsAudioAutoplay        bool
+	settingsAudioAvailableCached bool
+	settingsLanguage             string
+	helpReturn                   Screen
+	helpStatus                   string
+	width                        int
+	height                       int
+	questionStarted              time.Time
+	recentDistracts              []int64
+	correctStreak                int
+	autoplayEnabled              bool
 }
 
 func NewModel(store *store.Store, options Options) RootModel {
@@ -147,6 +162,12 @@ func NewModel(store *store.Store, options Options) RootModel {
 	if options.Plan == (session.PlanOptions{}) {
 		planOptions = planOptionsFromSettings(settings)
 	}
+	speakerFactory := options.SpeakerFactory
+	if speakerFactory == nil {
+		speakerFactory = audio.NewSpeaker
+	}
+	speaker := speakerFactory(audioConfigFromSettings(settings))
+	settings = normalizeAutoplaySetting(settings, speaker)
 
 	return RootModel{
 		store:              store,
@@ -157,6 +178,8 @@ func NewModel(store *store.Store, options Options) RootModel {
 		configPath:         options.ConfigPath,
 		currentVersion:     strings.TrimSpace(options.CurrentVersion),
 		updateService:      options.UpdateService,
+		speaker:            speaker,
+		speakerFactory:     speakerFactory,
 		selectedAnswerMode: startupAnswerMode(options.Startup),
 		screen:             ScreenHome,
 		keymap:             tui.NewKeyMap(),
@@ -205,6 +228,12 @@ func (m RootModel) openSettingsOverlay() RootModel {
 	m.settingsInput = strconv.Itoa(m.settings.SessionSize)
 	m.settingsEditing = false
 	m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(m.settings.WriteModeDifficulty)
+	m.settingsAudioEnabled = m.settings.AudioEnabled
+	m.settingsAudioAutoplay = m.settings.AudioAutoplay
+	m.settingsAudioAvailableCached = m.probeSettingsAudioAvailable()
+	if !m.settingsAudioAvailable() {
+		m.settingsAudioAutoplay = false
+	}
 	m.settingsLanguage = m.settings.Language
 	m.err = nil
 	m.status = i18n.T(i18n.StatusConfiguringSettings)
@@ -285,6 +314,8 @@ func (m RootModel) settingsDraft() (config.Settings, bool, bool) {
 	draft := m.settings
 	draft.SessionSize = count
 	draft.WriteModeDifficulty = config.NormalizeWriteModeDifficulty(m.settingsWriteDifficulty)
+	draft.AudioEnabled = m.settingsAudioEnabled
+	draft.AudioAutoplay = m.settingsAudioAutoplay && m.settingsAudioAvailable()
 	draft.Language = m.settingsLanguage
 
 	focusModeDisabled := draft.FocusModeDefault && draft.SessionSize != m.settings.SessionSize
@@ -310,4 +341,35 @@ func startupAnswerMode(startup *StartupRequest) string {
 		return store.AnswerModeChoice
 	}
 	return store.NormalizeAnswerMode(startup.AnswerMode)
+}
+
+func audioConfigFromSettings(settings config.Settings) audio.Config {
+	return audio.Config{Enabled: settings.AudioEnabled}
+}
+
+func normalizeAutoplaySetting(settings config.Settings, speaker audio.Speaker) config.Settings {
+	if speaker == nil || !speaker.Enabled() {
+		settings.AudioAutoplay = false
+	}
+	return settings
+}
+
+func (m RootModel) probeSettingsAudioAvailable() bool {
+	settings := m.settings
+	settings.AudioEnabled = true
+	cfg := audioConfigFromSettings(settings)
+	speaker := m.speakerFactory(cfg)
+	return speaker != nil && speaker.Enabled()
+}
+
+func (m RootModel) speakerAvailable() bool {
+	return m.speaker != nil && m.speaker.Enabled()
+}
+
+func (m RootModel) settingsAudioAvailable() bool {
+	return m.settingsAudioEnabled && m.settingsAudioAvailableCached
+}
+
+func (m RootModel) autoplayActive() bool {
+	return m.autoplayEnabled && m.speakerAvailable()
 }

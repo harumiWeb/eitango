@@ -18,8 +18,10 @@ type KeyMap struct {
 	Confirm          key.Binding
 	Quit             key.Binding
 	Help             key.Binding
+	Speak            key.Binding
 	Hint             key.Binding
 	Skip             key.Binding
+	ToggleAutoplay   key.Binding
 	WriteQuit        key.Binding
 	Again            key.Binding
 	Hard             key.Binding
@@ -46,8 +48,10 @@ func NewKeyMap() KeyMap {
 		Confirm:          key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", i18n.T(i18n.KeyConfirm))),
 		Quit:             key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", i18n.T(i18n.KeyQuit))),
 		Help:             key.NewBinding(key.WithKeys("?"), key.WithHelp("?", i18n.T(i18n.KeyHelp))),
+		Speak:            key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", i18n.T(i18n.KeySpeak))),
 		Hint:             key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", i18n.T(i18n.KeyHint))),
 		Skip:             key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("ctrl+s", i18n.T(i18n.KeySkip))),
+		ToggleAutoplay:   key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", i18n.T(i18n.KeyToggleAuto))),
 		WriteQuit:        key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", i18n.T(i18n.KeyQuit))),
 		Again:            key.NewBinding(key.WithKeys("a"), key.WithHelp("a", i18n.T(i18n.KeyAgain))),
 		Hard:             key.NewBinding(key.WithKeys("h"), key.WithHelp("h", i18n.T(i18n.KeyHard))),

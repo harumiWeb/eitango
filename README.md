@@ -18,7 +18,7 @@
 
 オフラインで動く英単語トレーニング TUI です。Bubble Tea ベースの対話UIとローカル SQLite を使い、待ち時間に短く回せる学習セッションを想定しています。
 
-SRS での復習に加えて、選択式の `choice` と入力式の `write` の 2 モードを用意しています。
+SRS での復習に加えて、選択式の `choice` と入力式の `write` の 2 モードを用意していて、音声再生もサポートしています。
 
 デフォルトで内部に語彙が組み込まれており（現在の語彙数: 約**5200**）、外部 CSV / JSONL からの辞書インポートもサポートしています。学習統計や進捗管理、更新通知、診断ツールも備えています。
 
@@ -46,6 +46,7 @@ SRS での復習に加えて、選択式の `choice` と入力式の `write` の
 
 - ホーム画面で `Tab` により `choice / write` を切り替え、`Enter` で play、`r` で review を開始
 - ホーム設定で Write 難易度 `basic / hard` を切り替え可能
+- macOS / Windows では `Ctrl+P` で現在の単語を発話し、`Shift+Tab` でセッション内の自動再生を切り替え可能
 - `eitango play [choice|write]` で通常学習セッションを開始
 - `eitango review [choice|write]` で due-only の復習セッションを開始
 - `eitango stats` で学習統計を表示
@@ -154,6 +155,20 @@ eitango doctor
 write_mode_difficulty = "basic"
 ```
 
+## 音声再生
+
+- 初期対応 OS は macOS / Windows です。Linux では音声 backend を持たず、学習機能だけそのまま使えます
+- `Ctrl+P` で現在の単語を手動再生できます
+- `Shift+Tab` で現在セッションだけの自動再生 ON/OFF を切り替えできます
+- 自動再生は session 開始直後と次の問題表示直後に動きます
+
+`config.toml` では次の key を使います。
+
+```toml
+audio_enabled = true
+audio_autoplay = false
+```
+
 ## データ保存先
 
 - Windows: `%AppData%\\eitango-cli\\`
@@ -210,7 +225,7 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 | `eitango reset --progress` / `eitango reset --reseed`                      | 学習履歴の初期化 / 組み込み core 再投入    |
 
 TUI のホーム画面では、`Tab` で `choice / write` を切り替え、`Enter` で play、`r` で review を開始します。`write` は日本語の意味を見て英単語を入力するモードで、`Tab` で段階ヒント、`Ctrl+S` でスキップできます。
-Write 難易度はホーム設定または `config.toml` の `write_mode_difficulty` で管理し、CLI flag での一時 override はありません。
+quiz / feedback では `Ctrl+P` で現在語を再生し、`Shift+Tab` でそのセッションだけの自動再生を切り替えられます。`write` では答えを露出しすぎないため、音声再生と自動再生は正解/不正解の feedback 画面でのみ有効です。Write 難易度と音声既定値はホーム設定または `config.toml` で管理し、CLI flag での一時 override はありません。
 
 ## 辞書データとライセンス
 
