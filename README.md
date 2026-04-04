@@ -57,7 +57,23 @@ SRS での復習に加えて、選択式の `choice` と入力式の `write` の
 
 ## インストール
 
-### 1. macOS / Linux は `curl | sh` を使う
+### 1. Windows は winget を使う
+
+Windows では winget から install できます。manifest は GitHub Releases に公開した Windows zip を参照します。
+
+```powershell
+winget install HarumiWeb.Eitango
+```
+
+更新は次です。
+
+```powershell
+winget upgrade HarumiWeb.Eitango
+```
+
+winget を使わない場合は後述の GitHub Releases の zip からも利用できます。
+
+### 2. macOS / Linux は `curl | sh` を使う
 
 `install.sh` は `--version` を省略した場合に GitHub Releases API (`/releases/latest`) へアクセスして最新 version を解決し、そのうえで対応する archive と `checksums.txt` を取得します。SHA256 検証が通ったときだけ `~/.eitango/` へ展開し、shell rc は自動変更しません。
 
@@ -102,15 +118,15 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh -s -- --uninstall --purge-data
 ```
 
-必要ツールは `sh`, `curl`, `tar`, `mktemp` と、`sha256sum` / `shasum` / `openssl` のいずれか 1 つです。Windows は今回の installer 対象外なので、release zip を使ってください。
+必要ツールは `sh`, `curl`, `tar`, `mktemp` と、`sha256sum` / `shasum` / `openssl` のいずれか 1 つです。Windows は今回の installer 対象外なので、winget か release zip を使ってください。
 
-### 2. GitHub Releases から使う
+### 3. GitHub Releases から使う
 
 公開アーカイブにはバイナリに加えて `LICENSE`、`THIRD_PARTY_NOTICES.md`、`third_party/licenses/` が同梱されます。自分のOS向けの成果物を展開して `eitango` を実行してください。
 
 ※ `PATH`への追加は手動で行う必要があります。
 
-### 3. Go からインストールする
+### 4. Go からインストールする
 
 Go 1.26 以降を前提にしています。
 

@@ -1,3 +1,43 @@
+# 2026-04-04 winget 配布追加
+
+## Goal
+
+- GitHub Releases の Windows zip を使って winget community repository へ manifest を提出できるようにする。
+- release 実行時に `harumiWeb/winget-pkgs` fork へ push し、`microsoft/winget-pkgs` への PR を自動生成する。
+
+## Scope
+
+- `.goreleaser.yaml` の archive / winget publish 設定
+- `.github/workflows/release.yml` の secret 注入
+- README / README.en / ADR の Windows 導線更新
+
+## Non-Goals
+
+- Windows installer の新規実装
+- GitHub Releases の asset naming 変更
+- `install.sh` の Windows 対応
+- update check の通知仕様変更
+
+## Required Behavior
+
+- darwin / linux の release archive は引き続き `tar.gz` を使い、`install.sh` が前提とする asset naming を変えない。
+- Windows 向けには winget 用の zip archive を 1 系統だけ生成し、winget manifest はその zip だけを参照する。
+- `winget.package_identifier` は `HarumiWeb.Eitango` に固定する。
+- `winget.license` はリポジトリ実態に合わせて `Apache-2.0` を使う。
+- winget publish 用の token は `repository.token: "{{ .Env.WINGET_GITHUB_TOKEN }}"` として `GITHUB_TOKEN` から分離する。
+- release workflow は `WINGET_GITHUB_TOKEN` を GoReleaser step へ渡す。
+- README / README.en は Windows の primary install 導線として `winget install HarumiWeb.Eitango` を案内する。
+
+## Acceptance
+
+- `goreleaser check` が通る。
+- `goreleaser release --snapshot --clean --skip=publish` が通る。
+- snapshot の `dist/winget` に `HarumiWeb.Eitango` の manifest 群が生成される。
+- snapshot の installer manifest が GitHub Releases の Windows zip を参照する。
+- darwin / linux の `tar.gz` naming は従来どおり維持される。
+
+---
+
 # 2026-04-01 PR #12: Codacy follow-up
 
 ## Goal

@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-04-04
+
+### Added
+
+- Windows 向けの `winget install HarumiWeb.Eitango` 導線を追加しました。
+
+### Changed
+
+- release フローから `harumiWeb/winget-pkgs` fork へ manifest を生成し、`microsoft/winget-pkgs` へ PR を作成できるようにしました。
+- GoReleaser の archive 構成を整理し、winget では GitHub Releases に公開した Windows zip のみを参照するようにしました。
+- README / README.en / 配布ポリシー ADR を Windows の winget 配布方針に合わせて更新しました。
+
 ## [0.5.0] - 2026-04-03
 
 ### Added
@@ -111,7 +123,8 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/harumiWeb/eitango/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/harumiWeb/eitango/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/harumiWeb/eitango/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/harumiWeb/eitango/compare/v0.4.0...v0.4.1

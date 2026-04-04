@@ -27,7 +27,10 @@ builds:
         goarch: arm64
 
 archives:
-  - formats: [tar.gz]
+  - id: unix-archives
+    ids:
+      - eitango
+    formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_
       {{- .Os }}_
@@ -41,7 +44,61 @@ archives:
       - third_party/licenses/**
     format_overrides:
       - goos: windows
-        formats: [zip]
+        formats: [none]
+  - id: windows-archive
+    ids:
+      - eitango
+    formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - LICENSE
+      - README.md
+      - README.en.md
+      - THIRD_PARTY_NOTICES.md
+      - third_party/licenses/**
+    format_overrides:
+      - goos: darwin
+        formats: [none]
+      - goos: linux
+        formats: [none]
+
+winget:
+  - name: eitango
+    publisher: HarumiWeb
+    package_identifier: HarumiWeb.Eitango
+    package_name: eitango
+    short_description: Terminal-based English vocabulary learning CLI.
+    description: Interactive English vocabulary learning CLI built with Go.
+    license: Apache-2.0
+    homepage: https://github.com/harumiWeb/eitango
+    publisher_url: https://github.com/harumiWeb
+    publisher_support_url: https://github.com/harumiWeb/eitango/issues
+    license_url: https://github.com/harumiWeb/eitango/blob/{{ .Tag }}/LICENSE
+    tags:
+      - go
+      - cli
+      - english
+      - learning
+      - vocabulary
+    ids:
+      - windows-archive
+    repository:
+      owner: harumiWeb
+      name: winget-pkgs
+      branch: eitango-{{ .Version }}
+      token: "{{ .Env.WINGET_GITHUB_TOKEN }}"
+      pull_request:
+        enabled: true
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
+    commit_msg_template: "{{ .PackageIdentifier }}: {{ .Tag }}"
+    skip_upload: "{{ if .Prerelease }}true{{ else }}false{{ end }}"
 
 checksum:
   name_template: checksums.txt
