@@ -148,6 +148,9 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case audioErrMsg:
+		if msg.fromAutoplay {
+			m.autoplayEnabled = false
+		}
 		m.status = i18n.T(i18n.StatusAudioFailed)
 		return m, nil
 	case tea.KeyPressMsg:
@@ -633,7 +636,7 @@ func (m RootModel) maybeSpeakCurrentWord(manual bool) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	return m, speakCmd(m.speaker, text)
+	return m, speakCmd(m.speaker, text, false)
 }
 
 func (m RootModel) audioBlockedStatus(audioEnabled bool) string {
@@ -658,7 +661,7 @@ func (m RootModel) autoplayCmd() tea.Cmd {
 	if text == "" {
 		return nil
 	}
-	return speakCmd(m.speaker, text)
+	return speakCmd(m.speaker, text, true)
 }
 
 func (m RootModel) currentAudioText() string {

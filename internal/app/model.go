@@ -77,7 +77,9 @@ type errMsg struct {
 	err error
 }
 
-type audioErrMsg struct{}
+type audioErrMsg struct {
+	fromAutoplay bool
+}
 
 type StartupRequest struct {
 	Mode          string

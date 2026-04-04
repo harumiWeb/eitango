@@ -1347,6 +1347,69 @@ func TestUpdateWriteQuizSkipAutoplaySpeaksOnFeedback(t *testing.T) {
 	}
 }
 
+func TestUpdateAudioErrMsgFromAutoplayDisablesAutoplay(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
+	})
+	model.loading = false
+	model.autoplayEnabled = true
+
+	next, cmd := model.Update(audioErrMsg{fromAutoplay: true})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.autoplayEnabled {
+		t.Fatal("autoplayEnabled = true, want false")
+	}
+	if updated.status != i18n.T(i18n.StatusAudioFailed) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusAudioFailed))
+	}
+}
+
+func TestUpdateAudioErrMsgFromManualSpeakKeepsAutoplayEnabled(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
+	})
+	model.loading = false
+	model.autoplayEnabled = true
+
+	next, cmd := model.Update(audioErrMsg{fromAutoplay: false})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if !updated.autoplayEnabled {
+		t.Fatal("autoplayEnabled = false, want true")
+	}
+	if updated.status != i18n.T(i18n.StatusAudioFailed) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusAudioFailed))
+	}
+}
+
+func TestSpeakCmdReturnsAutoplayAudioErrMsg(t *testing.T) {
+	t.Parallel()
+
+	cmd := speakCmd(&stubSpeaker{enabled: true, err: errors.New("boom")}, "begin", true)
+	if cmd == nil {
+		t.Fatal("cmd = nil, want speak command")
+	}
+	msg := cmd()
+	errMsg, ok := msg.(audioErrMsg)
+	if !ok {
+		t.Fatalf("cmd() = %T, want audioErrMsg", msg)
+	}
+	if !errMsg.fromAutoplay {
+		t.Fatal("fromAutoplay = false, want true")
+	}
+}
+
 func TestUpdateHelpQuitFromWriteFeedbackShowsWriteContinueStatus(t *testing.T) {
 	t.Parallel()
 

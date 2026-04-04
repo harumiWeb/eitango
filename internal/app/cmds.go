@@ -223,7 +223,7 @@ func saveSettingsCmd(path string, settings config.Settings, focusModeDisabled bo
 	}
 }
 
-func speakCmd(speaker audio.Speaker, text string) tea.Cmd {
+func speakCmd(speaker audio.Speaker, text string, fromAutoplay bool) tea.Cmd {
 	return func() tea.Msg {
 		if speaker == nil || !speaker.Enabled() {
 			return nil
@@ -233,7 +233,7 @@ func speakCmd(speaker audio.Speaker, text string) tea.Cmd {
 		defer cancel()
 
 		if err := speaker.Speak(ctx, text); err != nil {
-			return audioErrMsg{}
+			return audioErrMsg{fromAutoplay: fromAutoplay}
 		}
 		return nil
 	}

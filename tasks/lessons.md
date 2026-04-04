@@ -21,3 +21,4 @@
 - locale や voice を選ぶ fallback は厳密一致だけで終わらせない。`en_US` のような最優先候補が無い実機構成を想定し、同系統の `en_*` / `en-*` などへ退避するテストを追加して既定 voice への意図しない逆戻りを防ぐ。
 - render path から availability probe や subprocess を起動しない。settings 画面のように `View()` が頻繁に呼ばれる経路では、音声 backend の可用性判定を `Update` / overlay open 時に 1 回だけ計算して cache する。
 - ステータスメッセージは「ユーザー設定で無効」と「環境的に利用不可」を同じ文言にしない。音声のように feature flag と runtime backend の両方で塞がる機能は、blocked reason ごとに分けて UI とテストへ反映する。
+- 自動実行の副作用が失敗し続ける機能は、失敗 source を失わない。autoplay のように自動で再試行される経路は、manual 操作と同じエラー型に潰さず source を持たせ、連続失敗時は session-local state を安全側へ倒す。
