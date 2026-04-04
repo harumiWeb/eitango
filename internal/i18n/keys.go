@@ -220,6 +220,7 @@ const (
 	StatusSettingsSavedFocus  = "status.settings_saved_focus_mode"
 	StatusWriteContinue       = "status.write_continue"
 	StatusWriteBasicEmpty     = "status.write_basic_empty"
+	StatusAudioDisabled       = "status.audio_disabled"
 	StatusAudioUnavailable    = "status.audio_unavailable"
 	StatusAudioFailed         = "status.audio_failed"
 	StatusAutoplayOn          = "status.autoplay_on"

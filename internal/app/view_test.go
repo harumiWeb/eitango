@@ -387,6 +387,35 @@ func TestRenderWriteFeedbackShowsAudioControls(t *testing.T) {
 	}
 }
 
+func TestRenderChoiceFeedbackShowsAudioControlsInKeyGuide(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
+	})
+	model.loading = false
+	model.autoplayEnabled = true
+	model.feedback = &quiz.Feedback{
+		Question: quiz.Question{
+			AnswerMode:   store.AnswerModeChoice,
+			Word:         store.Word{Lemma: "begin"},
+			Choices:      []quiz.Choice{{Meaning: "始める"}},
+			CorrectIndex: 0,
+		},
+		Correct:       true,
+		SelectedIndex: 0,
+		ResponseMS:    1200,
+	}
+
+	got := model.renderFeedback()
+	for _, want := range []string{"Ctrl+P", "Shift+Tab", "ON"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderFeedback() missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestRenderHomeWithSettingsOverlayUsesScreenSwitch(t *testing.T) {
 	t.Parallel()
 

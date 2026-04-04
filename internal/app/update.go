@@ -329,10 +329,16 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		case settingsRowAudioEnabled:
 			m.settingsAudioEnabled = true
 		case settingsRowAudioAutoplay:
+			if !m.settingsAudioEnabled {
+				m.settingsAudioAutoplay = false
+				m.settingsEditing = false
+				m.status = m.audioBlockedStatus(false)
+				return m, nil
+			}
 			if !m.settingsAudioAvailable() {
 				m.settingsAudioAutoplay = false
 				m.settingsEditing = false
-				m.status = i18n.T(i18n.StatusAudioUnavailable)
+				m.status = m.audioBlockedStatus(true)
 				return m, nil
 			}
 			m.settingsAudioAutoplay = true
@@ -608,7 +614,7 @@ func (m RootModel) toggleAutoplay() RootModel {
 		return m
 	}
 	if !m.speakerAvailable() {
-		m.status = i18n.T(i18n.StatusAudioUnavailable)
+		m.status = m.audioBlockedStatus(m.settings.AudioEnabled)
 		return m
 	}
 	m.autoplayEnabled = true
@@ -623,11 +629,18 @@ func (m RootModel) maybeSpeakCurrentWord(manual bool) (tea.Model, tea.Cmd) {
 	}
 	if !m.speakerAvailable() {
 		if manual {
-			m.status = i18n.T(i18n.StatusAudioUnavailable)
+			m.status = m.audioBlockedStatus(m.settings.AudioEnabled)
 		}
 		return m, nil
 	}
 	return m, speakCmd(m.speaker, text)
+}
+
+func (m RootModel) audioBlockedStatus(audioEnabled bool) string {
+	if !audioEnabled {
+		return i18n.T(i18n.StatusAudioDisabled)
+	}
+	return i18n.T(i18n.StatusAudioUnavailable)
 }
 
 func (m RootModel) autoplayCmd() tea.Cmd {

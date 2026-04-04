@@ -639,6 +639,30 @@ func TestUpdateHomeSettingsAutoplayUnavailableStaysOff(t *testing.T) {
 	}
 }
 
+func TestUpdateHomeSettingsAutoplayDisabledPromptsToEnableAudio(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioDisabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(false),
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsCursor = settingsRowAudioAutoplay
+
+	next, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.settingsAudioAutoplay {
+		t.Fatal("settingsAudioAutoplay = true, want false")
+	}
+	if updated.status != i18n.T(i18n.StatusAudioDisabled) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusAudioDisabled))
+	}
+}
+
 func TestUpdateHomeSettingsSaveNormalizesUnavailableAutoplay(t *testing.T) {
 	t.Parallel()
 
@@ -1017,6 +1041,30 @@ func TestUpdateQuizSpeakWithoutSpeakerSetsUnavailableStatus(t *testing.T) {
 	}
 }
 
+func TestUpdateQuizSpeakWithAudioDisabledSetsDisabledStatus(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioDisabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(false),
+	})
+	model.loading = false
+	model.screen = ScreenQuiz
+	model.currentQ = &quiz.Question{
+		AnswerMode: store.AnswerModeChoice,
+		Word:       store.Word{Lemma: "begin"},
+	}
+
+	next, cmd := model.Update(tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.status != i18n.T(i18n.StatusAudioDisabled) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusAudioDisabled))
+	}
+}
+
 func TestUpdateQuizShiftTabTogglesAutoplayForCurrentSession(t *testing.T) {
 	t.Parallel()
 
@@ -1067,6 +1115,34 @@ func TestUpdateQuizShiftTabWithoutSpeakerKeepsAutoplayOff(t *testing.T) {
 	}
 	if updated.status != i18n.T(i18n.StatusAudioUnavailable) {
 		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusAudioUnavailable))
+	}
+}
+
+func TestUpdateQuizShiftTabWithAudioDisabledKeepsAutoplayOff(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioDisabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(false),
+	})
+	model.loading = false
+	model.screen = ScreenQuiz
+	model.autoplayEnabled = false
+	model.currentQ = &quiz.Question{
+		AnswerMode: store.AnswerModeChoice,
+		Word:       store.Word{Lemma: "begin"},
+	}
+
+	next, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.autoplayEnabled {
+		t.Fatal("autoplayEnabled = true, want false")
+	}
+	if updated.status != i18n.T(i18n.StatusAudioDisabled) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusAudioDisabled))
 	}
 }
 
@@ -1335,6 +1411,13 @@ func (s *stubSpeaker) Enabled() bool {
 func newAudioEnabledSettings() config.Settings {
 	settings := config.DefaultSettings()
 	settings.AudioEnabled = true
+	return settings
+}
+
+func newAudioDisabledSettings() config.Settings {
+	settings := config.DefaultSettings()
+	settings.AudioEnabled = false
+	settings.AudioAutoplay = false
 	return settings
 }
 
