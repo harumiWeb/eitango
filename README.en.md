@@ -57,7 +57,23 @@ The embedded vocabulary currently contains about **5200** words, and external di
 
 ## Installation
 
-### 1. Use `curl | sh` on macOS / Linux
+### 1. Use winget on Windows
+
+On Windows, you can install `eitango` from winget. The manifest points to the Windows zip published in GitHub Releases.
+
+```powershell
+winget install HarumiWeb.Eitango
+```
+
+To upgrade:
+
+```powershell
+winget upgrade HarumiWeb.Eitango
+```
+
+If you do not want to use winget, you can still use the GitHub Releases zip described below.
+
+### 2. Use `curl | sh` on macOS / Linux
 
 `install.sh` calls the GitHub Releases API (`/releases/latest`) when `--version` is omitted to resolve the latest version, then downloads the matching GitHub Release archive and `checksums.txt`. It installs into `~/.eitango/` only after the SHA256 check passes, and it never edits shell rc files automatically.
 
@@ -102,15 +118,15 @@ To also delete the data directory, add `--purge-data`. If you use `EITANGO_DATA_
 curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh | sh -s -- --uninstall --purge-data
 ```
 
-Required tools are `sh`, `curl`, `tar`, `mktemp`, and one of `sha256sum`, `shasum`, or `openssl`. Windows is out of scope for this installer, so use the release zip there.
+Required tools are `sh`, `curl`, `tar`, `mktemp`, and one of `sha256sum`, `shasum`, or `openssl`. Windows is out of scope for this installer, so use winget or the release zip there.
 
-### 2. Use GitHub Releases
+### 3. Use GitHub Releases
 
 Published archives include the executable plus `LICENSE`, `THIRD_PARTY_NOTICES.md`, and `third_party/licenses/`. Extract the artifact for your OS and run `eitango`.
 
 ※ You need to manually add it to your `PATH`.
 
-### 3. Install with Go
+### 4. Install with Go
 
 Go 1.26 or newer is required.
 

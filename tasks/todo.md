@@ -3,6 +3,14 @@
 このファイルは、初回 OSS リリースに向けた active backlog だけを管理する。
 完了済みの長い履歴、旧 30k ロードマップ、設計との差分棚卸しはここには残さない。
 
+## 2026-04-04 winget 配布追加
+
+- [x] `.goreleaser.yaml` を dual-archive 化し、Windows zip 専用 `windows-archive` を追加する
+- [x] `winget` publish 設定を追加し、`HarumiWeb.Eitango` と `WINGET_GITHUB_TOKEN` を使う
+- [x] `.github/workflows/release.yml` で GoReleaser step へ `WINGET_GITHUB_TOKEN` を渡す
+- [x] README / README.en / ADR に Windows の winget 導線を反映する
+- [ ] 実タグ release で fork `harumiWeb/winget-pkgs` への push と upstream PR 作成を確認する
+
 ## 2026-04-01 PR #12: Codacy follow-up
 
 - [x] `doctor.go` の `PRAGMA table_info(...)` を string formatting ではなく許可テーブルの定数 query に置き換える
