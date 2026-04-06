@@ -284,8 +284,15 @@ The application itself runs entirely on Go, but the vocabulary generation pipeli
 ```bash
 uv sync
 go test ./...
+go build ./...
+shellcheck install.sh
+golangci-lint run
 go run ./cmd/eitango --help
 ```
+
+As a convenience, the `lefthook` pre-commit hook auto-runs `goimports -w cmd internal assets`, `golangci-lint run`, and `go test ./...` before commit. The hook is there to improve local developer experience, while CI is the required quality gate for `golangci-lint run`, `shellcheck install.sh`, `go test ./...`, and `go build ./...`.
+
+If the lint job fails in CI, rerun the same commands locally in that order to narrow down the cause before pushing again.
 
 The scripts in `scripts/vocab/` expect local inputs such as `tmp/eng_news_2024_1M-words.txt` and `tmp/wnjpn.db`. End users do not need these files for normal use.
 
