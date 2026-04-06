@@ -22,7 +22,7 @@ In addition to SRS-based review, it offers two modes: multiple-choice `choice` a
 
 The embedded vocabulary currently contains about **5200** words, and external dictionary import from CSV / JSONL is also supported. The tool includes learning statistics, progress management, update notifications, and diagnostic tools.
 
-[日本語README](README.md)
+[日本語README](README.md) / [Contributing Guide](CONTRIBUTING.md)
 
 <img alt="home" src="assets/images/home.png" />
 
