@@ -36,6 +36,12 @@ const (
 	SettingsLanguage             = "settings.language"
 	SettingsLanguageJA           = "settings.language_ja"
 	SettingsLanguageEN           = "settings.language_en"
+	SettingsTheme                = "settings.theme"
+	SettingsThemeDefault         = "settings.theme_default"
+	SettingsThemeNoColor         = "settings.theme_no_color"
+	SettingsThemeNeon            = "settings.theme_neon"
+	SettingsThemeCustom          = "settings.theme_custom"
+	SettingsThemeCustomNote      = "settings.theme_custom_note"
 	SettingsKeys                 = "settings.keys"
 	SettingsFocusNote            = "settings.focus_note"
 )

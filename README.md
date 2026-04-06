@@ -46,6 +46,7 @@ SRS での復習に加えて、選択式の `choice` と入力式の `write` の
 
 - ホーム画面で `Tab` により `choice / write` を切り替え、`Enter` で play、`r` で review を開始
 - ホーム設定で Write 難易度 `basic / hard` を切り替え可能
+- ホーム設定で `default / no_color / neon / custom` のテーマモードを切り替え可能
 - macOS / Windows では `Ctrl+P` で現在の単語を発話し、`Shift+Tab` でセッション内の自動再生を切り替え可能
 - `eitango play [choice|write]` で通常学習セッションを開始
 - `eitango review [choice|write]` で due-only の復習セッションを開始
@@ -169,6 +170,33 @@ eitango doctor
 
 ```toml
 write_mode_difficulty = "basic"
+```
+
+## 表示テーマ
+
+- `theme_mode = "default"` は既定の配色です
+- `theme_mode = "no_color"` は色指定を外し、terminal の既定色で表示します
+- `theme_mode = "neon"` はライトグリーン基調の高コントラスト preset です
+- `theme_mode = "custom"` は `theme_palette` で role ごとの色を上書きします
+- ホーム設定 overlay では theme mode だけを切り替え、`custom` の詳細色は `config.toml` で編集します
+
+最小設定は次です。
+
+```toml
+theme_mode = "no_color"
+```
+
+カスタムテーマは次です。
+
+```toml
+theme_mode = "custom"
+
+[theme_palette]
+accent = "#00D7FF"
+success = "#00FF87"
+danger = "#FF5F5F"
+muted = "#B2B2B2"
+border = "#FFFFFF"
 ```
 
 ## 音声再生

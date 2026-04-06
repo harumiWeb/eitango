@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/harumiWeb/eitango/internal/audio"
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
@@ -605,6 +606,72 @@ func TestUpdateHomeSettingsAudioRowsSwitchWithArrowKeys(t *testing.T) {
 	updated = next.(RootModel)
 	if !updated.settingsAudioAutoplay {
 		t.Fatal("settingsAudioAutoplay after right = false, want true")
+	}
+}
+
+func TestUpdateHomeSettingsThemeRowSwitchesWithArrowKeys(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings: config.Settings{
+			SessionSize:         10,
+			ReviewRatio:         0.4,
+			WriteModeDifficulty: config.WriteModeDifficultyBasic,
+			AudioEnabled:        true,
+			Language:            i18n.LangJA,
+			ThemeMode:           config.ThemeModeDefault,
+		},
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsCursor = settingsRowTheme
+
+	next, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	updated := next.(RootModel)
+	if updated.settingsThemeMode != config.ThemeModeNoColor {
+		t.Fatalf("settingsThemeMode after right = %q, want %q", updated.settingsThemeMode, config.ThemeModeNoColor)
+	}
+
+	next, _ = updated.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	updated = next.(RootModel)
+	if updated.settingsThemeMode != config.ThemeModeDefault {
+		t.Fatalf("settingsThemeMode after left = %q, want %q", updated.settingsThemeMode, config.ThemeModeDefault)
+	}
+}
+
+func TestUpdateHomeSettingsSaveAppliesThemeStyles(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	model := NewModel(nil, Options{
+		Settings: config.Settings{
+			SessionSize:         10,
+			ReviewRatio:         0.4,
+			WriteModeDifficulty: config.WriteModeDifficultyBasic,
+			AudioEnabled:        true,
+			Language:            i18n.LangJA,
+			ThemeMode:           config.ThemeModeDefault,
+		},
+		ConfigPath: path,
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsCursor = settingsRowTheme
+	model.settingsThemeMode = config.ThemeModeNeon
+
+	next, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated := next.(RootModel)
+	if cmd == nil {
+		t.Fatal("cmd = nil, want save settings command")
+	}
+
+	saved, _ := updated.Update(cmd())
+	final := saved.(RootModel)
+	if final.settings.ThemeMode != config.ThemeModeNeon {
+		t.Fatalf("settings.ThemeMode = %q, want %q", final.settings.ThemeMode, config.ThemeModeNeon)
+	}
+	if final.styles.Title.GetForeground() != lipgloss.Color("#A6FF00") {
+		t.Fatalf("Title foreground = %#v, want %#v", final.styles.Title.GetForeground(), lipgloss.Color("#A6FF00"))
 	}
 }
 

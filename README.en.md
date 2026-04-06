@@ -46,6 +46,7 @@ The embedded vocabulary currently contains about **5200** words, and external di
 
 - on the home screen, `Tab` switches `choice / write`, `Enter` starts play, and `r` starts review
 - the home settings screen can switch Write difficulty between `basic` and `hard`
+- the home settings screen can switch theme mode between `default`, `no_color`, `neon`, and `custom`
 - on macOS / Windows, `Ctrl+P` plays the current word and `Shift+Tab` toggles session-local autoplay
 - `eitango play [choice|write]` starts a standard learning session
 - `eitango review [choice|write]` starts a due-only review session
@@ -169,6 +170,33 @@ You can set it in `config.toml`:
 
 ```toml
 write_mode_difficulty = "basic"
+```
+
+## Display Themes
+
+- `theme_mode = "default"` keeps the default palette
+- `theme_mode = "no_color"` removes color styling and uses the terminal defaults
+- `theme_mode = "neon"` applies a light-green high-contrast preset
+- `theme_mode = "custom"` applies role-based overrides from `theme_palette`
+- the home settings overlay only switches the mode; edit custom colors in `config.toml`
+
+Minimal example:
+
+```toml
+theme_mode = "no_color"
+```
+
+Custom example:
+
+```toml
+theme_mode = "custom"
+
+[theme_palette]
+accent = "#00D7FF"
+success = "#00FF87"
+danger = "#FF5F5F"
+muted = "#B2B2B2"
+border = "#FFFFFF"
 ```
 
 ## Audio Playback

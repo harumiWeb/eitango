@@ -88,6 +88,8 @@ func TestAllJAKeysExistInEN(t *testing.T) {
 		i18n.SettingsWriteDifficultyBasic, i18n.SettingsWriteDifficultyHard,
 		i18n.SettingsAudioEnabled, i18n.SettingsAudioAutoplay,
 		i18n.SettingsLanguage, i18n.SettingsLanguageJA, i18n.SettingsLanguageEN,
+		i18n.SettingsTheme, i18n.SettingsThemeDefault, i18n.SettingsThemeNoColor,
+		i18n.SettingsThemeNeon, i18n.SettingsThemeCustom, i18n.SettingsThemeCustomNote,
 		i18n.SettingsKeys, i18n.SettingsFocusNote,
 		i18n.QuizNoQuestion, i18n.QuizMeaning, i18n.QuizWord, i18n.QuizInput,
 		i18n.QuizHints, i18n.QuizHintNone, i18n.QuizAudio, i18n.QuizKeysChoice, i18n.QuizKeysWrite,

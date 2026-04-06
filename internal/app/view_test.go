@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -90,6 +91,7 @@ func TestHelpScreenRoundTripFromAllScreens(t *testing.T) {
 				model.settingsAudioEnabled = true
 				model.settingsAudioAutoplay = false
 				model.settingsLanguage = i18n.LangJA
+				model.settingsThemeMode = config.ThemeModeDefault
 			},
 		},
 		{
@@ -430,6 +432,7 @@ func TestRenderHomeWithSettingsOverlayUsesScreenSwitch(t *testing.T) {
 	model.settingsAudioEnabled = true
 	model.settingsAudioAutoplay = true
 	model.settingsLanguage = i18n.LangJA
+	model.settingsThemeMode = config.ThemeModeNeon
 
 	got := model.renderHomeWithSettingsOverlay()
 	if !strings.Contains(got, i18n.T(i18n.SettingsTitle)) {
@@ -440,6 +443,8 @@ func TestRenderHomeWithSettingsOverlayUsesScreenSwitch(t *testing.T) {
 		i18n.T(i18n.SettingsWriteDifficultyHard),
 		i18n.T(i18n.SettingsAudioEnabled),
 		i18n.T(i18n.SettingsAudioAutoplay),
+		i18n.T(i18n.SettingsTheme),
+		i18n.T(i18n.SettingsThemeNeon),
 		i18n.T(i18n.AudioStateOn),
 	} {
 		if !strings.Contains(got, want) {
@@ -472,10 +477,14 @@ func TestRenderHomeWithSettingsOverlayShowsAutoplayOffWhenUnavailable(t *testing
 	model.settingsAudioEnabled = true
 	model.settingsAudioAutoplay = true
 	model.settingsLanguage = i18n.LangJA
+	model.settingsThemeMode = config.ThemeModeCustom
 
 	got := model.renderHomeWithSettingsOverlay()
 	if !strings.Contains(got, i18n.T(i18n.SettingsAudioAutoplay)) || !strings.Contains(got, i18n.T(i18n.AudioStateOff)) {
 		t.Fatalf("renderHomeWithSettingsOverlay() should show autoplay OFF:\n%s", got)
+	}
+	if !strings.Contains(got, i18n.T(i18n.SettingsThemeCustomNote)) {
+		t.Fatalf("renderHomeWithSettingsOverlay() missing custom theme note:\n%s", got)
 	}
 }
 
@@ -546,6 +555,33 @@ func TestRenderHomeWithConfirmOverlayUsesScreenSwitch(t *testing.T) {
 	}
 	if strings.Contains(got, i18n.T(i18n.HomeSubtitle)) {
 		t.Fatalf("renderHomeWithConfirmOverlay() should not include home background when confirmation is open:\n%s", got)
+	}
+}
+
+func TestRenderHomeMarksSelectedAnswerModeWithBrackets(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.selectedAnswerMode = store.AnswerModeWrite
+
+	got := model.renderHome()
+	if !strings.Contains(got, "["+i18n.T(i18n.AnswerModeWrite)+"]") {
+		t.Fatalf("renderHome() missing selected answer mode brackets:\n%s", got)
+	}
+}
+
+func TestRenderStatusLineUsesErrorPrefix(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.status = "boom"
+	model.err = errors.New("boom")
+
+	got := model.renderStatusLine()
+	if !strings.Contains(got, "error: boom") {
+		t.Fatalf("renderStatusLine() = %q, want error prefix", got)
 	}
 }
 

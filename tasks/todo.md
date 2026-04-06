@@ -12,6 +12,17 @@
 - [x] 実タグ release で fork `harumiWeb/winget-pkgs` への push まで確認した
 - [ ] `microsoft/winget-pkgs` への PR を手動で作成し、運用手順を確認する
 
+## 2026-04-06 issue #28: 無色モードとテーマカラー
+
+- [x] `tasks/feature_spec.md` にテーマ仕様を追加する
+- [x] `config.toml` に `theme_mode` / `theme_palette` を追加する
+- [x] `internal/tui` を preset / custom theme builder 化する
+- [x] ホーム設定 overlay に theme mode 行を追加する
+- [x] 色以外でも選択状態とエラー状態が判別できる render へ調整する
+- [x] locale / README / docs/specs をテーマ設定へ追従させる
+- [x] `internal/config` / `internal/tui` / `internal/app` / `internal/i18n` の回帰テストを追加して通す
+- [x] review 指摘に合わせて `default` theme を旧配色へ戻し、`theme_palette` の未設定 slot は保存時に omit する
+
 ## 2026-04-01 PR #12: Codacy follow-up
 
 - [x] `doctor.go` の `PRAGMA table_info(...)` を string formatting ではなく許可テーブルの定数 query に置き換える

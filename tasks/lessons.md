@@ -26,3 +26,6 @@
 - 非同期エラーを UI 用 message へ潰すときも root cause を落とさない。`audioErrMsg` のような軽量 message でも trigger source と元 error を保持し、status は短く保ったまま診断と回帰テストに使える形で残す。
 - 外部コマンド実行を security lint が見ている箇所は、validated な入力でも `exec.CommandContext(name, ...)` の形を避ける。`LookPath` は存在確認と allowlist 判定に使い、実行は静的 literal のコマンドに正規化して Semgrep/Codacy と実装意図を一致させる。
 - `winget-pkgs` のような fork 経由の upstream PR を自動化する前に、PAT の owner 境界を確認する。fine-grained PAT は選択した owner 配下の repo にしか権限を持てないので、fork への push はできても別 owner への cross-repository PR 作成は失敗しうる。
+- アクセシビリティ向けのテーマ提案では、任意設定だけで完結させず、すぐ選べる高コントラスト preset を別モードで持つかを先に確認する。利用者は `custom` より preset を期待していることがある。
+- 既存 UI の見た目調整では、preset を追加するときも従来 preset の色味を不必要に変えない。default は既存の印象を保ち、新規テーマでだけ方向性を変える。
+- optional config table を保存するときは、未設定 field を `""` でシリアライズしない。fallback 契約がある設定は key ごと omit して、ユーザー生成物にも契約そのものを反映する。

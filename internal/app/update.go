@@ -69,6 +69,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = nil
 		m.settings = settings
 		m.keymap = tui.NewKeyMap()
+		m.styles = tui.NewStyles(themeFromSettings(settings))
 		m.planOptions = planOptionsFromSettings(settings)
 		m.settingsOpen = false
 		m.homeConfirm = nil
@@ -79,6 +80,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settingsAudioAutoplay = settings.AudioAutoplay
 		m.settingsAudioAvailableCached = m.probeSettingsAudioAvailable()
 		m.settingsLanguage = settings.Language
+		m.settingsThemeMode = config.NormalizeThemeMode(settings.ThemeMode)
 		m.speaker = speaker
 		if !m.speakerAvailable() {
 			m.autoplayEnabled = false
@@ -315,6 +317,8 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			m.settingsAudioAutoplay = false
 		case settingsRowLanguage:
 			m.settingsLanguage = i18n.LangJA
+		case settingsRowTheme:
+			m.settingsThemeMode = previousThemeMode(m.settingsThemeMode)
 		}
 		m.settingsEditing = false
 		m.status = i18n.T(i18n.StatusConfiguringSettings)
@@ -348,6 +352,8 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			m.settingsAudioAutoplay = true
 		case settingsRowLanguage:
 			m.settingsLanguage = i18n.LangEN
+		case settingsRowTheme:
+			m.settingsThemeMode = nextThemeMode(m.settingsThemeMode)
 		}
 		m.settingsEditing = false
 		m.status = i18n.T(i18n.StatusConfiguringSettings)
@@ -643,6 +649,32 @@ func (m RootModel) audioBlockedStatus(audioEnabled bool) string {
 		return i18n.T(i18n.StatusAudioDisabled)
 	}
 	return i18n.T(i18n.StatusAudioUnavailable)
+}
+
+func nextThemeMode(current string) string {
+	switch config.NormalizeThemeMode(current) {
+	case config.ThemeModeDefault:
+		return config.ThemeModeNoColor
+	case config.ThemeModeNoColor:
+		return config.ThemeModeNeon
+	case config.ThemeModeNeon:
+		return config.ThemeModeCustom
+	default:
+		return config.ThemeModeDefault
+	}
+}
+
+func previousThemeMode(current string) string {
+	switch config.NormalizeThemeMode(current) {
+	case config.ThemeModeDefault:
+		return config.ThemeModeCustom
+	case config.ThemeModeNoColor:
+		return config.ThemeModeDefault
+	case config.ThemeModeNeon:
+		return config.ThemeModeNoColor
+	default:
+		return config.ThemeModeNeon
+	}
 }
 
 func (m RootModel) autoplayCmd() tea.Cmd {
