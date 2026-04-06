@@ -283,8 +283,15 @@ https://bond-lab.github.io/wnja/index.ja.html
 ```bash
 uv sync
 go test ./...
+go build ./...
+shellcheck install.sh
+golangci-lint run
 go run ./cmd/eitango --help
 ```
+
+コミット前の補助として `lefthook` の pre-commit では `goimports -w cmd internal assets`、`golangci-lint run`、`go test ./...` を自動実行します。hook は開発体験向上のための補助で、CI では `golangci-lint run`、`shellcheck install.sh`、`go test ./...`、`go build ./...` を必須チェックとして扱います。
+
+CI の lint が失敗したときは、同じコマンドをローカルで順に再実行すると原因を切り分けやすくなります。
 
 辞書生成スクリプトは `scripts/vocab/` にあり、`tmp/eng_news_2024_1M-words.txt` と `tmp/wnjpn.db` のようなローカル入力を前提とします。これらはエンドユーザーの通常利用には不要です。
 

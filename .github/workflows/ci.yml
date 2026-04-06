@@ -14,6 +14,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Lint install.sh
+        run: shellcheck install.sh
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.11.4
+          args: --timeout=5m
+
   test:
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -36,16 +63,6 @@ jobs:
 
       - name: Run tests
         run: go test ./...
-
-      - name: Install shellcheck
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck
-
-      - name: Lint install.sh
-        if: matrix.os == 'ubuntu-latest'
-        run: shellcheck install.sh
 
       - name: Build packages
         run: go build ./...
