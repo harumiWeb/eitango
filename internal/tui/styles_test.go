@@ -24,6 +24,22 @@ func TestResolvePaletteDefault(t *testing.T) {
 	}
 }
 
+func TestResolvePaletteNoColor(t *testing.T) {
+	t.Parallel()
+
+	palette := ResolvePalette(Theme{Mode: ThemeNoColor})
+	want := ThemePalette{
+		Accent:  "81",
+		Success: "42",
+		Danger:  "203",
+		Muted:   "245",
+		Border:  "",
+	}
+	if palette != want {
+		t.Fatalf("palette = %+v, want %+v", palette, want)
+	}
+}
+
 func TestResolvePaletteNeon(t *testing.T) {
 	t.Parallel()
 
@@ -40,7 +56,7 @@ func TestResolvePaletteNeon(t *testing.T) {
 	}
 }
 
-func TestResolvePaletteCustomReturnsOverridesOnly(t *testing.T) {
+func TestResolvePaletteCustomMergesDefaults(t *testing.T) {
 	t.Parallel()
 
 	palette := ResolvePalette(Theme{
@@ -56,8 +72,8 @@ func TestResolvePaletteCustomReturnsOverridesOnly(t *testing.T) {
 	if palette.Border != "#445566" {
 		t.Fatalf("Border = %q, want %q", palette.Border, "#445566")
 	}
-	if palette.Success != "" || palette.Danger != "" || palette.Muted != "" {
-		t.Fatalf("palette = %+v, want only explicit overrides", palette)
+	if palette.Success != "42" || palette.Danger != "203" || palette.Muted != "245" {
+		t.Fatalf("palette = %+v, want default fallback for unset slots", palette)
 	}
 }
 

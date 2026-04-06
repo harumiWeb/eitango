@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -671,7 +670,7 @@ func TestUpdateHomeSettingsSaveAppliesThemeStyles(t *testing.T) {
 	if final.settings.ThemeMode != config.ThemeModeNeon {
 		t.Fatalf("settings.ThemeMode = %q, want %q", final.settings.ThemeMode, config.ThemeModeNeon)
 	}
-	if !reflect.DeepEqual(final.styles.Title.GetForeground(), lipgloss.Color("#A6FF00")) {
+	if final.styles.Title.GetForeground() != lipgloss.Color("#A6FF00") {
 		t.Fatalf("Title foreground = %#v, want %#v", final.styles.Title.GetForeground(), lipgloss.Color("#A6FF00"))
 	}
 }

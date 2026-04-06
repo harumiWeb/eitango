@@ -121,7 +121,7 @@
 ## Goal
 
 - 旧設計書を廃止し、初期リリース後も参照価値がある判断だけを ADR に残す。
-- `docs/specs/` は増やさず、コード・README・tests を正本として維持する。
+- `docs/specs/` には恒久的な内部仕様と制約だけを残し、コード・README・tests を実装の正本として維持する。
 
 ## Deliverables
 
@@ -138,7 +138,7 @@
 ## Non-Goals
 
 - CLI、env、DB schema、学習ロジックの挙動変更
-- `docs/specs/` の新設や index/README の追加
+- `docs/specs/` への一時メモ追加や index/README の追加
 - 旧設計書の全文アーカイブ
 
 ## Acceptance

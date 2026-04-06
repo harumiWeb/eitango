@@ -303,7 +303,7 @@ func (m RootModel) settingsLanguageLabel() string {
 }
 
 func (m RootModel) settingsThemeModeLabel() string {
-	switch config.NormalizeThemeMode(m.settingsThemeMode) {
+	switch m.settingsThemeMode {
 	case config.ThemeModeNoColor:
 		return i18n.T(i18n.SettingsThemeNoColor)
 	case config.ThemeModeNeon:

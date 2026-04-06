@@ -58,12 +58,15 @@ func NewStyles(theme Theme) Styles {
 	}
 }
 
+// ResolvePalette returns the effective palette for config-facing uses.
+// For ThemeNoColor it intentionally returns the default palette, while
+// NewStyles ignores palettes entirely in no-color rendering.
 func ResolvePalette(theme Theme) ThemePalette {
 	switch NormalizeThemeMode(theme.Mode) {
 	case ThemeNeon:
 		return neonPalette()
 	case ThemeCustom:
-		return theme.Palette
+		return mergePalette(defaultPalette(), theme.Palette)
 	default:
 		return defaultPalette()
 	}
@@ -87,6 +90,25 @@ func neonPalette() ThemePalette {
 		Muted:   "#8FB38F",
 		Border:  "#D7FFAF",
 	}
+}
+
+func mergePalette(base, override ThemePalette) ThemePalette {
+	if override.Accent != "" {
+		base.Accent = override.Accent
+	}
+	if override.Success != "" {
+		base.Success = override.Success
+	}
+	if override.Danger != "" {
+		base.Danger = override.Danger
+	}
+	if override.Muted != "" {
+		base.Muted = override.Muted
+	}
+	if override.Border != "" {
+		base.Border = override.Border
+	}
+	return base
 }
 
 func buildNoColorStyles() Styles {
@@ -172,16 +194,16 @@ func NormalizeThemeMode(value string) string {
 	}
 }
 
-func foregroundStyle(style lipgloss.Style, hex string) lipgloss.Style {
-	if hex == "" {
+func foregroundStyle(style lipgloss.Style, colorSpec string) lipgloss.Style {
+	if colorSpec == "" {
 		return style
 	}
-	return style.Foreground(lipgloss.Color(hex))
+	return style.Foreground(lipgloss.Color(colorSpec))
 }
 
-func borderStyle(style lipgloss.Style, hex string) lipgloss.Style {
-	if hex == "" {
+func borderStyle(style lipgloss.Style, colorSpec string) lipgloss.Style {
+	if colorSpec == "" {
 		return style
 	}
-	return style.BorderForeground(lipgloss.Color(hex))
+	return style.BorderForeground(lipgloss.Color(colorSpec))
 }

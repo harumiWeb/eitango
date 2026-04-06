@@ -377,6 +377,27 @@ func TestSaveOmitsEmptyThemePaletteSlots(t *testing.T) {
 	}
 }
 
+func TestSaveRejectsInvalidThemeMode(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	err := Save(path, Settings{
+		SessionSize:         10,
+		ReviewRatio:         0.4,
+		WriteModeDifficulty: WriteModeDifficultyBasic,
+		AudioEnabled:        true,
+		AudioAutoplay:       false,
+		Language:            "ja",
+		ThemeMode:           "bad",
+	})
+	if err == nil {
+		t.Fatal("Save() error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "theme_mode") {
+		t.Fatalf("Save() error = %v, want theme_mode validation", err)
+	}
+}
+
 func TestLoadRejectsInvalidThemeMode(t *testing.T) {
 	t.Parallel()
 

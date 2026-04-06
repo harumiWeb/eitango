@@ -160,7 +160,15 @@ func Save(path string, settings Settings) error {
 		return err
 	}
 	settings.WriteModeDifficulty = writeModeDifficulty
-	settings.ThemeMode = NormalizeThemeMode(settings.ThemeMode)
+	if strings.TrimSpace(settings.ThemeMode) == "" {
+		settings.ThemeMode = ThemeModeDefault
+	} else {
+		themeMode, err := parseThemeMode(settings.ThemeMode)
+		if err != nil {
+			return err
+		}
+		settings.ThemeMode = themeMode
+	}
 	settings.ThemePalette, err = normalizeThemePalette(settings.ThemePalette)
 	if err != nil {
 		return err
