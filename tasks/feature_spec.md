@@ -417,3 +417,57 @@
 - `go test ./...` が通る。
 - macOS / Windows CI で `internal/audio` が build / test できる。
 - `Ctrl+P` 手動再生、`Shift+Tab` セッション内 toggle、`audio_enabled` / `audio_autoplay` の回帰テストがある。
+
+---
+
+# 2026-04-06 issue #28: 無色モードとテーマカラー
+
+## Goal
+
+- 色がなくても主要 UI を判読できるようにし、アクセシビリティを改善する。
+- 設定で `default` / `no_color` / `neon` / `custom` のテーマモードを選べるようにする。
+- `custom` では `config.toml` から role-based の RGB 値を指定できるようにする。
+
+## Scope
+
+- `config.Settings` / `config.toml` のテーマ設定
+- `internal/tui` の style 生成
+- `internal/app` のホーム設定 overlay と色非依存の識別
+- locale 文言、README、回帰テスト
+- `docs/specs/` の恒久仕様
+
+## Non-Goals
+
+- CLI `--no-color` flag の追加
+- ホーム設定 overlay からの RGB 直接編集
+- 背景色や画面ごとの完全自由なスタイル編集
+- terminal capability に応じた dynamic theme 切替
+
+## Required Behavior
+
+- `config.Settings` に `theme_mode` と `theme_palette` を追加する。
+- `theme_mode` は `default` / `no_color` / `neon` / `custom` の 4 値だけを受け付ける。
+- `theme_palette` は `accent` / `success` / `danger` / `muted` / `border` の 5 slot を受け付ける。
+- `theme_palette` の色文字列は `#RRGGBB` だけを受け付け、load/save 時に trim して大文字へ正規化する。
+- `theme_palette` の未指定 slot は default palette に fallback する。
+- `theme_palette` を保存するとき、未指定 slot は `""` で書かず key ごと omit する。
+- `theme_mode != "custom"` のときも `theme_palette` は保存対象に残し、後で `custom` に戻したとき再利用できるようにする。
+- `internal/tui` は固定色直書きをやめ、settings から theme を解決して `Styles` を生成する。
+- `default` は旧 `NewStyles()` の見た目を維持し、`no_color` は色指定なし、`neon` はライトグリーン基調の高コントラスト preset を提供する。
+- ホーム設定 overlay では theme mode だけを `←/→` で切り替えて保存できる。
+- `custom` 選択中は `config.toml` の `theme_palette` 編集を案内する note を表示する。
+- 選択状態やエラー状態は色だけに依存させない。
+  - answer mode tab の選択中は bracket 記法で示す。
+  - settings row の選択中は prefix 記号で示す。
+  - status line は通常 `status:`、エラー時 `error:` で示す。
+- `choice` の `▸`、feedback の `✓/✗`、audio の `ON/OFF` は維持する。
+
+## Acceptance
+
+- `theme_mode = "no_color"` で主要画面が色なしでも判読できる。
+- `theme_mode = "neon"` でライトグリーン基調の preset が反映される。
+- `theme_mode = "custom"` と `theme_palette` で role-based 色を保存・再読込できる。
+- ホーム設定 overlay で theme mode を切り替えて保存できる。
+- README / README.en に設定例が記載される。
+- `go test ./internal/config ./internal/tui ./internal/app ./internal/i18n` が通る。
+- 必要なら `go test ./...` が通る。

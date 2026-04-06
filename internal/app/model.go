@@ -34,6 +34,7 @@ const (
 	settingsRowAudioEnabled
 	settingsRowAudioAutoplay
 	settingsRowLanguage
+	settingsRowTheme
 	settingsRowCount
 )
 
@@ -142,6 +143,7 @@ type RootModel struct {
 	settingsAudioAutoplay        bool
 	settingsAudioAvailableCached bool
 	settingsLanguage             string
+	settingsThemeMode            string
 	helpReturn                   Screen
 	helpStatus                   string
 	width                        int
@@ -168,6 +170,7 @@ func NewModel(store *store.Store, options Options) RootModel {
 	}
 	speaker := speakerFactory(audioConfigFromSettings(settings))
 	settings = normalizeAutoplaySetting(settings, speaker)
+	settings.ThemeMode = config.NormalizeThemeMode(settings.ThemeMode)
 
 	return RootModel{
 		store:              store,
@@ -183,7 +186,7 @@ func NewModel(store *store.Store, options Options) RootModel {
 		selectedAnswerMode: startupAnswerMode(options.Startup),
 		screen:             ScreenHome,
 		keymap:             tui.NewKeyMap(),
-		styles:             tui.NewStyles(),
+		styles:             tui.NewStyles(themeFromSettings(settings)),
 		loading:            true,
 		status:             i18n.T(i18n.StatusLoading),
 	}
@@ -235,6 +238,7 @@ func (m RootModel) openSettingsOverlay() RootModel {
 		m.settingsAudioAutoplay = false
 	}
 	m.settingsLanguage = m.settings.Language
+	m.settingsThemeMode = config.NormalizeThemeMode(m.settings.ThemeMode)
 	m.err = nil
 	m.status = i18n.T(i18n.StatusConfiguringSettings)
 	return m
@@ -298,6 +302,19 @@ func (m RootModel) settingsLanguageLabel() string {
 	return i18n.T(i18n.SettingsLanguageJA)
 }
 
+func (m RootModel) settingsThemeModeLabel() string {
+	switch config.NormalizeThemeMode(m.settingsThemeMode) {
+	case config.ThemeModeNoColor:
+		return i18n.T(i18n.SettingsThemeNoColor)
+	case config.ThemeModeNeon:
+		return i18n.T(i18n.SettingsThemeNeon)
+	case config.ThemeModeCustom:
+		return i18n.T(i18n.SettingsThemeCustom)
+	default:
+		return i18n.T(i18n.SettingsThemeDefault)
+	}
+}
+
 func (m RootModel) settingsWriteDifficultyLabel() string {
 	if config.NormalizeWriteModeDifficulty(m.settingsWriteDifficulty) == config.WriteModeDifficultyHard {
 		return i18n.T(i18n.SettingsWriteDifficultyHard)
@@ -317,6 +334,7 @@ func (m RootModel) settingsDraft() (config.Settings, bool, bool) {
 	draft.AudioEnabled = m.settingsAudioEnabled
 	draft.AudioAutoplay = m.settingsAudioAutoplay && m.settingsAudioAvailable()
 	draft.Language = m.settingsLanguage
+	draft.ThemeMode = config.NormalizeThemeMode(m.settingsThemeMode)
 
 	focusModeDisabled := draft.FocusModeDefault && draft.SessionSize != m.settings.SessionSize
 	if focusModeDisabled {
@@ -345,6 +363,19 @@ func startupAnswerMode(startup *StartupRequest) string {
 
 func audioConfigFromSettings(settings config.Settings) audio.Config {
 	return audio.Config{Enabled: settings.AudioEnabled}
+}
+
+func themeFromSettings(settings config.Settings) tui.Theme {
+	return tui.Theme{
+		Mode: config.NormalizeThemeMode(settings.ThemeMode),
+		Palette: tui.ThemePalette{
+			Accent:  settings.ThemePalette.Accent,
+			Success: settings.ThemePalette.Success,
+			Danger:  settings.ThemePalette.Danger,
+			Muted:   settings.ThemePalette.Muted,
+			Border:  settings.ThemePalette.Border,
+		},
+	}
 }
 
 func normalizeAutoplaySetting(settings config.Settings, speaker audio.Speaker) config.Settings {

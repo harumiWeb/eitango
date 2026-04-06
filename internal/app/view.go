@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
 	"github.com/harumiWeb/eitango/internal/stats"
 	"github.com/harumiWeb/eitango/internal/store"
@@ -95,11 +96,15 @@ func (m RootModel) renderSettingsOverlay() string {
 		m.renderSettingsRow(settingsRowAudioEnabled, i18n.T(i18n.SettingsAudioEnabled), audioStateLabel(m.settingsAudioEnabled)),
 		m.renderSettingsRow(settingsRowAudioAutoplay, i18n.T(i18n.SettingsAudioAutoplay), audioStateLabel(m.settingsAudioAutoplay && m.settingsAudioAvailable())),
 		m.renderSettingsRow(settingsRowLanguage, i18n.T(i18n.SettingsLanguage), m.settingsLanguageLabel()),
+		m.renderSettingsRow(settingsRowTheme, i18n.T(i18n.SettingsTheme), m.settingsThemeModeLabel()),
 		"",
 		m.styles.Muted.Render(i18n.T(i18n.SettingsKeys)),
 	}
 	if m.settings.FocusModeDefault {
 		lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.SettingsFocusNote)))
+	}
+	if config.NormalizeThemeMode(m.settingsThemeMode) == config.ThemeModeCustom {
+		lines = append(lines, "", m.styles.Muted.Render(i18n.T(i18n.SettingsThemeCustomNote)))
 	}
 	return m.styles.ModalPanel.Render(strings.Join(lines, "\n"))
 }
@@ -323,7 +328,7 @@ func (m RootModel) renderStatusLine() string {
 		msg = i18n.T(i18n.StatusReady)
 	}
 	if m.err != nil {
-		return m.styles.Error.Render("status: " + msg)
+		return m.styles.Error.Render("error: " + msg)
 	}
 	return m.styles.Status.Render("status: " + msg)
 }
@@ -332,9 +337,9 @@ func (m RootModel) renderAnswerModeTabs() string {
 	choice := answerModeLabel(store.AnswerModeChoice)
 	write := answerModeLabel(store.AnswerModeWrite)
 	if store.NormalizeAnswerMode(m.selectedAnswerMode) == store.AnswerModeWrite {
-		return m.styles.Choice.Render(choice) + "  " + m.styles.ChoiceSelected.Render(write)
+		return m.styles.Choice.Render(choice) + "  " + m.styles.ChoiceSelected.Render("["+write+"]")
 	}
-	return m.styles.ChoiceSelected.Render(choice) + "  " + m.styles.Choice.Render(write)
+	return m.styles.ChoiceSelected.Render("["+choice+"]") + "  " + m.styles.Choice.Render(write)
 }
 
 func kindLabel(kind string) string {
@@ -349,7 +354,11 @@ func kindLabel(kind string) string {
 }
 
 func (m RootModel) renderSettingsRow(index int, label, value string) string {
-	text := fmt.Sprintf("%s: %s", tui.AlignLabel(label, 18), value)
+	prefix := "  "
+	if m.settingsCursor == index {
+		prefix = "> "
+	}
+	text := prefix + fmt.Sprintf("%s: %s", tui.AlignLabel(label, 18), value)
 	if m.settingsCursor == index {
 		return m.styles.ChoiceSelected.Render(text)
 	}
