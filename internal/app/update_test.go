@@ -774,6 +774,43 @@ func TestUpdateKeymapEditorCtrlGCancelsRecording(t *testing.T) {
 	}
 }
 
+func TestUpdateKeymapEditorConflictReplaceMovesKeyAtomically(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{Settings: config.DefaultSettings()})
+	model.loading = false
+	model = model.openKeymapEditor()
+	if model.keymapEditor == nil {
+		t.Fatal("keymapEditor = nil")
+	}
+
+	model.keymapEditor.conflict = &keymapConflictState{
+		Context: keymap.ContextHome,
+		Action:  keymap.ActionNewSession,
+		Token:   "enter",
+		Conflicts: []keymap.Conflict{{
+			Context: keymap.ContextHome,
+			Action:  keymap.ActionConfirm,
+			Key:     "enter",
+		}},
+	}
+
+	next, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated := next.(RootModel)
+	if updated.keymapEditor == nil {
+		t.Fatal("keymapEditor = nil after conflict replace")
+	}
+	if updated.keymapEditor.conflict != nil {
+		t.Fatal("conflict != nil after replace")
+	}
+	if got := updated.keymapEditor.draft.Keys(keymap.ContextHome, keymap.ActionConfirm); len(got) != 0 {
+		t.Fatalf("home.confirm = %v, want []", got)
+	}
+	if got := updated.keymapEditor.draft.Keys(keymap.ContextHome, keymap.ActionNewSession); !reflect.DeepEqual(got, []string{"n", "enter"}) {
+		t.Fatalf("home.new_session = %v, want [n enter]", got)
+	}
+}
+
 func TestUpdateKeymapEditorMouseWheelScrollsCursor(t *testing.T) {
 	t.Parallel()
 
@@ -1238,6 +1275,43 @@ func TestUpdateWriteQuizEscQuits(t *testing.T) {
 	_, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if cmd == nil {
 		t.Fatal("cmd = nil, want tea.Quit command")
+	}
+}
+
+func TestUpdateHelpBackMustRemainBound(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{Settings: config.DefaultSettings()})
+	if err := model.keymap.SetKeys(keymap.ContextHelp, keymap.ActionBack, nil); err != nil {
+		if !strings.Contains(err.Error(), "help.back") {
+			t.Fatalf("SetKeys(help.back=nil) error = %v, want help.back validation", err)
+		}
+		return
+	}
+	t.Fatal("SetKeys(help.back=nil) error = nil, want error")
+}
+
+func TestNewModelPreservesStartupKeymapResolveError(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings: config.Settings{
+			SessionSize:         10,
+			ReviewRatio:         0.4,
+			WriteModeDifficulty: config.WriteModeDifficultyBasic,
+			AudioEnabled:        true,
+			AudioAutoplay:       false,
+			Language:            i18n.DefaultLang,
+			ThemeMode:           config.ThemeModeDefault,
+			Keymap:              keymap.Config{Version: 2},
+		},
+	})
+
+	if model.err == nil {
+		t.Fatal("err = nil, want startup keymap resolve error")
+	}
+	if got := model.keymap.Keys(keymap.ContextHome, keymap.ActionToggleAnswerMode); !reflect.DeepEqual(got, keymap.DefaultKeys(keymap.ContextHome, keymap.ActionToggleAnswerMode)) {
+		t.Fatalf("home toggle keys = %v, want defaults %v", got, keymap.DefaultKeys(keymap.ContextHome, keymap.ActionToggleAnswerMode))
 	}
 }
 
