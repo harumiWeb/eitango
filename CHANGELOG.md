@@ -5,6 +5,25 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-04-07
+
+### Added
+
+- ホーム設定から開ける Key Bindings Editor を追加し、コンテキストごとのショートカットを記録・編集・クリア・リセットできるようにしました。
+- `config.toml` に `[keymap]` 設定を追加し、キー割り当ての上書きを永続化できるようにしました。
+- `SECURITY.md` を追加し、脆弱性の報告先とサポート対象バージョンを明文化しました。
+
+### Changed
+
+- アプリ全体の入力処理、help、インライン key guide は実行時 keymap を参照するようになり、キー変更がその場で反映されるようにしました。
+- README / README.en に keymap 設定、サポート対象 OS、ネットワーク / update check の境界を追記しました。
+- CI に lint job を追加し、`shellcheck install.sh` と `golangci-lint` を PR ごとの必須チェックとして実行するようにしました。
+
+### Fixed
+
+- macOS の音声自動選択は `Samantha` や `Alex` など自然な英語 voice を優先し、novelty voice を自動選択しないようにしました。
+- Key Bindings Editor まわりで、settings overlay の draft 保存、help からの安全な脱出、`Esc` キー割り当てに関するフォローアップ不具合を修正しました。
+
 ## [0.5.2] - 2026-04-04
 
 ### Changed
@@ -133,7 +152,9 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/harumiWeb/eitango/compare/v0.5.2...v0.6.0
+[0.5.2]: https://github.com/harumiWeb/eitango/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/harumiWeb/eitango/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/harumiWeb/eitango/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/harumiWeb/eitango/compare/v0.4.1...v0.4.2
