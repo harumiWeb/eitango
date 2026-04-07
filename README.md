@@ -47,6 +47,7 @@ SRS での復習に加えて、選択式の `choice` と入力式の `write` の
 - ホーム画面で `Tab` により `choice / write` を切り替え、`Enter` で play、`r` で review を開始
 - ホーム設定で Write 難易度 `basic / hard` を切り替え可能
 - ホーム設定で `default / no_color / neon / custom` のテーマモードを切り替え可能
+- ホーム設定から Key Bindings Editor を開き、キーバインドを保存して即時反映可能
 - macOS / Windows では `Ctrl+P` で現在の単語を発話し、`Shift+Tab` でセッション内の自動再生を切り替え可能
 - `eitango play [choice|write]` で通常学習セッションを開始
 - `eitango review [choice|write]` で due-only の復習セッションを開始
@@ -73,6 +74,9 @@ winget upgrade HarumiWeb.Eitango
 ```
 
 winget を使わない場合は後述の GitHub Releases の zip からも利用できます。
+
+> [!NOTE]
+> winget は 都合上、他の配布手段よりリリースからの反映が遅れる可能性があります。最新 release をすぐに使いたい場合は、次のいずれかを選択してください。
 
 ### 2. macOS / Linux は `curl | sh` を使う
 
@@ -174,6 +178,10 @@ write_mode_difficulty = "basic"
 
 ## 表示テーマ
 
+<p align="center">
+  <img alt="テーマモード切り替え" src="assets/images/change_theme.gif" />
+</p>
+
 - `theme_mode = "default"` は既定の配色です
 - `theme_mode = "no_color"` は色指定を外し、terminal の既定色で表示します
 - `theme_mode = "neon"` はライトグリーン基調の高コントラスト preset です
@@ -211,6 +219,35 @@ border = "#FFFFFF"
 ```toml
 audio_enabled = true
 audio_autoplay = false
+```
+
+## キーバインド
+
+<p align="center">
+  <img alt="キーバインド設定" src="assets/images/keybind.gif" />
+</p>
+
+- ホーム設定の `キーバインド` 行から editor を開けます
+- editor では context ごとに add / clear / reset / save を行えます
+- keymap を保存すると、settings overlay 上でまだ未保存だった設定変更も一緒に保存されます
+- 保存後は help と各画面の key guide にその場で反映されます
+- `quiz.write` では answer 入力と衝突する英字 1 文字 key は保存できません
+- record 中の cancel は `Ctrl+G` です。`Esc` 自体も editor から割り当てできます
+
+`config.toml` では `[keymap]` を使います。
+
+```toml
+[keymap]
+version = 1
+
+[keymap.home]
+toggle_answer_mode = ["x"]
+
+[keymap.quiz.write]
+hint = ["tab"]
+skip = ["ctrl+s"]
+confirm = ["enter"]
+write_quit = ["esc"]
 ```
 
 ## データ保存先

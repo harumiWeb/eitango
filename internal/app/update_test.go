@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/harumiWeb/eitango/internal/audio"
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/keymap"
 	"github.com/harumiWeb/eitango/internal/quiz"
 	"github.com/harumiWeb/eitango/internal/session"
 	"github.com/harumiWeb/eitango/internal/srs"
@@ -485,8 +487,8 @@ func TestUpdateHomeSettingsSavePersistsAndAppliesLanguage(t *testing.T) {
 	if final.planOptions.QuestionCount != 8 {
 		t.Fatalf("QuestionCount = %d, want 8", final.planOptions.QuestionCount)
 	}
-	if final.keymap.Settings.Help().Desc != i18n.T(i18n.KeySettings) {
-		t.Fatalf("settings key help = %q, want %q", final.keymap.Settings.Help().Desc, i18n.T(i18n.KeySettings))
+	if final.binding(keymap.ContextHome, keymap.ActionSettings).Help().Desc != i18n.T(i18n.KeySettings) {
+		t.Fatalf("settings key help = %q, want %q", final.binding(keymap.ContextHome, keymap.ActionSettings).Help().Desc, i18n.T(i18n.KeySettings))
 	}
 
 	savedSettings, err := config.Load(path)
@@ -570,6 +572,230 @@ func TestUpdateHomeSettingsDifficultySwitchesWithArrowKeys(t *testing.T) {
 	updated = next.(RootModel)
 	if updated.settingsWriteDifficulty != config.WriteModeDifficultyBasic {
 		t.Fatalf("settingsWriteDifficulty after left = %q, want %q", updated.settingsWriteDifficulty, config.WriteModeDifficultyBasic)
+	}
+}
+
+func TestUpdateKeymapEditorSavesOverrideAndAppliesImmediately(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	model := NewModel(nil, Options{
+		Settings:   config.DefaultSettings(),
+		ConfigPath: path,
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsCursor = settingsRowKeymap
+
+	next, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	editor := next.(RootModel)
+	if editor.screen != ScreenKeymap {
+		t.Fatalf("screen = %v, want %v", editor.screen, ScreenKeymap)
+	}
+	if editor.keymapEditor == nil {
+		t.Fatal("keymapEditor = nil, want editor state")
+	}
+
+	next, _ = editor.Update(tea.KeyPressMsg{Text: "d", Code: 'd'})
+	editor = next.(RootModel)
+	next, _ = editor.Update(tea.KeyPressMsg{Text: "a", Code: 'a'})
+	editor = next.(RootModel)
+	if editor.keymapEditor == nil || !editor.keymapEditor.recording {
+		t.Fatal("recording = false, want true after a")
+	}
+
+	next, _ = editor.Update(tea.KeyPressMsg{Text: "x", Code: 'x'})
+	editor = next.(RootModel)
+	if editor.keymapEditor == nil || editor.keymapEditor.recording {
+		t.Fatal("recording = true, want false after capture")
+	}
+	if got := editor.keymapEditor.draft.Keys(keymap.ContextHome, keymap.ActionToggleAnswerMode); !reflect.DeepEqual(got, []string{"x"}) {
+		t.Fatalf("draft home toggle keys = %v, want [x]", got)
+	}
+
+	next, cmd := editor.Update(tea.KeyPressMsg{Text: "s", Code: 's'})
+	saving := next.(RootModel)
+	if cmd == nil {
+		t.Fatal("cmd = nil, want save keymap command")
+	}
+	if !saving.loading {
+		t.Fatal("loading = false, want true while saving")
+	}
+
+	saved, _ := saving.Update(cmd())
+	final := saved.(RootModel)
+	if final.screen != ScreenHome {
+		t.Fatalf("screen = %v, want %v", final.screen, ScreenHome)
+	}
+	if !final.settingsOpen {
+		t.Fatal("settingsOpen = false, want true after returning from keymap editor")
+	}
+	if got := final.keymap.Keys(keymap.ContextHome, keymap.ActionToggleAnswerMode); !reflect.DeepEqual(got, []string{"x"}) {
+		t.Fatalf("effective home toggle keys = %v, want [x]", got)
+	}
+
+	savedSettings, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load(saved config) error = %v", err)
+	}
+	if got := savedSettings.Keymap.Home["toggle_answer_mode"]; !reflect.DeepEqual(got, []string{"x"}) {
+		t.Fatalf("saved keymap override = %v, want [x]", got)
+	}
+}
+
+func TestUpdateKeymapEditorSavePersistsSettingsOverlayDraft(t *testing.T) {
+	t.Parallel()
+
+	if err := i18n.Load(i18n.DefaultLang); err != nil {
+		t.Fatalf("Load(default lang) error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := i18n.Load(i18n.DefaultLang); err != nil {
+			t.Fatalf("restore default lang error = %v", err)
+		}
+	})
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	settings := config.DefaultSettings()
+	settings.FocusModeDefault = true
+	settings.SessionSize = 5
+
+	model := NewModel(nil, Options{
+		Settings:   settings,
+		ConfigPath: path,
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsInput = "12"
+	model.settingsLanguage = i18n.LangEN
+	model.settingsCursor = settingsRowKeymap
+
+	next, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	editor := next.(RootModel)
+	if editor.keymapEditor == nil {
+		t.Fatal("keymapEditor = nil, want editor state")
+	}
+
+	next, _ = editor.Update(tea.KeyPressMsg{Text: "d", Code: 'd'})
+	editor = next.(RootModel)
+	next, _ = editor.Update(tea.KeyPressMsg{Text: "a", Code: 'a'})
+	editor = next.(RootModel)
+	next, _ = editor.Update(tea.KeyPressMsg{Text: "x", Code: 'x'})
+	editor = next.(RootModel)
+
+	next, cmd := editor.Update(tea.KeyPressMsg{Text: "s", Code: 's'})
+	saving := next.(RootModel)
+	if cmd == nil {
+		t.Fatal("cmd = nil, want save keymap command")
+	}
+
+	saved, _ := saving.Update(cmd())
+	final := saved.(RootModel)
+	if final.settings.SessionSize != 12 {
+		t.Fatalf("final session size = %d, want 12", final.settings.SessionSize)
+	}
+	if final.settings.Language != i18n.LangEN {
+		t.Fatalf("final language = %q, want %q", final.settings.Language, i18n.LangEN)
+	}
+	if final.settings.FocusModeDefault {
+		t.Fatal("FocusModeDefault = true, want false after saving updated session size")
+	}
+	if final.status != i18n.T(i18n.StatusKeymapSavedFocus) {
+		t.Fatalf("status = %q, want %q", final.status, i18n.T(i18n.StatusKeymapSavedFocus))
+	}
+
+	savedSettings, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load(saved config) error = %v", err)
+	}
+	if savedSettings.SessionSize != 12 {
+		t.Fatalf("saved session size = %d, want 12", savedSettings.SessionSize)
+	}
+	if savedSettings.Language != i18n.LangEN {
+		t.Fatalf("saved language = %q, want %q", savedSettings.Language, i18n.LangEN)
+	}
+	if savedSettings.FocusModeDefault {
+		t.Fatal("saved FocusModeDefault = true, want false")
+	}
+}
+
+func TestUpdateKeymapEditorRecordsEsc(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{Settings: config.DefaultSettings()})
+	model.loading = false
+	model = model.openKeymapEditor()
+	if model.keymapEditor == nil {
+		t.Fatal("keymapEditor = nil")
+	}
+
+	next, _ := model.Update(tea.KeyPressMsg{Text: "a", Code: 'a'})
+	editor := next.(RootModel)
+	if editor.keymapEditor == nil || !editor.keymapEditor.recording {
+		t.Fatal("recording = false, want true")
+	}
+
+	next, _ = editor.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	editor = next.(RootModel)
+	if editor.keymapEditor == nil || editor.keymapEditor.recording {
+		t.Fatal("recording = true, want false after recording esc")
+	}
+	if got := editor.keymapEditor.draft.Keys(keymap.ContextHome, keymap.ActionToggleAnswerMode); !reflect.DeepEqual(got, []string{"tab", "esc"}) {
+		t.Fatalf("draft home toggle keys = %v, want [tab esc]", got)
+	}
+}
+
+func TestUpdateKeymapEditorCtrlGCancelsRecording(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{Settings: config.DefaultSettings()})
+	model.loading = false
+	model = model.openKeymapEditor()
+	if model.keymapEditor == nil {
+		t.Fatal("keymapEditor = nil")
+	}
+
+	next, _ := model.Update(tea.KeyPressMsg{Text: "a", Code: 'a'})
+	editor := next.(RootModel)
+	if editor.keymapEditor == nil || !editor.keymapEditor.recording {
+		t.Fatal("recording = false, want true")
+	}
+
+	next, _ = editor.Update(tea.KeyPressMsg{Code: 'g', Mod: tea.ModCtrl})
+	editor = next.(RootModel)
+	if editor.keymapEditor == nil {
+		t.Fatal("keymapEditor = nil after cancel")
+	}
+	if editor.keymapEditor.recording {
+		t.Fatal("recording = true, want false after Ctrl+G")
+	}
+	if got := editor.keymapEditor.draft.Keys(keymap.ContextHome, keymap.ActionToggleAnswerMode); !reflect.DeepEqual(got, keymap.DefaultKeys(keymap.ContextHome, keymap.ActionToggleAnswerMode)) {
+		t.Fatalf("draft home toggle keys = %v, want defaults", got)
+	}
+}
+
+func TestUpdateKeymapEditorMouseWheelScrollsCursor(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings: config.DefaultSettings(),
+	})
+	model.loading = false
+	model = model.openKeymapEditor()
+	if model.keymapEditor == nil {
+		t.Fatal("keymapEditor = nil")
+	}
+
+	next, _ := model.Update(tea.MouseWheelMsg{Button: tea.MouseWheelDown})
+	scrolled := next.(RootModel)
+	if scrolled.keymapEditor == nil || scrolled.keymapEditor.cursor != 1 {
+		t.Fatalf("cursor after wheel down = %v, want 1", scrolled.keymapEditor)
+	}
+
+	next, _ = scrolled.Update(tea.MouseWheelMsg{Button: tea.MouseWheelUp})
+	scrolled = next.(RootModel)
+	if scrolled.keymapEditor == nil || scrolled.keymapEditor.cursor != 0 {
+		t.Fatalf("cursor after wheel up = %v, want 0", scrolled.keymapEditor)
 	}
 }
 

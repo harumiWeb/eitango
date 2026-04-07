@@ -23,6 +23,18 @@
 - [x] `internal/config` / `internal/tui` / `internal/app` / `internal/i18n` の回帰テストを追加して通す
 - [x] review 指摘に合わせて `default` theme を旧配色へ戻し、`theme_palette` の未設定 slot は保存時に omit する
 
+## 2026-04-07 issue #34: キーバインドカスタマイズ
+
+- [x] `tasks/feature_spec.md` に keymap 仕様を追加する
+- [x] `config.toml` に `[keymap]` を追加し、strict validation と canonical save を実装する
+- [x] runtime keymap を context-aware に差し替え、help / key guide を動的表示へ更新する
+- [x] ホーム設定から開く Key Bindings Editor を追加する
+- [x] save 後に再起動なしで keymap を再反映する
+- [x] `internal/keymap` / `internal/config` / `internal/app` の回帰テストを追加して通す
+- [x] README / README.en / `docs/specs/keymap-settings.md` を更新する
+- [x] keymap editor が terminal 高を超えないように一覧スクロールを追加する
+- [x] review 指摘に合わせて keymap save 時も settings overlay の draft を保持し、help 退路と Esc 録音の回帰を追加する
+
 ## 2026-04-01 PR #12: Codacy follow-up
 
 - [x] `doctor.go` の `PRAGMA table_info(...)` を string formatting ではなく許可テーブルの定数 query に置き換える

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -15,7 +16,7 @@ func TestLoadMissingFileReturnsDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if settings != DefaultSettings() {
+	if !reflect.DeepEqual(settings, DefaultSettings()) {
 		t.Fatalf("settings = %+v, want %+v", settings, DefaultSettings())
 	}
 }
@@ -141,7 +142,7 @@ func TestSaveRoundTripsSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() after Save error = %v", err)
 	}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("settings = %+v, want %+v", got, want)
 	}
 }
@@ -160,6 +161,70 @@ func TestLoadMissingWriteModeDifficultyDefaultsToBasic(t *testing.T) {
 	}
 	if settings.WriteModeDifficulty != WriteModeDifficultyBasic {
 		t.Fatalf("WriteModeDifficulty = %q, want %q", settings.WriteModeDifficulty, WriteModeDifficultyBasic)
+	}
+}
+
+func TestLoadKeymapOverrides(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte(`
+session_size = 10
+review_ratio = 0.4
+language = "ja"
+
+[keymap.home]
+toggle_answer_mode = ["x"]
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	settings, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if got := settings.Keymap.Home["toggle_answer_mode"]; !reflect.DeepEqual(got, []string{"x"}) {
+		t.Fatalf("Keymap.Home[toggle_answer_mode] = %v, want [x]", got)
+	}
+}
+
+func TestSaveOmitsEmptyKeymap(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := Save(path, DefaultSettings()); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if strings.Contains(string(data), "[keymap]") {
+		t.Fatalf("config = %q, must omit empty keymap", string(data))
+	}
+}
+
+func TestSaveRoundTripsKeymapOverride(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	settings := DefaultSettings()
+	settings.Keymap.Home = map[string][]string{
+		"toggle_answer_mode": {"x"},
+	}
+	settings.Keymap.Version = 1
+
+	if err := Save(path, settings); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if override := got.Keymap.Home["toggle_answer_mode"]; !reflect.DeepEqual(override, []string{"x"}) {
+		t.Fatalf("got.Keymap.Home[toggle_answer_mode] = %v, want [x]", override)
 	}
 }
 
@@ -333,7 +398,7 @@ func TestSaveRoundTripsThemeSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() after Save error = %v", err)
 	}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("settings = %+v, want %+v", got, want)
 	}
 }

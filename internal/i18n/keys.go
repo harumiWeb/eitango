@@ -42,6 +42,8 @@ const (
 	SettingsThemeNeon            = "settings.theme_neon"
 	SettingsThemeCustom          = "settings.theme_custom"
 	SettingsThemeCustomNote      = "settings.theme_custom_note"
+	SettingsKeymap               = "settings.keymap"
+	SettingsKeymapOpen           = "settings.keymap_open"
 	SettingsKeys                 = "settings.keys"
 	SettingsFocusNote            = "settings.focus_note"
 )
@@ -135,6 +137,28 @@ const (
 
 // Help screen
 const (
+	KeymapTitle          = "keymap.title"
+	KeymapContext        = "keymap.context"
+	KeymapFilterAll      = "keymap.filter_all"
+	KeymapEmpty          = "keymap.empty"
+	KeymapUnbound        = "keymap.unbound"
+	KeymapStateDefault   = "keymap.state_default"
+	KeymapStateCustom    = "keymap.state_custom"
+	KeymapDetails        = "keymap.details"
+	KeymapAction         = "keymap.action"
+	KeymapDefault        = "keymap.default"
+	KeymapCurrent        = "keymap.current"
+	KeymapWriteNote      = "keymap.write_note"
+	KeymapRecordingTitle = "keymap.recording_title"
+	KeymapRecordingBody  = "keymap.recording_body"
+	KeymapConflictTitle  = "keymap.conflict_title"
+	KeymapConflictBody   = "keymap.conflict_body"
+	KeymapConflictKeys   = "keymap.conflict_keys"
+	KeymapKeys           = "keymap.keys"
+)
+
+// Keymap editor
+const (
 	HelpTitle             = "help.title"
 	HelpBack              = "help.back"
 	HelpQuitDisabled      = "help.quit_disabled"
@@ -163,6 +187,7 @@ const (
 	HelpScreenResults  = "help.screen.results"
 	HelpScreenStats    = "help.screen.stats"
 	HelpScreenHome     = "help.screen.home"
+	HelpScreenKeymap   = "help.screen.keymap"
 )
 
 // Keymap help descriptions
@@ -231,6 +256,14 @@ const (
 	StatusAudioFailed         = "status.audio_failed"
 	StatusAutoplayOn          = "status.autoplay_on"
 	StatusAutoplayOff         = "status.autoplay_off"
+	StatusKeymapEditing       = "status.keymap_editing"
+	StatusKeymapRecording     = "status.keymap_recording"
+	StatusKeymapRecorded      = "status.keymap_recorded"
+	StatusKeymapConflict      = "status.keymap_conflict"
+	StatusKeymapCleared       = "status.keymap_cleared"
+	StatusKeymapReset         = "status.keymap_reset"
+	StatusKeymapSaved         = "status.keymap_saved"
+	StatusKeymapSavedFocus    = "status.keymap_saved_focus_mode"
 )
 
 // CLI report messages

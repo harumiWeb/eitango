@@ -2,17 +2,20 @@ package app
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/harumiWeb/eitango/internal/audio"
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/keymap"
 	"github.com/harumiWeb/eitango/internal/quiz"
 	"github.com/harumiWeb/eitango/internal/stats"
 	"github.com/harumiWeb/eitango/internal/store"
+	"github.com/mattn/go-runewidth"
 )
 
 func TestRenderFeedbackShowsExamplesWhenAvailable(t *testing.T) {
@@ -65,7 +68,14 @@ func TestRenderFeedbackOmitsExampleLabelsWhenAbsent(t *testing.T) {
 }
 
 func TestHelpScreenRoundTripFromAllScreens(t *testing.T) {
-	t.Parallel()
+	if err := i18n.Load(i18n.DefaultLang); err != nil {
+		t.Fatalf("Load(default lang) error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := i18n.Load(i18n.DefaultLang); err != nil {
+			t.Fatalf("restore default lang error = %v", err)
+		}
+	})
 
 	testCases := []struct {
 		name               string
@@ -139,8 +149,6 @@ func TestHelpScreenRoundTripFromAllScreens(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			model := NewModel(nil, Options{})
 			model.loading = false
 			model.screen = tc.screen
@@ -236,6 +244,74 @@ func TestRenderHomeLocalizesActiveSessionMode(t *testing.T) {
 	}
 }
 
+func TestRenderKeymapEditorFitsWindowHeightAndScrollsRows(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings: config.Settings{
+			SessionSize:         config.DefaultSettings().SessionSize,
+			ReviewRatio:         config.DefaultSettings().ReviewRatio,
+			WriteModeDifficulty: config.DefaultSettings().WriteModeDifficulty,
+			AudioEnabled:        config.DefaultSettings().AudioEnabled,
+			AudioAutoplay:       config.DefaultSettings().AudioAutoplay,
+			Language:            i18n.LangJA,
+			ThemeMode:           config.ThemeModeNoColor,
+		},
+	})
+	model.loading = false
+	model.height = 20
+	model.width = 80
+	model = model.openKeymapEditor()
+	if model.keymapEditor == nil {
+		t.Fatal("keymapEditor = nil")
+	}
+
+	rows := model.keymapEditor.rows()
+	model.keymapEditor.cursor = len(rows) - 2
+
+	view := model.View().Content
+	if got := lipgloss.Height(view); got > model.height {
+		t.Fatalf("View height = %d, want <= %d\n%s", got, model.height, view)
+	}
+	if got := model.View().MouseMode; got != tea.MouseModeCellMotion {
+		t.Fatalf("MouseMode = %v, want %v", got, tea.MouseModeCellMotion)
+	}
+	if !strings.Contains(view, keymap.ContextLabel(keymap.ContextHelp)) {
+		t.Fatalf("View missing selected context near bottom:\n%s", view)
+	}
+	if !strings.Contains(view, keymap.ActionLabel(keymap.ActionBack)) {
+		t.Fatalf("View missing selected action near bottom:\n%s", view)
+	}
+	if strings.Contains(view, keymap.ActionLabel(keymap.ActionToggleAnswerMode)) {
+		t.Fatalf("View unexpectedly contains first-row action; list did not scroll:\n%s", view)
+	}
+	if !strings.Contains(view, "█") || !strings.Contains(view, "│") {
+		t.Fatalf("View missing scrollbar track/thumb:\n%s", view)
+	}
+
+	lines := strings.Split(view, "\n")
+	defaultCols := make([]int, 0, 3)
+	for _, line := range lines {
+		plain := ansi.Strip(line)
+		if !strings.Contains(plain, "default") {
+			continue
+		}
+		for _, ctx := range keymap.Contexts() {
+			if strings.Contains(plain, keymap.ContextLabel(ctx)) {
+				index := strings.Index(plain, "default")
+				defaultCols = append(defaultCols, runewidth.StringWidth(plain[:index]))
+				break
+			}
+		}
+	}
+	if len(defaultCols) < 2 {
+		t.Fatalf("View missing enough list rows to verify alignment:\n%s", view)
+	}
+	if defaultCols[0] != defaultCols[1] {
+		t.Fatalf("default column is not aligned: %v\n%s", defaultCols[:2], view)
+	}
+}
+
 func TestRenderWriteFeedbackShowsMeaningHintsAndSkippedState(t *testing.T) {
 	t.Parallel()
 
@@ -264,7 +340,14 @@ func TestRenderWriteFeedbackShowsMeaningHintsAndSkippedState(t *testing.T) {
 }
 
 func TestRenderWriteQuizAndHelpShowCtrlShortcuts(t *testing.T) {
-	t.Parallel()
+	if err := i18n.Load(i18n.DefaultLang); err != nil {
+		t.Fatalf("Load(default lang) error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := i18n.Load(i18n.DefaultLang); err != nil {
+			t.Fatalf("restore default lang error = %v", err)
+		}
+	})
 
 	model := NewModel(nil, Options{})
 	model.loading = false
@@ -303,12 +386,19 @@ func TestRenderWriteQuizAndHelpShowCtrlShortcuts(t *testing.T) {
 
 	model = model.openHelp()
 	helpView := model.renderHelp()
-	for _, want := range []string{"tab", "ctrl+s", "esc"} {
+	for _, want := range []string{
+		helpLine(model.binding(keymap.ContextQuizWrite, keymap.ActionHint)),
+		helpLine(model.binding(keymap.ContextQuizWrite, keymap.ActionSkip)),
+		helpLine(model.binding(keymap.ContextQuizWrite, keymap.ActionWriteQuit)),
+	} {
 		if !strings.Contains(helpView, want) {
 			t.Fatalf("renderHelp() missing %q:\n%s", want, helpView)
 		}
 	}
-	for _, unwanted := range []string{"ctrl+p", "shift+tab"} {
+	for _, unwanted := range []string{
+		helpLine(model.binding(keymap.ContextQuizChoice, keymap.ActionSpeak)),
+		helpLine(model.binding(keymap.ContextQuizChoice, keymap.ActionToggleAutoplay)),
+	} {
 		if strings.Contains(helpView, unwanted) {
 			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)
 		}
@@ -340,20 +430,20 @@ func TestRenderWriteFeedbackHelpShowsEnterOnly(t *testing.T) {
 
 	helpView := model.openHelp().renderHelp()
 	for _, want := range []string{
-		helpLine(model.keymap.Confirm),
-		helpLine(model.keymap.Speak),
-		helpLine(model.keymap.ToggleAutoplay),
-		fmt.Sprintf("%-10s %s", "q", i18n.T(i18n.HelpQuitDisabledWrite)),
+		helpLine(model.binding(keymap.ContextFeedbackWrite, keymap.ActionConfirm)),
+		helpLine(model.binding(keymap.ContextFeedbackWrite, keymap.ActionSpeak)),
+		helpLine(model.binding(keymap.ContextFeedbackWrite, keymap.ActionToggleAutoplay)),
+		disabledHelpLine(model.binding(keymap.ContextFeedbackWrite, keymap.ActionQuit), i18n.T(i18n.HelpQuitDisabledWrite)),
 	} {
 		if !strings.Contains(helpView, want) {
 			t.Fatalf("renderHelp() missing %q:\n%s", want, helpView)
 		}
 	}
 	for _, unwanted := range []string{
-		helpLine(model.keymap.Again),
-		helpLine(model.keymap.Hard),
-		helpLine(model.keymap.Good),
-		helpLine(model.keymap.Easy),
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionAgain)),
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionHard)),
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionGood)),
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionEasy)),
 	} {
 		if strings.Contains(helpView, unwanted) {
 			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)
@@ -547,7 +637,7 @@ func TestRenderHomeWithConfirmOverlayUsesScreenSwitch(t *testing.T) {
 		i18n.T(i18n.StartModeLearn),
 		i18n.T(i18n.StartModeReview),
 		i18n.T(i18n.AnswerModeWrite),
-		i18n.T(i18n.HomeConfirmKeys),
+		model.renderInlineGuides(keymap.ContextHomeConfirm, keymap.ActionConfirm, keymap.ActionBack),
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("renderHomeWithConfirmOverlay() missing %q:\n%s", want, got)
@@ -605,17 +695,17 @@ func TestRenderHelpFromHomeConfirmShowsConfirmAndBack(t *testing.T) {
 
 	helpView := model.openHelp().renderHelp()
 	for _, want := range []string{
-		helpLine(model.keymap.Confirm),
-		helpLine(model.keymap.Back),
+		helpLine(model.binding(keymap.ContextHomeConfirm, keymap.ActionConfirm)),
+		helpLine(model.binding(keymap.ContextHomeConfirm, keymap.ActionBack)),
 	} {
 		if !strings.Contains(helpView, want) {
 			t.Fatalf("renderHelp() missing %q:\n%s", want, helpView)
 		}
 	}
 	for _, unwanted := range []string{
-		helpLine(model.keymap.NewSession),
-		helpLine(model.keymap.Review),
-		helpLine(model.keymap.ToggleAnswerMode),
+		helpLine(model.binding(keymap.ContextHome, keymap.ActionNewSession)),
+		helpLine(model.binding(keymap.ContextHome, keymap.ActionReview)),
+		helpLine(model.binding(keymap.ContextHome, keymap.ActionToggleAnswerMode)),
 	} {
 		if strings.Contains(helpView, unwanted) {
 			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)

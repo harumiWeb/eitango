@@ -471,3 +471,52 @@
 - README / README.en に設定例が記載される。
 - `go test ./internal/config ./internal/tui ./internal/app ./internal/i18n` が通る。
 - 必要なら `go test ./...` が通る。
+
+---
+
+# 2026-04-07 issue #34: キーバインドカスタマイズ
+
+## Goal
+
+- TUI のキーバインドを `config.toml` とホーム設定内の editor から変更できるようにする。
+- key 変更後の runtime input 判定、help、各画面の key guide を再起動なしで同期させる。
+
+## Scope
+
+- `config.Settings` / `config.toml` の keymap 設定
+- context-aware keymap runtime
+- ホーム設定から開く Key Bindings Editor
+- locale / README / specs / 回帰テスト
+
+## Non-Goals
+
+- 複数 keymap profile
+- import / export
+- ファイル監視による自動 reload
+- keymap editor 自身の自由カスタマイズ
+
+## Required Behavior
+
+- `config.toml` は `[keymap]` を受け付け、default からの override だけを保存する。
+- supported context は `home`, `home_confirm`, `settings_overlay`, `quiz.choice`, `quiz.write`, `feedback.rate`, `feedback.write`, `results`, `stats`, `help` とする。
+- `keymap.version` は `1` のみ許可する。
+- unknown context / unknown action / invalid key token / same-context conflict は load/save で error にする。
+- `quiz.write` では answer 入力と衝突する英字 1 文字 key を command として保存できない。
+- settings 保存後と keymap editor 保存後のどちらでも、runtime keymap は再起動なしで差し替わる。
+- keymap editor の save は keymap だけでなく settings overlay の未保存 draft も同時に保存し、overlay 上の変更を巻き戻さない。
+- help 画面と各 screen の key guide は current keymap を使って描画する。
+- `help.back` と `help.quit` を同時に unbind する設定は保存できない。help 画面には常に少なくとも 1 つの escape binding を残す。
+- ホーム設定 overlay に keymap editor への導線を追加する。
+- keymap editor は context filter、action 一覧、record mode、clear、reset、save を持つ。
+- record mode では `Esc` も通常キーとして割り当て可能にし、cancel は別キーで行う。
+- keymap editor は terminal 高を超えて伸びず、表示可能高を超える action 一覧だけをスクロール表示する。
+
+## Acceptance
+
+- `config.toml` の `[keymap]` で home / quiz / feedback の key を override できる。
+- 未指定 action は既定値を使い続ける。
+- keymap editor で変更した key が save 後すぐに反映される。
+- help / key guide が custom key を反映する。
+- 一般的な terminal 高でも keymap editor 全体が画面内に収まり、cursor 移動で非表示行へ到達できる。
+- `go test ./internal/keymap ./internal/config ./internal/app` が通る。
+- `go test ./...` が通る。
