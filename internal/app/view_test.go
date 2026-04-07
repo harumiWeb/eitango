@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -448,6 +449,40 @@ func TestRenderWriteFeedbackHelpShowsEnterOnly(t *testing.T) {
 		if strings.Contains(helpView, unwanted) {
 			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)
 		}
+	}
+}
+
+func TestRenderWriteFeedbackHelpShowsUnboundQuitPlaceholder(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
+	})
+	model.loading = false
+	model.screen = ScreenFeedback
+	if err := model.keymap.SetKeys(keymap.ContextFeedbackWrite, keymap.ActionQuit, nil); err != nil {
+		t.Fatalf("SetKeys(feedback.write.quit=nil) error = %v", err)
+	}
+	model.feedback = &quiz.Feedback{
+		Question: quiz.Question{
+			AnswerMode: store.AnswerModeWrite,
+			Word: store.Word{
+				Lemma:     "begin",
+				MeaningJA: "始める",
+			},
+		},
+		Correct: true,
+	}
+
+	helpView := model.openHelp().renderHelp()
+	want := fmt.Sprintf("%-10s %s", i18n.T(i18n.KeymapUnbound), i18n.T(i18n.HelpQuitDisabledWrite))
+	if !strings.Contains(helpView, want) {
+		t.Fatalf("renderHelp() missing unbound quit placeholder %q:\n%s", want, helpView)
+	}
+	unwanted := fmt.Sprintf("%-10s %s", i18n.T(i18n.KeyQuit), i18n.T(i18n.HelpQuitDisabledWrite))
+	if strings.Contains(helpView, unwanted) {
+		t.Fatalf("renderHelp() unexpectedly uses action label for unbound quit %q:\n%s", unwanted, helpView)
 	}
 }
 

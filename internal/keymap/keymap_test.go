@@ -47,6 +47,24 @@ func TestResolveRejectsLetterBindingsInWriteContext(t *testing.T) {
 	}
 }
 
+func TestResolveAllowsNonASCIILetterBindingsInWriteContext(t *testing.T) {
+	t.Parallel()
+
+	state, err := Resolve(Config{
+		Quiz: QuizConfig{
+			Write: map[string][]string{
+				string(ActionSkip): {"あ"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if got := state.Keys(ContextQuizWrite, ActionSkip); !reflect.DeepEqual(got, []string{"あ"}) {
+		t.Fatalf("quiz.write.skip = %v, want [あ]", got)
+	}
+}
+
 func TestResolveRejectsHelpWithoutEscapeBinding(t *testing.T) {
 	t.Parallel()
 

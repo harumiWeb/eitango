@@ -228,7 +228,7 @@ audio_autoplay = false
 - the editor supports add / clear / reset / save per context
 - saving from the keymap editor also persists any unsaved draft changes in the settings overlay
 - saved bindings update runtime input handling, help, and key guides immediately
-- `quiz.write` rejects single-letter bindings that would collide with answer input
+- `quiz.write` rejects single ASCII-letter bindings that would collide with answer input
 - use `Ctrl+G` to cancel recording mode; `Esc` itself can be assigned from the editor
 
 Use `[keymap]` in `config.toml`:

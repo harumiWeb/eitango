@@ -212,8 +212,6 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateStats(msg)
 		case ScreenHelp:
 			return m.updateHelp(msg)
-		case ScreenKeymap:
-			return m.updateKeymapEditor(msg)
 		}
 	}
 

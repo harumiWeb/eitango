@@ -773,7 +773,7 @@ func helpLine(binding key.Binding) string {
 func disabledHelpLine(binding key.Binding, desc string) string {
 	help := binding.Help()
 	if help.Key == "" {
-		help.Key = i18n.T(i18n.KeyQuit)
+		help.Key = i18n.T(i18n.KeymapUnbound)
 	}
 	return fmt.Sprintf("%-10s %s", help.Key, desc)
 }

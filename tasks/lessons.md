@@ -31,3 +31,4 @@
 - optional config table を保存するときは、未設定 field を `""` でシリアライズしない。fallback 契約がある設定は key ごと omit して、ユーザー生成物にも契約そのものを反映する。
 - sub-editor から親 overlay の設定ファイルを書き戻すときは、永続化の基準を live config ではなく親 overlay の draft state にする。`m.settings` をそのまま保存すると未保存変更が静かに巻き戻る。
 - 画面遷移専用の context は、ユーザーが全 unbind して復帰不能にならないよう最低 1 つの escape binding を validation で必須化する。help のような一時画面は `back` と `quit` を同時に空にできない回帰を持つ。
+- 入力系 validation は実際の入力受付ルールと一致させる。`quiz.write` の衝突回避は「ASCII 英字 1 文字だけ禁止」のように runtime と同じ集合へ揃え、過剰禁止で設定自由度を落とさない。

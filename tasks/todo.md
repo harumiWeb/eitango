@@ -34,6 +34,7 @@
 - [x] README / README.en / `docs/specs/keymap-settings.md` を更新する
 - [x] keymap editor が terminal 高を超えないように一覧スクロールを追加する
 - [x] review 指摘に合わせて keymap save 時も settings overlay の draft を保持し、help 退路と Esc 録音の回帰を追加する
+- [x] review 指摘に合わせて unbound help 表示、`quiz.write` の ASCII 限定 validation、到達不能分岐を修正する
 
 ## 2026-04-01 PR #12: Codacy follow-up
 

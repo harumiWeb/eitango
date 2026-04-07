@@ -569,7 +569,7 @@ func IsPrintableCommand(token string) bool {
 		return false
 	}
 	r, _ := utf8.DecodeRuneInString(token)
-	return unicode.IsLetter(r)
+	return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z')
 }
 
 func applySection(values map[Context]map[Action][]string, ctx Context, table map[string][]string) error {
