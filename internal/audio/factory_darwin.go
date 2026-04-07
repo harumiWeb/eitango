@@ -17,6 +17,14 @@ var darwinListVoices = defaultDarwinListVoices
 
 var darwinVoiceLocalePattern = regexp.MustCompile(`\s([[:alnum:]_-]+)\s+#`)
 
+var darwinPreferredVoiceNames = []string{
+	"Samantha",
+	"Alex",
+	"Daniel",
+	"Karen",
+	"Moira",
+}
+
 func newPlatformSpeaker() Speaker {
 	command, err := darwinLookPath("say")
 	if err != nil {
@@ -61,20 +69,36 @@ func darwinPreferredVoice(command string) string {
 	if err != nil {
 		return ""
 	}
-	fallback := ""
+
+	type voiceInfo struct {
+		name   string
+		locale string
+	}
+
+	var voices []voiceInfo
 	for _, line := range strings.Split(string(output), "\n") {
 		voice, locale, ok := parseDarwinVoiceLine(line)
 		if !ok {
 			continue
 		}
-		if locale == "en_US" {
-			return voice
-		}
-		if fallback == "" && strings.HasPrefix(strings.ToLower(locale), "en") {
-			fallback = voice
+		voices = append(voices, voiceInfo{name: voice, locale: locale})
+	}
+
+	for _, preferred := range darwinPreferredVoiceNames {
+		for _, voice := range voices {
+			if voice.name == preferred && isDarwinEnglishLocale(voice.locale) {
+				return voice.name
+			}
 		}
 	}
-	return fallback
+
+	for _, voice := range voices {
+		if isDarwinEnglishLocale(voice.locale) && !isDarwinNoveltyVoice(voice.name) {
+			return voice.name
+		}
+	}
+
+	return ""
 }
 
 func parseDarwinVoiceLine(line string) (voice string, locale string, ok bool) {
@@ -88,6 +112,21 @@ func parseDarwinVoiceLine(line string) (voice string, locale string, ok bool) {
 		return "", "", false
 	}
 	return voice, locale, true
+}
+
+func isDarwinEnglishLocale(locale string) bool {
+	return strings.HasPrefix(strings.ToLower(locale), "en")
+}
+
+func isDarwinNoveltyVoice(name string) bool {
+	switch strings.ToLower(name) {
+	case "bad news", "bells", "boing", "bubbles", "cellos",
+		"deranged", "good news", "hysterical", "pipe organ",
+		"princess", "trinoids", "whisper", "zarvox":
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeDarwinSayCommand(name string) (string, bool) {
