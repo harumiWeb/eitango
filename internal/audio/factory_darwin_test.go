@@ -80,6 +80,63 @@ func TestDarwinPreferredVoiceFallsBackToOtherEnglishLocale(t *testing.T) {
 	}
 }
 
+func TestDarwinPreferredVoicePrefersNaturalVoiceOverEarlierEnglishFallback(t *testing.T) {
+	previousVoices := darwinListVoices
+	const path = "/usr/bin/say"
+	darwinListVoices = func(command string) ([]byte, error) {
+		if command != path {
+			t.Fatalf("listVoices command = %q, want %q", command, path)
+		}
+		return []byte("Whisper  en_US  # Hello.\nFred  en_US  # Hello.\nDaniel  en_GB  # Hello.\nKyoko  ja_JP  # こんにちは。"), nil
+	}
+	t.Cleanup(func() {
+		darwinListVoices = previousVoices
+	})
+
+	voice := darwinPreferredVoice(path)
+	if voice != "Daniel" {
+		t.Fatalf("voice = %q, want %q", voice, "Daniel")
+	}
+}
+
+func TestDarwinPreferredVoiceSkipsNoveltyVoicesDuringFallback(t *testing.T) {
+	previousVoices := darwinListVoices
+	const path = "/usr/bin/say"
+	darwinListVoices = func(command string) ([]byte, error) {
+		if command != path {
+			t.Fatalf("listVoices command = %q, want %q", command, path)
+		}
+		return []byte("Whisper  en_US  # Hello.\nZarvox  en_US  # Hello.\nFiona  en-scotland  # Hello.\nKyoko  ja_JP  # こんにちは。"), nil
+	}
+	t.Cleanup(func() {
+		darwinListVoices = previousVoices
+	})
+
+	voice := darwinPreferredVoice(path)
+	if voice != "Fiona" {
+		t.Fatalf("voice = %q, want %q", voice, "Fiona")
+	}
+}
+
+func TestDarwinPreferredVoiceReturnsEmptyWhenOnlyNoveltyEnglishVoicesExist(t *testing.T) {
+	previousVoices := darwinListVoices
+	const path = "/usr/bin/say"
+	darwinListVoices = func(command string) ([]byte, error) {
+		if command != path {
+			t.Fatalf("listVoices command = %q, want %q", command, path)
+		}
+		return []byte("Whisper  en_US  # Hello.\nZarvox  en_US  # Hello.\nKyoko  ja_JP  # こんにちは。"), nil
+	}
+	t.Cleanup(func() {
+		darwinListVoices = previousVoices
+	})
+
+	voice := darwinPreferredVoice(path)
+	if voice != "" {
+		t.Fatalf("voice = %q, want empty string", voice)
+	}
+}
+
 func TestParseDarwinVoiceLineAcceptsHyphenatedEnglishLocale(t *testing.T) {
 	t.Parallel()
 
