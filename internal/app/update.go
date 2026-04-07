@@ -792,16 +792,12 @@ func (m RootModel) updateKeymapEditor(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 		switch msg.Code {
 		case tea.KeyEnter:
 			for _, conflict := range editor.conflict.Conflicts {
-				if err := editor.draft.RemoveKey(conflict.Context, conflict.Action, editor.conflict.Token); err != nil {
-					m.status = err.Error()
+				if conflict.Context != editor.conflict.Context {
+					m.status = "keymap conflict spans multiple contexts"
 					return m, nil
 				}
 			}
-			keys := editor.draft.Keys(editor.conflict.Context, editor.conflict.Action)
-			if !slices.Contains(keys, editor.conflict.Token) {
-				keys = append(keys, editor.conflict.Token)
-			}
-			if err := editor.draft.SetKeys(editor.conflict.Context, editor.conflict.Action, keys); err != nil {
+			if err := editor.draft.ReplaceKey(editor.conflict.Context, editor.conflict.Action, editor.conflict.Token, editor.conflict.Conflicts); err != nil {
 				m.status = err.Error()
 				return m, nil
 			}

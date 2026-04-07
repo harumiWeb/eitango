@@ -217,6 +217,7 @@ func NewModel(store *store.Store, options Options) RootModel {
 		screen:             ScreenHome,
 		keymap:             keyState,
 		styles:             tui.NewStyles(themeFromSettings(settings)),
+		err:                err,
 		loading:            true,
 		status:             i18n.T(i18n.StatusLoading),
 	}

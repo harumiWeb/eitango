@@ -11,7 +11,7 @@
 - 同一 context 内で同じ key を複数 action に割り当てることはできない
 - `quiz.write` では英字 1 文字の command binding を禁止する
 - keymap editor から action を clear した場合は空配列 override を保存し、default binding を明示的に無効化する
-- `help.back` と `help.quit` を同時に空配列にはできない。help 画面には常に少なくとも 1 つの脱出キーを残す
+- `help.back` は空配列にできない。help 画面の復帰は `back` に依存するため、`quit` だけを残す設定は保存できない
 
 ## Contexts
 

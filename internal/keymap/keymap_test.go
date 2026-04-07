@@ -77,8 +77,8 @@ func TestResolveRejectsHelpWithoutEscapeBinding(t *testing.T) {
 	if err == nil {
 		t.Fatal("Resolve() error = nil, want error")
 	}
-	if !strings.Contains(err.Error(), "at least one of back or quit") {
-		t.Fatalf("Resolve() error = %v, want help escape validation", err)
+	if !strings.Contains(err.Error(), "help.back") {
+		t.Fatalf("Resolve() error = %v, want help.back validation", err)
 	}
 }
 
@@ -86,11 +86,29 @@ func TestStateSetKeysRejectsClearingLastHelpEscapeBinding(t *testing.T) {
 	t.Parallel()
 
 	state := DefaultState()
-	if err := state.SetKeys(ContextHelp, ActionBack, nil); err != nil {
-		t.Fatalf("SetKeys(help.back=nil) error = %v", err)
+	if err := state.SetKeys(ContextHelp, ActionBack, nil); err == nil {
+		t.Fatal("SetKeys(help.back=nil) error = nil, want error")
 	}
-	if err := state.SetKeys(ContextHelp, ActionQuit, nil); err == nil {
-		t.Fatal("SetKeys(help.quit=nil) error = nil, want error")
+}
+
+func TestStateReplaceKeyMovesConflictAtomically(t *testing.T) {
+	t.Parallel()
+
+	state := DefaultState()
+	err := state.ReplaceKey(ContextHome, ActionNewSession, "enter", []Conflict{{
+		Context: ContextHome,
+		Action:  ActionConfirm,
+		Key:     "enter",
+	}})
+	if err != nil {
+		t.Fatalf("ReplaceKey() error = %v", err)
+	}
+
+	if got := state.Keys(ContextHome, ActionConfirm); len(got) != 0 {
+		t.Fatalf("home.confirm = %v, want []", got)
+	}
+	if got := state.Keys(ContextHome, ActionNewSession); !reflect.DeepEqual(got, []string{"n", "enter"}) {
+		t.Fatalf("home.new_session = %v, want [n enter]", got)
 	}
 }
 

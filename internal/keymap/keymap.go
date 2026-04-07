@@ -495,6 +495,41 @@ func (s *State) RemoveKey(ctx Context, action Action, token string) error {
 	return s.SetKeys(ctx, action, next)
 }
 
+func (s *State) ReplaceKey(ctx Context, action Action, token string, conflicts []Conflict) error {
+	if _, ok := actionOrder[ctx]; !ok {
+		return fmt.Errorf("unknown keymap context %q", ctx)
+	}
+	if !supportsAction(ctx, action) {
+		return fmt.Errorf("keymap.%s.%s: unknown action", ContextLabel(ctx), action)
+	}
+
+	next := s.Clone()
+	next.ensureContext(ctx)
+
+	keys := next.values[ctx][action]
+	if !slices.Contains(keys, token) {
+		keys = append(keys, token)
+	}
+	next.values[ctx][action] = keys
+
+	for _, conflict := range conflicts {
+		conflictKeys := next.values[conflict.Context][conflict.Action]
+		filtered := conflictKeys[:0]
+		for _, existing := range conflictKeys {
+			if existing != token {
+				filtered = append(filtered, existing)
+			}
+		}
+		next.values[conflict.Context][conflict.Action] = filtered
+	}
+
+	if err := validateContext(ctx, next.values[ctx]); err != nil {
+		return err
+	}
+	s.values = next.values
+	return nil
+}
+
 func (s State) ToConfig() Config {
 	cfg := Config{}
 	for _, ctx := range contextOrder {
@@ -631,8 +666,8 @@ func validateContext(ctx Context, table map[Action][]string) error {
 			seen[token] = action
 		}
 	}
-	if ctx == ContextHelp && len(table[ActionBack]) == 0 && len(table[ActionQuit]) == 0 {
-		return fmt.Errorf("keymap.%s: at least one of back or quit must remain bound", ContextLabel(ctx))
+	if ctx == ContextHelp && len(table[ActionBack]) == 0 {
+		return fmt.Errorf("keymap.%s.%s: at least one binding must remain", ContextLabel(ctx), ActionBack)
 	}
 	return nil
 }
