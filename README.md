@@ -22,7 +22,7 @@ SRS での復習に加えて、選択式の `choice` と入力式の `write` の
 
 デフォルトで内部に語彙が組み込まれており（現在の語彙数: 約**5200**）、外部 CSV / JSONL からの辞書インポートもサポートしています。学習統計や進捗管理、更新通知、診断ツールも備えています。
 
-[English README](README.en.md) / [コントリビューションガイド](CONTRIBUTING.md)
+[English README](README.en.md) / [コントリビューションガイド](CONTRIBUTING.md) / [Security Policy](SECURITY.md)
 
 <img alt="home" src="assets/images/home.png" />
 
@@ -163,6 +163,14 @@ eitango doctor
 
 学習データは初回起動時にローカル DB へ初期化されます。デフォルトでは組み込みの `assets/words_core.jsonl` を seed として使用します。
 
+## Support Policy
+
+- 対応 OS は Windows / macOS / Linux です
+- 音声再生の初期対応 OS は macOS / Windows です
+- Linux では音声再生なしで、学習・復習・統計・辞書管理などの主要機能を利用できます
+- 対応範囲やサポート方針は、将来の release で変わる可能性があります
+- 脆弱性報告の手順と対応バージョン方針は [SECURITY.md](SECURITY.md) を参照してください
+
 ## Write 難易度
 
 - `write_mode_difficulty = "basic"` が既定値です
@@ -265,10 +273,12 @@ write_quit = ["esc"]
 
 保存先は `EITANGO_DATA_DIR` で上書きできます。
 
-## 更新通知
+## Network / 更新チェック
 
-`eitango` / `eitango play` / `eitango review` / `eitango version` は、GitHub Releases の latest release を確認できます。
+通常の学習データはローカル SQLite に保存され、日常的な学習フローはオフラインで完結します。ネットワーク通信が発生するのは主に更新チェックで、`eitango` / `eitango play` / `eitango review` / `eitango version` が GitHub Releases の latest release 情報を確認するときです。
 
+- 更新チェックは補助機能であり、学習開始や回答処理の必須要件ではありません
+- 取得するのは主に最新 release の version / URL などの更新案内に必要な情報です
 - ホーム画面の通知は起動ごとに非同期で latest release を再確認します
 - 初回の成功確認では通知せず、次回以降の起動で差分があればホーム画面に軽く表示します
 - `update-check.json` には直前の successful check 結果を保存し、タイムアウトやオフライン時の fallback に使います

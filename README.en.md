@@ -22,7 +22,7 @@ In addition to SRS-based review, it offers two modes: multiple-choice `choice` a
 
 The embedded vocabulary currently contains about **5200** words, and external dictionary import from CSV / JSONL is also supported. The tool includes learning statistics, progress management, update notifications, and diagnostic tools.
 
-[日本語README](README.md) / [Contributing Guide](CONTRIBUTING.md)
+[日本語README](README.md) / [Contributing Guide](CONTRIBUTING.md) / [Security Policy](SECURITY.md)
 
 <img alt="home" src="assets/images/home.png" />
 
@@ -160,6 +160,14 @@ eitango doctor
 
 On first run, `eitango` initializes the local database. By default it uses the embedded `assets/words_core.jsonl` as the seed dictionary.
 
+## Support Policy
+
+- supported operating systems are Windows, macOS, and Linux
+- audio playback currently targets macOS and Windows
+- on Linux, the core learning features remain available without audio playback
+- support scope and platform policy may change in future releases
+- see [SECURITY.md](SECURITY.md) for the private vulnerability reporting process and supported-version policy
+
 ## Write Difficulty
 
 - `write_mode_difficulty = "basic"` is the default
@@ -262,10 +270,12 @@ The following files and directories are created there:
 
 Set `EITANGO_DATA_DIR` to override the default location.
 
-## Update Checks
+## Network / Update Checks
 
-`eitango`, `eitango play`, `eitango review`, and `eitango version` can check the latest GitHub Release.
+Regular study sessions are local-first and use the local SQLite database. Network access is mainly used for the optional update check performed by `eitango`, `eitango play`, `eitango review`, and `eitango version` against the latest GitHub Release metadata.
 
+- update checks are optional helper behavior, not a requirement for starting or continuing a study session
+- the request is only used to fetch lightweight release metadata such as the latest version and release URL
 - the home-screen notice revalidates the latest release asynchronously on every launch
 - the first successful check seeds the cache without showing a notice
 - `update-check.json` stores the most recent successful result and is used as a fallback when the request times out or fails
