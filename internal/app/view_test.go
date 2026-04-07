@@ -313,6 +313,45 @@ func TestRenderKeymapEditorFitsWindowHeightAndScrollsRows(t *testing.T) {
 	}
 }
 
+func TestRenderKeymapEditorFitsWindowHeightWhenVerySmall(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings: config.Settings{
+			SessionSize:         config.DefaultSettings().SessionSize,
+			ReviewRatio:         config.DefaultSettings().ReviewRatio,
+			WriteModeDifficulty: config.DefaultSettings().WriteModeDifficulty,
+			AudioEnabled:        config.DefaultSettings().AudioEnabled,
+			AudioAutoplay:       config.DefaultSettings().AudioAutoplay,
+			Language:            i18n.LangJA,
+			ThemeMode:           config.ThemeModeNoColor,
+		},
+	})
+	model.loading = false
+	model.width = 80
+
+	for _, height := range []int{6, 8, 10, 12} {
+		model.height = height
+		m := model.openKeymapEditor()
+		if m.keymapEditor == nil {
+			t.Fatalf("height=%d: keymapEditor = nil", height)
+		}
+		// Enable recording and a conflict to exercise all optional sections.
+		m.keymapEditor.recording = true
+		m.keymapEditor.conflict = &keymapConflictState{
+			Token: "x",
+			Conflicts: []keymap.Conflict{{
+				Context: keymap.ContextHome,
+				Action:  keymap.ActionConfirm,
+			}},
+		}
+		view := m.View().Content
+		if got := lipgloss.Height(view); got > height {
+			t.Fatalf("height=%d: View height = %d, want <= %d\n%s", height, got, height, view)
+		}
+	}
+}
+
 func TestRenderWriteFeedbackShowsMeaningHintsAndSkippedState(t *testing.T) {
 	t.Parallel()
 

@@ -446,11 +446,31 @@ func (m RootModel) renderKeymapEditor() string {
 	}
 
 	footerLines := []string{"", m.styles.Muted.Render(i18n.T(i18n.KeymapKeys))}
+
+	// Determine which optional sections to render based on available height.
+	// Priority: recording > conflict > detail. Each section is only shown when
+	// including it still leaves room for at least one action-list row.
+	available := m.keymapEditorInnerHeight()
+	fixedLines := len(headerLines) + len(footerLines)
+
+	showRecording := len(recordingLines) > 0 && available-fixedLines >= len(recordingLines)+1
+	if showRecording {
+		fixedLines += len(recordingLines)
+	}
+	showConflict := len(conflictLines) > 0 && available-fixedLines >= len(conflictLines)+1
+	if showConflict {
+		fixedLines += len(conflictLines)
+	}
+	showDetail := len(detailLines) > 0 && available-fixedLines >= len(detailLines)+1
+	if showDetail {
+		fixedLines += len(detailLines)
+	}
+
 	listLines := make([]string, 0, len(rows))
 	if len(rows) == 0 {
 		listLines = append(listLines, m.styles.Muted.Render(i18n.T(i18n.KeymapEmpty)))
 	} else {
-		start, end := m.keymapEditorRowWindow(len(rows), editor.cursor, len(headerLines)+len(detailLines)+len(recordingLines)+len(conflictLines)+len(footerLines))
+		start, end := m.keymapEditorRowWindow(len(rows), editor.cursor, fixedLines)
 		scrollbar := m.keymapEditorScrollbar(len(rows), start, end)
 		for index := start; index < end; index++ {
 			marker := ""
@@ -463,10 +483,20 @@ func (m RootModel) renderKeymapEditor() string {
 
 	lines := append([]string{}, headerLines...)
 	lines = append(lines, listLines...)
-	lines = append(lines, detailLines...)
-	lines = append(lines, recordingLines...)
-	lines = append(lines, conflictLines...)
+	if showDetail {
+		lines = append(lines, detailLines...)
+	}
+	if showRecording {
+		lines = append(lines, recordingLines...)
+	}
+	if showConflict {
+		lines = append(lines, conflictLines...)
+	}
 	lines = append(lines, footerLines...)
+	// Safety clip: ensure total lines never exceed the available inner height.
+	if available > 0 && len(lines) > available {
+		lines = lines[:available]
+	}
 	return m.styles.Panel.Render(strings.Join(lines, "\n"))
 }
 
