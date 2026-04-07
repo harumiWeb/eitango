@@ -644,8 +644,6 @@ func TestUpdateKeymapEditorSavesOverrideAndAppliesImmediately(t *testing.T) {
 }
 
 func TestUpdateKeymapEditorSavePersistsSettingsOverlayDraft(t *testing.T) {
-	t.Parallel()
-
 	if err := i18n.Load(i18n.DefaultLang); err != nil {
 		t.Fatalf("Load(default lang) error = %v", err)
 	}

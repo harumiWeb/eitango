@@ -33,3 +33,4 @@
 - 画面遷移専用の context は、runtime の実際の戻り経路と一致した escape binding を validation で必須化する。help のように `quit` が復帰キーでない画面では `back` 自体を必須にし、見かけ上の退路を許可しない。
 - 入力系 validation は実際の入力受付ルールと一致させる。`quiz.write` の衝突回避は「ASCII 英字 1 文字だけ禁止」のように runtime と同じ集合へ揃え、過剰禁止で設定自由度を落とさない。
 - 複数 binding を跨ぐ置換操作は、中間状態の validation で失敗しないよう原子的に適用する。help の escape key のような「最終状態では妥当」な更新を remove→add の逐次適用で壊さない。
+- process-global な i18n state を書き換えるテストは `t.Parallel()` にしない。`i18n.Load(...)` を使う描画・更新テストは直列化するか state を隔離して、翻訳文字列の競合で flaky にしない。
