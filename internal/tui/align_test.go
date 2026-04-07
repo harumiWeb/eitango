@@ -35,3 +35,11 @@ func TestAlignLabel(t *testing.T) {
 		})
 	}
 }
+
+func TestAlignText(t *testing.T) {
+	got := AlignText("回答方式を切り替える", 22)
+	gotW := runewidth.StringWidth(got)
+	if gotW != 22 {
+		t.Fatalf("AlignText display width = %d, want 22 (result=%q)", gotW, got)
+	}
+}

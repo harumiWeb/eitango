@@ -223,6 +223,21 @@ func saveSettingsCmd(path string, settings config.Settings, focusModeDisabled bo
 	}
 }
 
+func saveKeymapCmd(path string, settings config.Settings, focusModeDisabled bool) tea.Cmd {
+	return func() tea.Msg {
+		if path == "" {
+			return errMsg{err: fmt.Errorf("config path is not configured")}
+		}
+		if err := config.Save(path, settings); err != nil {
+			return errMsg{err: err}
+		}
+		return keymapSavedMsg{
+			Settings:          settings,
+			FocusModeDisabled: focusModeDisabled,
+		}
+	}
+}
+
 func speakCmd(speaker audio.Speaker, text string, fromAutoplay bool) tea.Cmd {
 	return func() tea.Msg {
 		if speaker == nil || !speaker.Enabled() {

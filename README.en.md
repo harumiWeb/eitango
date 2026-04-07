@@ -47,6 +47,7 @@ The embedded vocabulary currently contains about **5200** words, and external di
 - on the home screen, `Tab` switches `choice / write`, `Enter` starts play, and `r` starts review
 - the home settings screen can switch Write difficulty between `basic` and `hard`
 - the home settings screen can switch theme mode between `default`, `no_color`, `neon`, and `custom`
+- the home settings screen can open a Key Bindings Editor and apply changes immediately
 - on macOS / Windows, `Ctrl+P` plays the current word and `Shift+Tab` toggles session-local autoplay
 - `eitango play [choice|write]` starts a standard learning session
 - `eitango review [choice|write]` starts a due-only review session
@@ -174,6 +175,10 @@ write_mode_difficulty = "basic"
 
 ## Display Themes
 
+<p align="center">
+  <img alt="Theme mode switch" src="assets/images/change_theme.gif" />
+</p>
+
 - `theme_mode = "default"` keeps the default palette
 - `theme_mode = "no_color"` removes color styling and uses the terminal defaults
 - `theme_mode = "neon"` applies a light-green high-contrast preset
@@ -211,6 +216,35 @@ Set the defaults in `config.toml`:
 ```toml
 audio_enabled = true
 audio_autoplay = false
+```
+
+## Key Bindings
+
+<p align="center">
+  <img alt="Key Bindings Editor" src="assets/images/keybind.gif" />
+</p>
+
+- open the editor from the `Key bindings` row in the home settings overlay
+- the editor supports add / clear / reset / save per context
+- saving from the keymap editor also persists any unsaved draft changes in the settings overlay
+- saved bindings update runtime input handling, help, and key guides immediately
+- `quiz.write` rejects single ASCII-letter bindings that would collide with answer input
+- use `Ctrl+G` to cancel recording mode; `Esc` itself can be assigned from the editor
+
+Use `[keymap]` in `config.toml`:
+
+```toml
+[keymap]
+version = 1
+
+[keymap.home]
+toggle_answer_mode = ["x"]
+
+[keymap.quiz.write]
+hint = ["tab"]
+skip = ["ctrl+s"]
+confirm = ["enter"]
+write_quit = ["esc"]
 ```
 
 ## Data Directory

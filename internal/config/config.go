@@ -13,6 +13,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/keymap"
 	"github.com/harumiWeb/eitango/internal/session"
 )
 
@@ -46,6 +47,7 @@ type Settings struct {
 	Language            string
 	ThemeMode           string
 	ThemePalette        ThemePalette
+	Keymap              keymap.Config
 }
 
 type ThemePalette struct {
@@ -66,6 +68,7 @@ type fileSettings struct {
 	Language            *string          `toml:"language"`
 	ThemeMode           *string          `toml:"theme_mode"`
 	ThemePalette        fileThemePalette `toml:"theme_palette"`
+	Keymap              keymap.Config    `toml:"keymap"`
 }
 
 type fileThemePalette struct {
@@ -86,6 +89,20 @@ func DefaultSettings() Settings {
 		Language:            i18n.DefaultLang,
 		ThemeMode:           ThemeModeDefault,
 	}
+}
+
+func (s Settings) IsZero() bool {
+	return s.SessionSize == 0 &&
+		s.ReviewRatio == 0 &&
+		!s.FocusModeDefault &&
+		s.WriteModeDifficulty == "" &&
+		!s.AudioEnabled &&
+		!s.AudioAutoplay &&
+		s.Language == "" &&
+		s.ThemeMode == "" &&
+		s.ThemePalette == (ThemePalette{}) &&
+		!s.Keymap.HasOverrides() &&
+		s.Keymap.Version == 0
 }
 
 func Load(path string) (Settings, error) {
@@ -146,6 +163,7 @@ func Load(path string) (Settings, error) {
 		}
 		settings.ThemePalette = themePalette
 	}
+	settings.Keymap = raw.Keymap
 
 	if err := validateSettings(settings); err != nil {
 		return Settings{}, err
@@ -173,6 +191,10 @@ func Save(path string, settings Settings) error {
 	if err != nil {
 		return err
 	}
+	if _, err := keymap.Resolve(settings.Keymap); err != nil {
+		return err
+	}
+	settings.Keymap = canonicalizeKeymap(settings.Keymap)
 
 	if err := validateSettings(settings); err != nil {
 		return err
@@ -192,6 +214,7 @@ func Save(path string, settings Settings) error {
 		Language            string            `toml:"language"`
 		ThemeMode           string            `toml:"theme_mode"`
 		ThemePalette        *saveThemePalette `toml:"theme_palette,omitempty"`
+		Keymap              *keymap.Config    `toml:"keymap,omitempty"`
 	}{
 		SessionSize:         settings.SessionSize,
 		ReviewRatio:         settings.ReviewRatio,
@@ -202,6 +225,7 @@ func Save(path string, settings Settings) error {
 		Language:            settings.Language,
 		ThemeMode:           settings.ThemeMode,
 		ThemePalette:        newSaveThemePalette(settings.ThemePalette),
+		Keymap:              saveKeymapConfig(settings.Keymap),
 	}); err != nil {
 		return fmt.Errorf("encode config %s: %w", path, err)
 	}
@@ -436,6 +460,9 @@ func validateSettings(settings Settings) error {
 	if _, err := normalizeThemePalette(settings.ThemePalette); err != nil {
 		return err
 	}
+	if _, err := keymap.Resolve(settings.Keymap); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -473,6 +500,22 @@ func saveThemeColor(value string) *string {
 		return nil
 	}
 	return &value
+}
+
+func saveKeymapConfig(cfg keymap.Config) *keymap.Config {
+	if !cfg.HasOverrides() {
+		return nil
+	}
+	copy := canonicalizeKeymap(cfg)
+	return &copy
+}
+
+func canonicalizeKeymap(cfg keymap.Config) keymap.Config {
+	state, err := keymap.Resolve(cfg)
+	if err != nil {
+		return keymap.Config{}
+	}
+	return state.ToConfig()
 }
 
 func replaceFile(src, dst string) error {

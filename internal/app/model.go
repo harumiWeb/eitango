@@ -9,6 +9,7 @@ import (
 	"github.com/harumiWeb/eitango/internal/audio"
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/keymap"
 	"github.com/harumiWeb/eitango/internal/quiz"
 	"github.com/harumiWeb/eitango/internal/session"
 	"github.com/harumiWeb/eitango/internal/stats"
@@ -26,6 +27,7 @@ const (
 	ScreenResults
 	ScreenStats
 	ScreenHelp
+	ScreenKeymap
 )
 
 const (
@@ -35,6 +37,7 @@ const (
 	settingsRowAudioAutoplay
 	settingsRowLanguage
 	settingsRowTheme
+	settingsRowKeymap
 	settingsRowCount
 )
 
@@ -74,6 +77,11 @@ type updateCheckedMsg struct {
 	Result updatecheck.Result
 }
 
+type keymapSavedMsg struct {
+	Settings          config.Settings
+	FocusModeDisabled bool
+}
+
 type errMsg struct {
 	err error
 }
@@ -104,6 +112,22 @@ type homeConfirmState struct {
 	StartStatus string
 }
 
+type keymapEditorState struct {
+	filter    keymap.Context
+	cursor    int
+	draft     keymap.State
+	original  keymap.State
+	recording bool
+	conflict  *keymapConflictState
+}
+
+type keymapConflictState struct {
+	Context   keymap.Context
+	Action    keymap.Action
+	Token     string
+	Conflicts []keymap.Conflict
+}
+
 type RootModel struct {
 	store                        *store.Store
 	quiz                         *quiz.Service
@@ -118,7 +142,7 @@ type RootModel struct {
 	updateLatestTag              string
 	selectedAnswerMode           string
 	screen                       Screen
-	keymap                       tui.KeyMap
+	keymap                       keymap.State
 	styles                       tui.Styles
 	home                         store.HomeSnapshot
 	stats                        stats.Snapshot
@@ -146,6 +170,7 @@ type RootModel struct {
 	settingsThemeMode            string
 	helpReturn                   Screen
 	helpStatus                   string
+	keymapEditor                 *keymapEditorState
 	width                        int
 	height                       int
 	questionStarted              time.Time
@@ -156,7 +181,7 @@ type RootModel struct {
 
 func NewModel(store *store.Store, options Options) RootModel {
 	settings := options.Settings
-	if settings == (config.Settings{}) {
+	if settings.IsZero() {
 		settings = config.DefaultSettings()
 	}
 
@@ -171,6 +196,11 @@ func NewModel(store *store.Store, options Options) RootModel {
 	speaker := speakerFactory(audioConfigFromSettings(settings))
 	settings = normalizeAutoplaySetting(settings, speaker)
 	settings.ThemeMode = config.NormalizeThemeMode(settings.ThemeMode)
+	keyState, err := keymap.Resolve(settings.Keymap)
+	if err != nil {
+		keyState = keymap.DefaultState()
+		settings.Keymap = keyState.ToConfig()
+	}
 
 	return RootModel{
 		store:              store,
@@ -185,8 +215,9 @@ func NewModel(store *store.Store, options Options) RootModel {
 		speakerFactory:     speakerFactory,
 		selectedAnswerMode: startupAnswerMode(options.Startup),
 		screen:             ScreenHome,
-		keymap:             tui.NewKeyMap(),
+		keymap:             keyState,
 		styles:             tui.NewStyles(themeFromSettings(settings)),
+		err:                err,
 		loading:            true,
 		status:             i18n.T(i18n.StatusLoading),
 	}
@@ -335,12 +366,75 @@ func (m RootModel) settingsDraft() (config.Settings, bool, bool) {
 	draft.AudioAutoplay = m.settingsAudioAutoplay && m.settingsAudioAvailable()
 	draft.Language = m.settingsLanguage
 	draft.ThemeMode = config.NormalizeThemeMode(m.settingsThemeMode)
+	draft.Keymap = m.settings.Keymap
 
 	focusModeDisabled := draft.FocusModeDefault && draft.SessionSize != m.settings.SessionSize
 	if focusModeDisabled {
 		draft.FocusModeDefault = false
 	}
 	return draft, true, focusModeDisabled
+}
+
+func (m RootModel) settingsForKeymapSave() (config.Settings, bool, bool) {
+	if !m.settingsOpen {
+		return m.settings, true, false
+	}
+	return m.settingsDraft()
+}
+
+func (m RootModel) applySettings(settings config.Settings) (RootModel, error) {
+	if err := i18n.Load(settings.Language); err != nil {
+		return m, err
+	}
+	speaker := m.speakerFactory(audioConfigFromSettings(settings))
+	settings = normalizeAutoplaySetting(settings, speaker)
+	settings.ThemeMode = config.NormalizeThemeMode(settings.ThemeMode)
+	keyState, err := keymap.Resolve(settings.Keymap)
+	if err != nil {
+		return m, err
+	}
+	settings.Keymap = keyState.ToConfig()
+
+	m.loading = false
+	m.err = nil
+	m.settings = settings
+	m.keymap = keyState
+	m.styles = tui.NewStyles(themeFromSettings(settings))
+	m.planOptions = planOptionsFromSettings(settings)
+	m.settingsEditing = false
+	m.settingsInput = strconv.Itoa(settings.SessionSize)
+	m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(settings.WriteModeDifficulty)
+	m.settingsAudioEnabled = settings.AudioEnabled
+	m.settingsAudioAutoplay = settings.AudioAutoplay
+	m.settingsAudioAvailableCached = m.probeSettingsAudioAvailable()
+	m.settingsLanguage = settings.Language
+	m.settingsThemeMode = config.NormalizeThemeMode(settings.ThemeMode)
+	m.speaker = speaker
+	if !m.speakerAvailable() {
+		m.autoplayEnabled = false
+	}
+	return m, nil
+}
+
+func (m RootModel) openKeymapEditor() RootModel {
+	editor := &keymapEditorState{
+		draft:    m.keymap.Clone(),
+		original: m.keymap.Clone(),
+	}
+	m.keymapEditor = editor
+	m.screen = ScreenKeymap
+	m.status = i18n.T(i18n.StatusKeymapEditing)
+	return m
+}
+
+func (m RootModel) closeKeymapEditor() RootModel {
+	m.keymapEditor = nil
+	m.screen = ScreenHome
+	m.settingsOpen = true
+	if m.status == "" || m.status == i18n.T(i18n.StatusKeymapEditing) {
+		m.status = i18n.T(i18n.StatusConfiguringSettings)
+	}
+	return m
 }
 
 func planOptionsFromSettings(settings config.Settings) session.PlanOptions {

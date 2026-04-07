@@ -29,3 +29,8 @@
 - アクセシビリティ向けのテーマ提案では、任意設定だけで完結させず、すぐ選べる高コントラスト preset を別モードで持つかを先に確認する。利用者は `custom` より preset を期待していることがある。
 - 既存 UI の見た目調整では、preset を追加するときも従来 preset の色味を不必要に変えない。default は既存の印象を保ち、新規テーマでだけ方向性を変える。
 - optional config table を保存するときは、未設定 field を `""` でシリアライズしない。fallback 契約がある設定は key ごと omit して、ユーザー生成物にも契約そのものを反映する。
+- sub-editor から親 overlay の設定ファイルを書き戻すときは、永続化の基準を live config ではなく親 overlay の draft state にする。`m.settings` をそのまま保存すると未保存変更が静かに巻き戻る。
+- 画面遷移専用の context は、runtime の実際の戻り経路と一致した escape binding を validation で必須化する。help のように `quit` が復帰キーでない画面では `back` 自体を必須にし、見かけ上の退路を許可しない。
+- 入力系 validation は実際の入力受付ルールと一致させる。`quiz.write` の衝突回避は「ASCII 英字 1 文字だけ禁止」のように runtime と同じ集合へ揃え、過剰禁止で設定自由度を落とさない。
+- 複数 binding を跨ぐ置換操作は、中間状態の validation で失敗しないよう原子的に適用する。help の escape key のような「最終状態では妥当」な更新を remove→add の逐次適用で壊さない。
+- process-global な i18n state を書き換えるテストは `t.Parallel()` にしない。`i18n.Load(...)` を使う描画・更新テストは直列化するか state を隔離して、翻訳文字列の競合で flaky にしない。

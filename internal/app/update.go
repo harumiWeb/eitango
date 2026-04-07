@@ -1,17 +1,17 @@
 package app
 
 import (
+	"slices"
 	"strconv"
 	"time"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/harumiWeb/eitango/internal/config"
 	"github.com/harumiWeb/eitango/internal/i18n"
+	"github.com/harumiWeb/eitango/internal/keymap"
 	"github.com/harumiWeb/eitango/internal/quiz"
 	"github.com/harumiWeb/eitango/internal/srs"
 	"github.com/harumiWeb/eitango/internal/store"
-	"github.com/harumiWeb/eitango/internal/tui"
 )
 
 func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -57,38 +57,38 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status = i18n.T(i18n.StatusStatsLoaded)
 		return m, nil
 	case settingsSavedMsg:
-		if err := i18n.Load(msg.Settings.Language); err != nil {
+		updated, err := m.applySettings(msg.Settings)
+		if err != nil {
 			m.loading = false
 			m.err = err
 			m.status = err.Error()
 			return m, nil
 		}
-		speaker := m.speakerFactory(audioConfigFromSettings(msg.Settings))
-		settings := normalizeAutoplaySetting(msg.Settings, speaker)
-		m.loading = false
-		m.err = nil
-		m.settings = settings
-		m.keymap = tui.NewKeyMap()
-		m.styles = tui.NewStyles(themeFromSettings(settings))
-		m.planOptions = planOptionsFromSettings(settings)
+		m = updated
 		m.settingsOpen = false
 		m.homeConfirm = nil
-		m.settingsEditing = false
-		m.settingsInput = strconv.Itoa(settings.SessionSize)
-		m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(settings.WriteModeDifficulty)
-		m.settingsAudioEnabled = settings.AudioEnabled
-		m.settingsAudioAutoplay = settings.AudioAutoplay
-		m.settingsAudioAvailableCached = m.probeSettingsAudioAvailable()
-		m.settingsLanguage = settings.Language
-		m.settingsThemeMode = config.NormalizeThemeMode(settings.ThemeMode)
-		m.speaker = speaker
-		if !m.speakerAvailable() {
-			m.autoplayEnabled = false
-		}
 		if msg.FocusModeDisabled {
 			m.status = i18n.T(i18n.StatusSettingsSavedFocus)
 		} else {
 			m.status = i18n.T(i18n.StatusSettingsSaved)
+		}
+		return m, nil
+	case keymapSavedMsg:
+		updated, err := m.applySettings(msg.Settings)
+		if err != nil {
+			m.loading = false
+			m.err = err
+			m.status = err.Error()
+			return m, nil
+		}
+		m = updated
+		m.keymapEditor = nil
+		m.screen = ScreenHome
+		m.settingsOpen = true
+		if msg.FocusModeDisabled {
+			m.status = i18n.T(i18n.StatusKeymapSavedFocus)
+		} else {
+			m.status = i18n.T(i18n.StatusKeymapSaved)
 		}
 		return m, nil
 	case updateCheckedMsg:
@@ -156,17 +156,25 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg.err
 		m.status = i18n.T(i18n.StatusAudioFailed)
 		return m, nil
+	case tea.MouseWheelMsg:
+		if m.screen == ScreenKeymap {
+			return m.updateKeymapEditorWheel(msg)
+		}
+		return m, nil
 	case tea.KeyPressMsg:
+		if m.screen == ScreenKeymap {
+			return m.updateKeymapEditor(msg)
+		}
 		if m.screen == ScreenQuiz && m.currentQ != nil && m.currentQ.AnswerMode == store.AnswerModeWrite {
 			switch {
-			case key.Matches(msg, m.keymap.WriteQuit):
+			case m.keymap.Match(keymap.ContextQuizWrite, keymap.ActionWriteQuit, msg):
 				return m, tea.Quit
-			case (len(msg.Text) != 1 || (msg.Text != "q" && msg.Text != "Q")) && key.Matches(msg, m.keymap.Quit):
+			case m.keymap.Match(keymap.ContextQuizWrite, keymap.ActionQuit, msg):
 				return m, tea.Quit
 			}
 		} else {
 			switch {
-			case key.Matches(msg, m.keymap.Quit):
+			case m.matchesQuit(msg):
 				switch m.screen {
 				case ScreenFeedback:
 					if m.feedback != nil && m.feedback.Question.AnswerMode == store.AnswerModeWrite {
@@ -212,7 +220,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
-	case key.Matches(msg, m.keymap.Help):
+	case m.keymap.Match(m.homeContext(), keymap.ActionHelp, msg):
 		return m.openHelp(), nil
 	}
 
@@ -228,27 +236,27 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch {
-	case key.Matches(msg, m.keymap.ToggleAnswerMode):
+	case m.keymap.Match(keymap.ContextHome, keymap.ActionToggleAnswerMode, msg):
 		m.selectedAnswerMode = nextAnswerMode(m.selectedAnswerMode)
 		m.status = m.homeStatus()
 		return m, nil
-	case key.Matches(msg, m.keymap.Stats):
+	case m.keymap.Match(keymap.ContextHome, keymap.ActionStats, msg):
 		m.loading = true
 		m.status = i18n.T(i18n.StatusLoadingStats)
 		return m, loadStatsCmd(m.store)
-	case key.Matches(msg, m.keymap.Settings):
+	case m.keymap.Match(keymap.ContextHome, keymap.ActionSettings, msg):
 		return m.openSettingsOverlay(), nil
-	case key.Matches(msg, m.keymap.Review):
+	case m.keymap.Match(keymap.ContextHome, keymap.ActionReview, msg):
 		if m.home.ActiveSession != nil {
 			return m.openHomeConfirm(m.sessionRequest(store.ModeReview, true), i18n.StatusStartingReview), nil
 		}
 		return m.startHomeRequest(m.sessionRequest(store.ModeReview, false), i18n.StatusStartingReview)
-	case key.Matches(msg, m.keymap.NewSession):
+	case m.keymap.Match(keymap.ContextHome, keymap.ActionNewSession, msg):
 		if m.home.ActiveSession != nil {
 			return m.openHomeConfirm(m.sessionRequest(store.ModeLearn, true), i18n.StatusStartingNew), nil
 		}
 		return m.startHomeRequest(m.sessionRequest(store.ModeLearn, false), i18n.StatusStartingNew)
-	case key.Matches(msg, m.keymap.Confirm):
+	case m.keymap.Match(keymap.ContextHome, keymap.ActionConfirm, msg):
 		if m.home.ActiveSession != nil {
 			if store.NormalizeAnswerMode(m.home.ActiveSession.AnswerMode) != store.NormalizeAnswerMode(m.selectedAnswerMode) {
 				return m.openHomeConfirm(m.sessionRequest(store.ModeLearn, true), i18n.StatusStartingLearn), nil
@@ -263,9 +271,9 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m RootModel) updateHomeConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
-	case key.Matches(msg, m.keymap.Back):
+	case m.keymap.Match(keymap.ContextHomeConfirm, keymap.ActionBack, msg):
 		return m.closeHomeConfirm(), nil
-	case key.Matches(msg, m.keymap.Confirm):
+	case m.keymap.Match(keymap.ContextHomeConfirm, keymap.ActionConfirm, msg):
 		return m.startHomeRequest(m.homeConfirm.Request, m.homeConfirm.StartStatus)
 	}
 	return m, nil
@@ -280,25 +288,25 @@ func (m RootModel) startHomeRequest(request sessionRequest, statusKey string) (t
 
 func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
-	case key.Matches(msg, m.keymap.Help):
+	case m.keymap.Match(keymap.ContextSettingsOverlay, keymap.ActionHelp, msg):
 		return m.openHelp(), nil
-	case key.Matches(msg, m.keymap.Back), key.Matches(msg, m.keymap.Settings):
+	case m.keymap.Match(keymap.ContextSettingsOverlay, keymap.ActionBack, msg), m.keymap.Match(keymap.ContextHome, keymap.ActionSettings, msg):
 		return m.closeSettingsOverlay(), nil
-	case key.Matches(msg, m.keymap.Up):
+	case m.keymap.Match(keymap.ContextSettingsOverlay, keymap.ActionUp, msg):
 		if m.settingsCursor > settingsRowQuestionCount {
 			m.settingsCursor--
 		}
 		m.settingsEditing = false
 		m.status = i18n.T(i18n.StatusConfiguringSettings)
 		return m, nil
-	case key.Matches(msg, m.keymap.Down):
+	case m.keymap.Match(keymap.ContextSettingsOverlay, keymap.ActionDown, msg):
 		if m.settingsCursor < settingsRowCount-1 {
 			m.settingsCursor++
 		}
 		m.settingsEditing = false
 		m.status = i18n.T(i18n.StatusConfiguringSettings)
 		return m, nil
-	case key.Matches(msg, m.keymap.Left):
+	case m.keymap.Match(keymap.ContextSettingsOverlay, keymap.ActionLeft, msg):
 		switch m.settingsCursor {
 		case settingsRowQuestionCount:
 			count, ok := m.settingsQuestionCount()
@@ -323,7 +331,7 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		m.settingsEditing = false
 		m.status = i18n.T(i18n.StatusConfiguringSettings)
 		return m, nil
-	case key.Matches(msg, m.keymap.Right):
+	case m.keymap.Match(keymap.ContextSettingsOverlay, keymap.ActionRight, msg):
 		switch m.settingsCursor {
 		case settingsRowQuestionCount:
 			count, ok := m.settingsQuestionCount()
@@ -358,7 +366,10 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		m.settingsEditing = false
 		m.status = i18n.T(i18n.StatusConfiguringSettings)
 		return m, nil
-	case key.Matches(msg, m.keymap.Confirm):
+	case m.keymap.Match(keymap.ContextSettingsOverlay, keymap.ActionConfirm, msg):
+		if m.settingsCursor == settingsRowKeymap {
+			return m.openKeymapEditor(), nil
+		}
 		settings, ok, focusModeDisabled := m.settingsDraft()
 		if !ok {
 			m.status = i18n.T(i18n.StatusInvalidCount)
@@ -397,7 +408,7 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 
 func (m RootModel) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
-	case key.Matches(msg, m.keymap.Help):
+	case m.keymap.Match(m.quizContext(), keymap.ActionHelp, msg):
 		return m.openHelp(), nil
 	}
 
@@ -408,9 +419,9 @@ func (m RootModel) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.updateWriteQuiz(msg)
 	}
 	switch {
-	case key.Matches(msg, m.keymap.ToggleAutoplay):
+	case m.keymap.Match(keymap.ContextQuizChoice, keymap.ActionToggleAutoplay, msg):
 		return m.toggleAutoplay(), nil
-	case key.Matches(msg, m.keymap.Speak):
+	case m.keymap.Match(keymap.ContextQuizChoice, keymap.ActionSpeak, msg):
 		return m.maybeSpeakCurrentWord()
 	}
 	if len(m.currentQ.Choices) == 0 {
@@ -418,25 +429,25 @@ func (m RootModel) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch {
-	case key.Matches(msg, m.keymap.Up):
+	case m.keymap.Match(keymap.ContextQuizChoice, keymap.ActionUp, msg):
 		if m.cursor > 0 {
 			m.cursor--
 		}
 		return m, nil
-	case key.Matches(msg, m.keymap.Down):
+	case m.keymap.Match(keymap.ContextQuizChoice, keymap.ActionDown, msg):
 		if m.cursor < len(m.currentQ.Choices)-1 {
 			m.cursor++
 		}
 		return m, nil
-	case key.Matches(msg, m.keymap.Select1):
+	case m.keymap.Match(keymap.ContextQuizChoice, keymap.ActionSelect1, msg):
 		return m.showChoiceFeedback(0), nil
-	case key.Matches(msg, m.keymap.Select2):
+	case m.keymap.Match(keymap.ContextQuizChoice, keymap.ActionSelect2, msg):
 		return m.showChoiceFeedback(1), nil
-	case key.Matches(msg, m.keymap.Select3):
+	case m.keymap.Match(keymap.ContextQuizChoice, keymap.ActionSelect3, msg):
 		return m.showChoiceFeedback(2), nil
-	case key.Matches(msg, m.keymap.Select4):
+	case m.keymap.Match(keymap.ContextQuizChoice, keymap.ActionSelect4, msg):
 		return m.showChoiceFeedback(3), nil
-	case key.Matches(msg, m.keymap.Confirm):
+	case m.keymap.Match(keymap.ContextQuizChoice, keymap.ActionConfirm, msg):
 		return m.showChoiceFeedback(m.cursor), nil
 	}
 
@@ -445,11 +456,11 @@ func (m RootModel) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m RootModel) updateFeedback(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
-	case key.Matches(msg, m.keymap.Help):
+	case m.keymap.Match(m.feedbackContext(), keymap.ActionHelp, msg):
 		return m.openHelp(), nil
-	case key.Matches(msg, m.keymap.ToggleAutoplay):
+	case m.keymap.Match(m.feedbackContext(), keymap.ActionToggleAutoplay, msg):
 		return m.toggleAutoplay(), nil
-	case key.Matches(msg, m.keymap.Speak):
+	case m.keymap.Match(m.feedbackContext(), keymap.ActionSpeak, msg):
 		return m.maybeSpeakCurrentWord()
 	}
 
@@ -460,7 +471,7 @@ func (m RootModel) updateFeedback(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	var rating srs.Rating
 	if m.feedback.Question.AnswerMode == store.AnswerModeWrite {
 		switch {
-		case key.Matches(msg, m.keymap.Confirm):
+		case m.keymap.Match(keymap.ContextFeedbackWrite, keymap.ActionConfirm, msg):
 			m.loading = true
 			m.status = i18n.T(i18n.StatusSaving)
 			return m, submitAnswerCmd(m.store, m.quiz, m.runtime, *m.feedback, m.feedback.Rating, m.recentDistracts)
@@ -469,13 +480,13 @@ func (m RootModel) updateFeedback(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	switch {
-	case key.Matches(msg, m.keymap.Again):
+	case m.keymap.Match(keymap.ContextFeedbackRate, keymap.ActionAgain, msg):
 		rating = srs.Again
-	case key.Matches(msg, m.keymap.Hard):
+	case m.keymap.Match(keymap.ContextFeedbackRate, keymap.ActionHard, msg):
 		rating = srs.Hard
-	case key.Matches(msg, m.keymap.Good):
+	case m.keymap.Match(keymap.ContextFeedbackRate, keymap.ActionGood, msg):
 		rating = srs.Good
-	case key.Matches(msg, m.keymap.Easy):
+	case m.keymap.Match(keymap.ContextFeedbackRate, keymap.ActionEasy, msg):
 		rating = srs.Easy
 	default:
 		return m, nil
@@ -488,9 +499,9 @@ func (m RootModel) updateFeedback(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m RootModel) updateResults(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
-	case key.Matches(msg, m.keymap.Help):
+	case m.keymap.Match(keymap.ContextResults, keymap.ActionHelp, msg):
 		return m.openHelp(), nil
-	case key.Matches(msg, m.keymap.Confirm), key.Matches(msg, m.keymap.Back):
+	case m.keymap.Match(keymap.ContextResults, keymap.ActionConfirm, msg), m.keymap.Match(keymap.ContextResults, keymap.ActionBack, msg):
 		m.loading = true
 		m.status = i18n.T(i18n.StatusReturningHome)
 		return m, loadHomeCmd(m.store)
@@ -500,9 +511,9 @@ func (m RootModel) updateResults(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m RootModel) updateStats(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
-	case key.Matches(msg, m.keymap.Help):
+	case m.keymap.Match(keymap.ContextStats, keymap.ActionHelp, msg):
 		return m.openHelp(), nil
-	case key.Matches(msg, m.keymap.Back), key.Matches(msg, m.keymap.Confirm):
+	case m.keymap.Match(keymap.ContextStats, keymap.ActionBack, msg), m.keymap.Match(keymap.ContextStats, keymap.ActionConfirm, msg):
 		m.screen = ScreenHome
 		m.status = i18n.T(i18n.StatusBackHome)
 		return m, nil
@@ -512,7 +523,7 @@ func (m RootModel) updateStats(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m RootModel) updateHelp(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
-	case key.Matches(msg, m.keymap.Back):
+	case m.keymap.Match(keymap.ContextHelp, keymap.ActionBack, msg):
 		return m.closeHelp(), nil
 	}
 	return m, nil
@@ -539,7 +550,7 @@ func (m RootModel) showChoiceFeedback(index int) RootModel {
 
 func (m RootModel) updateWriteQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
-	case key.Matches(msg, m.keymap.Hint):
+	case m.keymap.Match(keymap.ContextQuizWrite, keymap.ActionHint, msg):
 		next := nextHintIndices(m.currentQ.Word.Lemma, m.writeHintIndices, m.writeHintCount)
 		if len(next) != len(m.writeHintIndices) {
 			m.writeHintIndices = next
@@ -550,10 +561,10 @@ func (m RootModel) updateWriteQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
-	case key.Matches(msg, m.keymap.Skip):
+	case m.keymap.Match(keymap.ContextQuizWrite, keymap.ActionSkip, msg):
 		m = m.showWriteFeedback(true, false)
 		return m, m.autoplayCmd()
-	case key.Matches(msg, m.keymap.Confirm):
+	case m.keymap.Match(keymap.ContextQuizWrite, keymap.ActionConfirm, msg):
 		m = m.showWriteFeedback(false, false)
 		return m, m.autoplayCmd()
 	}
@@ -720,4 +731,272 @@ func (m RootModel) closeHelp() RootModel {
 	m.screen = m.helpReturn
 	m.status = m.helpStatus
 	return m
+}
+
+func (m RootModel) updateKeymapEditor(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.keymapEditor == nil {
+		return m.closeKeymapEditor(), nil
+	}
+	editor := *m.keymapEditor
+	rows := editor.rows()
+	if len(rows) == 0 {
+		editor.cursor = 0
+	}
+	if editor.recording {
+		switch msg.String() {
+		case "ctrl+g":
+			editor.recording = false
+			m.keymapEditor = &editor
+			m.status = i18n.T(i18n.StatusKeymapEditing)
+			return m, nil
+		}
+		token, err := keymap.NormalizeRecordedKey(msg.String())
+		if err != nil {
+			m.status = err.Error()
+			return m, nil
+		}
+		row, ok := editor.selectedRow()
+		if !ok {
+			editor.recording = false
+			m.keymapEditor = &editor
+			return m, nil
+		}
+		conflicts := editor.draft.ConflictsFor(row.Context, row.Action, token)
+		if len(conflicts) > 0 {
+			editor.recording = false
+			editor.conflict = &keymapConflictState{
+				Context:   row.Context,
+				Action:    row.Action,
+				Token:     token,
+				Conflicts: conflicts,
+			}
+			m.keymapEditor = &editor
+			m.status = i18n.T(i18n.StatusKeymapConflict)
+			return m, nil
+		}
+		keys := editor.draft.Keys(row.Context, row.Action)
+		if !slices.Contains(keys, token) {
+			keys = append(keys, token)
+		}
+		if err := editor.draft.SetKeys(row.Context, row.Action, keys); err != nil {
+			m.status = err.Error()
+			return m, nil
+		}
+		editor.recording = false
+		m.keymapEditor = &editor
+		m.status = i18n.T(i18n.StatusKeymapRecorded)
+		return m, nil
+	}
+
+	if editor.conflict != nil {
+		switch msg.Code {
+		case tea.KeyEnter:
+			if err := editor.draft.ReplaceKey(editor.conflict.Context, editor.conflict.Action, editor.conflict.Token, editor.conflict.Conflicts); err != nil {
+				m.status = err.Error()
+				return m, nil
+			}
+			editor.conflict = nil
+			m.keymapEditor = &editor
+			m.status = i18n.T(i18n.StatusKeymapRecorded)
+			return m, nil
+		case tea.KeyEsc:
+			editor.conflict = nil
+			m.keymapEditor = &editor
+			m.status = i18n.T(i18n.StatusKeymapEditing)
+			return m, nil
+		}
+		return m, nil
+	}
+
+	switch {
+	case msg.String() == "a":
+		if _, ok := editor.selectedRow(); ok {
+			editor.recording = true
+			m.keymapEditor = &editor
+			m.status = i18n.T(i18n.StatusKeymapRecording)
+		}
+		return m, nil
+	case msg.String() == "d":
+		if row, ok := editor.selectedRow(); ok {
+			if err := editor.draft.SetKeys(row.Context, row.Action, nil); err != nil {
+				m.status = err.Error()
+				return m, nil
+			}
+			m.keymapEditor = &editor
+			m.status = i18n.T(i18n.StatusKeymapCleared)
+		}
+		return m, nil
+	case msg.String() == "r":
+		if row, ok := editor.selectedRow(); ok {
+			if err := editor.draft.SetKeys(row.Context, row.Action, keymap.DefaultKeys(row.Context, row.Action)); err != nil {
+				m.status = err.Error()
+				return m, nil
+			}
+			m.keymapEditor = &editor
+			m.status = i18n.T(i18n.StatusKeymapReset)
+		}
+		return m, nil
+	case msg.String() == "s":
+		settings, ok, focusModeDisabled := m.settingsForKeymapSave()
+		if !ok {
+			m.status = i18n.T(i18n.StatusInvalidCount)
+			return m, nil
+		}
+		settings.Keymap = editor.draft.ToConfig()
+		m.loading = true
+		m.status = i18n.T(i18n.StatusSavingSettings)
+		return m, saveKeymapCmd(m.configPath, settings, focusModeDisabled)
+	case msg.String() == "?":
+		m.keymapEditor = &editor
+		return m.openHelp(), nil
+	}
+
+	switch msg.Code {
+	case tea.KeyEsc:
+		return m.closeKeymapEditor(), nil
+	case tea.KeyUp:
+		if editor.cursor > 0 {
+			editor.cursor--
+		}
+		m.keymapEditor = &editor
+		return m, nil
+	case tea.KeyDown:
+		if editor.cursor < len(rows)-1 {
+			editor.cursor++
+		}
+		m.keymapEditor = &editor
+		return m, nil
+	case tea.KeyLeft:
+		editor.shiftFilter(-1)
+		m.keymapEditor = &editor
+		return m, nil
+	case tea.KeyRight:
+		editor.shiftFilter(1)
+		m.keymapEditor = &editor
+		return m, nil
+	}
+
+	if m.keymap.Match(keymap.ContextHelp, keymap.ActionBack, msg) {
+		return m.closeKeymapEditor(), nil
+	}
+	return m, nil
+}
+
+func (m RootModel) updateKeymapEditorWheel(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
+	if m.keymapEditor == nil {
+		return m, nil
+	}
+
+	editor := *m.keymapEditor
+	if editor.recording || editor.conflict != nil {
+		return m, nil
+	}
+
+	rows := editor.rows()
+	if len(rows) == 0 {
+		return m, nil
+	}
+
+	switch msg.Mouse().Button {
+	case tea.MouseWheelUp:
+		if editor.cursor > 0 {
+			editor.cursor--
+		}
+	case tea.MouseWheelDown:
+		if editor.cursor < len(rows)-1 {
+			editor.cursor++
+		}
+	default:
+		return m, nil
+	}
+
+	m.keymapEditor = &editor
+	return m, nil
+}
+
+type keymapEditorRow struct {
+	Context keymap.Context
+	Action  keymap.Action
+}
+
+func (e *keymapEditorState) rows() []keymapEditorRow {
+	rows := make([]keymapEditorRow, 0)
+	contexts := keymap.Contexts()
+	for _, ctx := range contexts {
+		if e.filter != "" && e.filter != ctx {
+			continue
+		}
+		for _, action := range keymap.ActionsForContext(ctx) {
+			rows = append(rows, keymapEditorRow{Context: ctx, Action: action})
+		}
+	}
+	return rows
+}
+
+func (e *keymapEditorState) selectedRow() (keymapEditorRow, bool) {
+	rows := e.rows()
+	if len(rows) == 0 {
+		return keymapEditorRow{}, false
+	}
+	if e.cursor < 0 {
+		e.cursor = 0
+	}
+	if e.cursor >= len(rows) {
+		e.cursor = len(rows) - 1
+	}
+	return rows[e.cursor], true
+}
+
+func (e *keymapEditorState) shiftFilter(delta int) {
+	filters := append([]keymap.Context{""}, keymap.Contexts()...)
+	index := slices.Index(filters, e.filter)
+	if index < 0 {
+		index = 0
+	}
+	index = (index + delta + len(filters)) % len(filters)
+	e.filter = filters[index]
+	e.cursor = 0
+}
+
+func (m RootModel) homeContext() keymap.Context {
+	if m.settingsOpen {
+		return keymap.ContextSettingsOverlay
+	}
+	if m.homeConfirm != nil {
+		return keymap.ContextHomeConfirm
+	}
+	return keymap.ContextHome
+}
+
+func (m RootModel) quizContext() keymap.Context {
+	if m.currentQ != nil && m.currentQ.AnswerMode == store.AnswerModeWrite {
+		return keymap.ContextQuizWrite
+	}
+	return keymap.ContextQuizChoice
+}
+
+func (m RootModel) feedbackContext() keymap.Context {
+	if m.isWriteFeedback() {
+		return keymap.ContextFeedbackWrite
+	}
+	return keymap.ContextFeedbackRate
+}
+
+func (m RootModel) matchesQuit(msg tea.KeyPressMsg) bool {
+	switch m.screen {
+	case ScreenHome:
+		return m.keymap.Match(m.homeContext(), keymap.ActionQuit, msg)
+	case ScreenQuiz:
+		return m.keymap.Match(m.quizContext(), keymap.ActionQuit, msg)
+	case ScreenFeedback:
+		return m.keymap.Match(m.feedbackContext(), keymap.ActionQuit, msg)
+	case ScreenResults:
+		return m.keymap.Match(keymap.ContextResults, keymap.ActionQuit, msg)
+	case ScreenStats:
+		return m.keymap.Match(keymap.ContextStats, keymap.ActionQuit, msg)
+	case ScreenHelp:
+		return m.keymap.Match(keymap.ContextHelp, keymap.ActionQuit, msg)
+	default:
+		return false
+	}
 }
