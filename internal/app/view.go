@@ -846,15 +846,13 @@ func (m RootModel) renderActionGuides(ctx keymap.Context, labels map[keymap.Acti
 	parts := make([]string, 0, len(actions))
 	for _, action := range actions {
 		keys := m.keymap.Keys(ctx, action)
-		if len(keys) == 0 {
+		if labels != nil {
+			if part, ok := renderBracketedGuide(keys, labels[action]); ok {
+				parts = append(parts, part)
+			}
 			continue
 		}
-		if labels != nil {
-			label := labels[action]
-			if label == "" {
-				continue
-			}
-			parts = append(parts, fmt.Sprintf("[%s]%s", keymap.FormatKeys([]string{keys[0]}), label))
+		if len(keys) == 0 {
 			continue
 		}
 		help := m.binding(ctx, action).Help()
@@ -893,6 +891,13 @@ func (m RootModel) renderHomeGuideLine(items ...homeGuideItem) string {
 		labels[item.action] = item.label
 	}
 	return m.renderActionGuides(keymap.ContextHome, labels, actions...)
+}
+
+func renderBracketedGuide(keys []string, label string) (string, bool) {
+	if len(keys) == 0 || label == "" {
+		return "", false
+	}
+	return fmt.Sprintf("[%s]%s", keymap.FormatKeys([]string{keys[0]}), label), true
 }
 
 func (m RootModel) keymapFilterLabel(filter keymap.Context) string {
