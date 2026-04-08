@@ -221,20 +221,20 @@ func TestRenderHomeShowsWaitToday(t *testing.T) {
 	if !strings.Contains(got, i18n.T(i18n.AnswerModeWrite)) {
 		t.Fatalf("renderHome() missing selected answer mode:\n%s", got)
 	}
-	primary := strings.Join([]string{
-		"[" + keymap.FormatKeys([]string{model.keymap.Keys(keymap.ContextHome, keymap.ActionConfirm)[0]}) + "]" + i18n.T(i18n.HomeKeyStart),
-		"[" + keymap.FormatKeys([]string{model.keymap.Keys(keymap.ContextHome, keymap.ActionToggleAnswerMode)[0]}) + "]" + i18n.T(i18n.HomeKeyToggleMode),
-		"[" + keymap.FormatKeys([]string{model.keymap.Keys(keymap.ContextHome, keymap.ActionQuit)[0]}) + "]" + i18n.T(i18n.KeyQuit),
-	}, "  ")
+	primary := model.renderHomeGuideLine(
+		homeGuideItem{action: keymap.ActionConfirm, label: i18n.T(i18n.HomeKeyStart)},
+		homeGuideItem{action: keymap.ActionToggleAnswerMode, label: i18n.T(i18n.HomeKeyToggleMode)},
+		homeGuideItem{action: keymap.ActionQuit, label: i18n.T(i18n.KeyQuit)},
+	)
 	if !strings.Contains(got, primary) {
 		t.Fatalf("renderHome() missing primary compact key guide:\n%s", got)
 	}
-	secondary := strings.Join([]string{
-		"[" + keymap.FormatKeys([]string{model.keymap.Keys(keymap.ContextHome, keymap.ActionNewSession)[0]}) + "]" + i18n.T(i18n.HomeKeyNew),
-		"[" + keymap.FormatKeys([]string{model.keymap.Keys(keymap.ContextHome, keymap.ActionReview)[0]}) + "]" + i18n.T(i18n.KeyReview),
-		"[" + keymap.FormatKeys([]string{model.keymap.Keys(keymap.ContextHome, keymap.ActionStats)[0]}) + "]" + i18n.T(i18n.KeyStats),
-		"[" + keymap.FormatKeys([]string{model.keymap.Keys(keymap.ContextHome, keymap.ActionSettings)[0]}) + "]" + i18n.T(i18n.KeySettings),
-	}, "  ")
+	secondary := model.renderHomeGuideLine(
+		homeGuideItem{action: keymap.ActionNewSession, label: i18n.T(i18n.HomeKeyNew)},
+		homeGuideItem{action: keymap.ActionReview, label: i18n.T(i18n.KeyReview)},
+		homeGuideItem{action: keymap.ActionStats, label: i18n.T(i18n.KeyStats)},
+		homeGuideItem{action: keymap.ActionSettings, label: i18n.T(i18n.KeySettings)},
+	)
 	if !strings.Contains(got, secondary) {
 		t.Fatalf("renderHome() missing secondary compact key guide:\n%s", got)
 	}
