@@ -140,6 +140,11 @@ quit_disabled_write = "保存して次へ進むまで無効"
 start_digits = "0-9 で問題数を入力"
 settings_digits = "0-9 で既定の問題数を入力"
 
+[narrow]
+title = "狭い端末幅のため表示を簡略化しています"
+body = "現在の幅は %d cols です。この画面は少なくとも %d cols 必要です。"
+hint = "ターミナルの横幅を広げると通常表示に戻ります。"
+
 [help.section]
 answer = "解答"
 move = "移動"

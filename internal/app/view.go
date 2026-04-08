@@ -14,7 +14,20 @@ import (
 	"github.com/harumiWeb/eitango/internal/stats"
 	"github.com/harumiWeb/eitango/internal/store"
 	"github.com/harumiWeb/eitango/internal/tui"
+	"github.com/mattn/go-runewidth"
 )
+
+const (
+	compactWidthStandard = 56
+	compactWidthWide     = 64
+	compactWidthKeymap   = 76
+)
+
+type narrowWidthSpec struct {
+	minWidth int
+	title    string
+	modal    bool
+}
 
 func (m RootModel) View() tea.View {
 	body := ""
@@ -38,6 +51,10 @@ func (m RootModel) View() tea.View {
 		body = m.renderHelp()
 	case ScreenKeymap:
 		body = m.renderKeymapEditor()
+	}
+
+	if narrow, ok := m.renderNarrowWidthMessage(); ok {
+		body = narrow
 	}
 
 	if m.loading {
@@ -397,9 +414,9 @@ func (m RootModel) renderStatusLine() string {
 		msg = i18n.T(i18n.StatusReady)
 	}
 	if m.err != nil {
-		return m.styles.Error.Render("error: " + msg)
+		return m.styles.Error.Render(m.wrapToWindow("error: " + msg))
 	}
-	return m.styles.Status.Render("status: " + msg)
+	return m.styles.Status.Render(m.wrapToWindow("status: " + msg))
 }
 
 func (m RootModel) renderKeymapEditor() string {
@@ -861,4 +878,110 @@ func (m RootModel) keymapFilterLabel(filter keymap.Context) string {
 		return i18n.T(i18n.KeymapFilterAll)
 	}
 	return keymap.ContextLabel(filter)
+}
+
+func (m RootModel) renderNarrowWidthMessage() (string, bool) {
+	spec, ok := m.narrowWidthSpec()
+	if !ok || m.width >= spec.minWidth {
+		return "", false
+	}
+
+	lines := []string{
+		m.styles.Title.Render(m.wrapToPanelWidth(i18n.T(i18n.NarrowWidthTitle), m.narrowPanelStyle(spec.modal))),
+		m.styles.Muted.Render(m.wrapToPanelWidth(spec.title, m.narrowPanelStyle(spec.modal))),
+		"",
+		m.wrapToPanelWidth(i18n.Tf(i18n.NarrowWidthBody, m.width, spec.minWidth), m.narrowPanelStyle(spec.modal)),
+		m.styles.Muted.Render(m.wrapToPanelWidth(i18n.T(i18n.NarrowWidthHint), m.narrowPanelStyle(spec.modal))),
+	}
+	return m.renderConstrainedPanel(m.narrowPanelStyle(spec.modal), strings.Join(lines, "\n")), true
+}
+
+func (m RootModel) narrowWidthSpec() (narrowWidthSpec, bool) {
+	if m.width <= 0 {
+		return narrowWidthSpec{}, false
+	}
+
+	switch {
+	case m.screen == ScreenHome && m.settingsOpen:
+		return narrowWidthSpec{minWidth: compactWidthWide, title: i18n.T(i18n.SettingsTitle), modal: true}, true
+	case m.screen == ScreenHome && m.homeConfirm != nil:
+		return narrowWidthSpec{minWidth: compactWidthWide, title: i18n.T(i18n.HomeConfirmTitle), modal: true}, true
+	case m.screen == ScreenQuiz && m.currentQ != nil && m.currentQ.AnswerMode == store.AnswerModeWrite:
+		return narrowWidthSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.AnswerModeWrite)}, true
+	case m.screen == ScreenQuiz:
+		return narrowWidthSpec{minWidth: compactWidthWide, title: i18n.T(i18n.HelpScreenQuiz)}, true
+	case m.screen == ScreenFeedback && m.isWriteFeedback():
+		return narrowWidthSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.HelpScreenFeedback)}, true
+	case m.screen == ScreenFeedback:
+		return narrowWidthSpec{minWidth: compactWidthWide, title: i18n.T(i18n.HelpScreenFeedback)}, true
+	case m.screen == ScreenResults:
+		return narrowWidthSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.ResultsTitle)}, true
+	case m.screen == ScreenStats:
+		return narrowWidthSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.StatsTitle)}, true
+	case m.screen == ScreenHelp:
+		return narrowWidthSpec{minWidth: compactWidthWide, title: i18n.T(i18n.HelpTitle)}, true
+	case m.screen == ScreenKeymap:
+		return narrowWidthSpec{minWidth: compactWidthKeymap, title: i18n.T(i18n.KeymapTitle)}, true
+	case m.screen == ScreenHome:
+		return narrowWidthSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.HelpScreenHome)}, true
+	default:
+		return narrowWidthSpec{}, false
+	}
+}
+
+func (m RootModel) narrowPanelStyle(modal bool) lipgloss.Style {
+	if modal {
+		return m.styles.ModalPanel
+	}
+	return m.styles.Panel
+}
+
+func (m RootModel) wrapToWindow(text string) string {
+	if m.width <= 0 {
+		return text
+	}
+	return wrapTextWidth(text, m.width)
+}
+
+func (m RootModel) wrapToPanelWidth(text string, style lipgloss.Style) string {
+	return wrapTextWidth(text, m.panelContentWidth(style))
+}
+
+func (m RootModel) panelContentWidth(style lipgloss.Style) int {
+	if m.width <= 0 {
+		return 0
+	}
+	width := m.width - style.GetHorizontalFrameSize()
+	if width < 1 {
+		return 1
+	}
+	return width
+}
+
+func (m RootModel) renderConstrainedPanel(style lipgloss.Style, text string) string {
+	if m.width <= 0 {
+		return style.Render(text)
+	}
+	contentWidth := m.panelContentWidth(style)
+	if contentWidth <= 1 || m.width <= style.GetHorizontalFrameSize() {
+		return text
+	}
+	return style.Render(text)
+}
+
+func wrapTextWidth(text string, width int) string {
+	if width <= 0 {
+		return text
+	}
+
+	lines := strings.Split(text, "\n")
+	wrapped := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if line == "" {
+			wrapped = append(wrapped, "")
+			continue
+		}
+		wrapped = append(wrapped, runewidth.Wrap(line, width))
+	}
+	return strings.Join(wrapped, "\n")
 }

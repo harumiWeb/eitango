@@ -168,6 +168,12 @@ On first run, `eitango` initializes the local database. By default it uses the e
 - support scope and platform policy may change in future releases
 - see [SECURITY.md](SECURITY.md) for the private vulnerability reporting process and supported-version policy
 
+## Narrow Terminal Width
+
+- below the minimum width for a screen, `eitango` shows a dedicated fallback message instead of rendering a broken layout
+- widening the terminal automatically returns to the normal screen
+- if the UI looks simplified in a split pane, SSH session, or mobile terminal, increase the terminal width first
+
 ## Write Difficulty
 
 - `write_mode_difficulty = "basic"` is the default

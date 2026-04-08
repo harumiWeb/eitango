@@ -140,6 +140,11 @@ quit_disabled_write = "disabled until you save and continue"
 start_digits = "Use 0-9 to enter the lesson size"
 settings_digits = "Use 0-9 to enter the default lesson size"
 
+[narrow]
+title = "The terminal is too narrow, so a compact fallback is shown"
+body = "Current width: %d cols. This screen needs at least %d cols."
+hint = "Widen the terminal window to return to the normal layout."
+
 [help.section]
 answer = "Answer"
 move = "Move"

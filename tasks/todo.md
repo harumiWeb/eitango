@@ -167,3 +167,6 @@
 - [x] `go run ./cmd/eitango doctor` で metadata / distractor 周りに新しい問題が出ていないことを確認する
 - [x] `goreleaser check` と snapshot build で法務ファイルの同梱を確認する
 - [x] `dict_version` と `reset --reseed` の最終導線を初回リリース前提で仕上げる
+- [x] issue #29 v1 として狭幅 terminal 向け narrow-width guard を描画入口へ追加する
+- [x] locale / README / `docs/specs/` を狭幅 guard の恒久仕様へ追従させる
+- [x] 狭幅 guard の回帰テストを追加し、`go test ./internal/app` で検証する

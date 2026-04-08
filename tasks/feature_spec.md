@@ -521,3 +521,32 @@
 - 一般的な terminal 高でも keymap editor 全体が画面内に収まり、cursor 移動で非表示行へ到達できる。
 - `go test ./internal/keymap ./internal/config ./internal/app` が通る。
 - `go test ./...` が通る。
+
+## Narrow Width Guard v1
+
+### Scope
+
+- `internal/app` の TUI 描画入口
+- locale / README / specs / 回帰テスト
+
+### Non-Goals
+
+- 2 行 key guide
+- 画面ごとの簡易レイアウト
+- data-dependent な長文 overflow の包括対処
+
+### Required Behavior
+
+- `RootModel.width` が既知で、現在 screen/overlay に対応する最小幅を下回るときは通常 UI を描かず narrow message に切り替える。
+- 最小幅は `home/results/stats/quiz.write/feedback.write=56`, `settings overlay/home confirm/quiz.choice/feedback.rate/help=64`, `keymap editor=76` とする。
+- `width == 0` の間は narrow guard を無効にし、初回 `WindowSizeMsg` 前の描画挙動は変えない。
+- narrow message は現在幅と必要幅を表示し、横幅を広げる案内を出す。
+- narrow message 自体と status line は現在幅に収まるよう wrap / width constrain する。
+- `Update` の input handling は変えず、狭幅でも既存 key handling はそのまま動く。
+
+### Acceptance
+
+- 代表画面で、しきい値未満では narrow message に切り替わり、しきい値以上では通常画面へ戻る。
+- `width == 0` では narrow message に切り替わらない。
+- narrow case の `View().Content` は各行 display width が `model.width` を超えない。
+- `go test ./internal/app` が通る。

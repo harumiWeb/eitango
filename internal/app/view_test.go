@@ -838,6 +838,172 @@ func TestRenderStatusLineUsesErrorPrefix(t *testing.T) {
 	}
 }
 
+func TestViewShowsNarrowWidthFallbackByScreen(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		width     int
+		wantLabel string
+		unwanted  string
+		mouseMode tea.MouseMode
+		prepare   func(*RootModel)
+	}{
+		{
+			name:      "home",
+			width:     compactWidthStandard - 1,
+			wantLabel: i18n.T(i18n.HelpScreenHome),
+			unwanted:  i18n.T(i18n.HomeSubtitle),
+			mouseMode: tea.MouseModeNone,
+			prepare: func(model *RootModel) {
+				model.screen = ScreenHome
+				model.home = store.HomeSnapshot{DueCount: 3, NewCount: 2, StreakDays: 1}
+			},
+		},
+		{
+			name:      "settings overlay",
+			width:     compactWidthWide - 1,
+			wantLabel: i18n.T(i18n.SettingsTitle),
+			unwanted:  i18n.T(i18n.SettingsQuestions),
+			mouseMode: tea.MouseModeNone,
+			prepare: func(model *RootModel) {
+				model.screen = ScreenHome
+				model.settingsOpen = true
+				model.settingsInput = "10"
+				model.settingsWriteDifficulty = config.WriteModeDifficultyBasic
+				model.settingsAudioEnabled = true
+				model.settingsLanguage = i18n.LangJA
+				model.settingsThemeMode = config.ThemeModeDefault
+			},
+		},
+		{
+			name:      "choice quiz",
+			width:     compactWidthWide - 1,
+			wantLabel: i18n.T(i18n.HelpScreenQuiz),
+			unwanted:  "始める",
+			mouseMode: tea.MouseModeNone,
+			prepare: func(model *RootModel) {
+				model.screen = ScreenQuiz
+				model.currentQ = &quiz.Question{
+					AnswerMode: store.AnswerModeChoice,
+					Word:       store.Word{Lemma: "begin", Pos: "verb"},
+					Choices: []quiz.Choice{
+						{Meaning: "始める"},
+						{Meaning: "開始する"},
+						{Meaning: "続ける"},
+						{Meaning: "終える"},
+					},
+					Ordinal: 1,
+					Total:   4,
+					Kind:    store.ItemKindNew,
+				}
+			},
+		},
+		{
+			name:      "keymap editor",
+			width:     compactWidthKeymap - 1,
+			wantLabel: i18n.T(i18n.KeymapTitle),
+			unwanted:  i18n.T(i18n.KeymapContext),
+			mouseMode: tea.MouseModeCellMotion,
+			prepare: func(model *RootModel) {
+				model.screen = ScreenKeymap
+				*model = model.openKeymapEditor()
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			model := NewModel(nil, Options{})
+			model.loading = false
+			model.width = tc.width
+			model.status = "status line should wrap safely in narrow mode and remain within the terminal width"
+			if tc.prepare != nil {
+				tc.prepare(&model)
+			}
+
+			view := model.View()
+			if !strings.Contains(view.Content, i18n.T(i18n.NarrowWidthTitle)) {
+				t.Fatalf("View() missing narrow width title:\n%s", view.Content)
+			}
+			if !strings.Contains(view.Content, tc.wantLabel) {
+				t.Fatalf("View() missing label %q:\n%s", tc.wantLabel, view.Content)
+			}
+			if strings.Contains(view.Content, tc.unwanted) {
+				t.Fatalf("View() unexpectedly contains %q:\n%s", tc.unwanted, view.Content)
+			}
+			if view.MouseMode != tc.mouseMode {
+				t.Fatalf("MouseMode = %v, want %v", view.MouseMode, tc.mouseMode)
+			}
+			assertViewFitsWidth(t, view.Content, tc.width)
+		})
+	}
+}
+
+func TestViewAtOrAboveNarrowWidthThresholdRendersNormalScreen(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.screen = ScreenQuiz
+	model.width = compactWidthWide
+	model.currentQ = &quiz.Question{
+		AnswerMode: store.AnswerModeChoice,
+		Word:       store.Word{Lemma: "begin", Pos: "verb"},
+		Choices: []quiz.Choice{
+			{Meaning: "始める"},
+			{Meaning: "開始する"},
+			{Meaning: "続ける"},
+			{Meaning: "終える"},
+		},
+		Ordinal: 1,
+		Total:   4,
+		Kind:    store.ItemKindNew,
+	}
+
+	view := model.View().Content
+	if strings.Contains(view, i18n.T(i18n.NarrowWidthTitle)) {
+		t.Fatalf("View() unexpectedly shows narrow width fallback at threshold:\n%s", view)
+	}
+	if !strings.Contains(view, "始める") {
+		t.Fatalf("View() missing normal quiz content at threshold:\n%s", view)
+	}
+}
+
+func TestViewWidthZeroDoesNotTriggerNarrowWidthFallback(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.screen = ScreenHome
+	model.width = 0
+
+	view := model.View().Content
+	if strings.Contains(view, i18n.T(i18n.NarrowWidthTitle)) {
+		t.Fatalf("View() unexpectedly shows narrow width fallback when width is unknown:\n%s", view)
+	}
+	if !strings.Contains(view, i18n.T(i18n.HomeSubtitle)) {
+		t.Fatalf("View() missing normal home content when width is unknown:\n%s", view)
+	}
+}
+
+func TestViewNarrowWidthFallbackFitsVerySmallTerminal(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.screen = ScreenHome
+	model.width = 5
+	model.status = "status line should still fit"
+
+	view := model.View().Content
+	if strings.Contains(view, i18n.T(i18n.HomeSubtitle)) {
+		t.Fatalf("View() unexpectedly contains normal home content in very small terminal:\n%s", view)
+	}
+	assertViewFitsWidth(t, view, model.width)
+}
+
 func TestRenderHelpFromHomeConfirmShowsConfirmAndBack(t *testing.T) {
 	t.Parallel()
 
@@ -872,6 +1038,17 @@ func TestRenderHelpFromHomeConfirmShowsConfirmAndBack(t *testing.T) {
 	} {
 		if strings.Contains(helpView, unwanted) {
 			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)
+		}
+	}
+}
+
+func assertViewFitsWidth(t *testing.T, view string, width int) {
+	t.Helper()
+
+	for _, line := range strings.Split(view, "\n") {
+		plain := ansi.Strip(line)
+		if got := runewidth.StringWidth(plain); got > width {
+			t.Fatalf("line width = %d, want <= %d\nline=%q\nview=\n%s", got, width, plain, view)
 		}
 	}
 }
