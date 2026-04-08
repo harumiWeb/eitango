@@ -877,7 +877,8 @@ func (m RootModel) renderHomeGuideLine(items ...homeGuideItem) string {
 		if len(keys) == 0 || item.label == "" {
 			continue
 		}
-		parts = append(parts, fmt.Sprintf("[%s]%s", keymap.FormatKeys(keys[:1]), item.label))
+		primaryKey := keymap.FormatKeys([]string{keys[0]})
+		parts = append(parts, fmt.Sprintf("[%s]%s", primaryKey, item.label))
 	}
 	return strings.Join(parts, "  ")
 }
