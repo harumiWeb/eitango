@@ -36,6 +36,7 @@
 - [x] review 指摘に合わせて keymap save 時も settings overlay の draft を保持し、help 退路と Esc 録音の回帰を追加する
 - [x] review 指摘に合わせて unbound help 表示、`quiz.write` の ASCII 限定 validation、到達不能分岐を修正する
 - [x] review 指摘に合わせて `help.back` 必須化、key conflict 置換の原子化、startup keymap error 保持を追加する
+- [x] `quiz.choice` のインライン key guide から `select1-4` を外し、詳細は help 画面へ寄せる
 
 ## 2026-04-01 PR #12: Codacy follow-up
 

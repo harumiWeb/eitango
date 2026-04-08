@@ -505,6 +505,7 @@
 - settings 保存後と keymap editor 保存後のどちらでも、runtime keymap は再起動なしで差し替わる。
 - keymap editor の save は keymap だけでなく settings overlay の未保存 draft も同時に保存し、overlay 上の変更を巻き戻さない。
 - help 画面と各 screen の key guide は current keymap を使って描画する。
+- `quiz.choice` のインライン key guide は横幅を抑えるため `select1-4` を表示せず、選択肢キーの詳細は help 画面だけに出す。インラインには help action を残して詳細導線を維持する。
 - `help.back` を unbind する設定は保存できない。help 画面の復帰は `back` に依存し、`quit` だけでは代替できない。
 - ホーム設定 overlay に keymap editor への導線を追加する。
 - keymap editor は context filter、action 一覧、record mode、clear、reset、save を持つ。

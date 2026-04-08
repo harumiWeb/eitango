@@ -491,6 +491,95 @@ func TestRenderWriteFeedbackHelpShowsEnterOnly(t *testing.T) {
 	}
 }
 
+func TestRenderChoiceQuizOmitsChoiceBindingsFromInlineGuide(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
+	})
+	model.loading = false
+	model.screen = ScreenQuiz
+	model.autoplayEnabled = true
+	model.currentQ = &quiz.Question{
+		AnswerMode: store.AnswerModeChoice,
+		Word: store.Word{
+			Lemma: "begin",
+			Pos:   "verb",
+		},
+		Choices: []quiz.Choice{
+			{Meaning: "始める"},
+			{Meaning: "開始する"},
+			{Meaning: "続ける"},
+			{Meaning: "終える"},
+		},
+		Ordinal: 1,
+		Total:   4,
+		Kind:    store.ItemKindNew,
+	}
+
+	quizView := model.renderQuiz()
+	for _, want := range []string{"j=下に移動", "k=上に移動", "Enter=決定", "Ctrl+P=現在の単語を再生", "Shift+Tab=自動再生を切り替える", "?=ヘルプ", "q/Ctrl+C=終了"} {
+		if !strings.Contains(quizView, want) {
+			t.Fatalf("renderQuiz() missing %q:\n%s", want, quizView)
+		}
+	}
+	for _, unwanted := range []string{"1=選択肢 1", "2=選択肢 2", "3=選択肢 3", "4=選択肢 4"} {
+		if strings.Contains(quizView, unwanted) {
+			t.Fatalf("renderQuiz() unexpectedly contains %q:\n%s", unwanted, quizView)
+		}
+	}
+}
+
+func TestRenderChoiceHelpKeepsChoiceBindingsWithCustomKeymap(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
+	})
+	model.loading = false
+	model.screen = ScreenQuiz
+	if err := model.keymap.SetKeys(keymap.ContextQuizChoice, keymap.ActionSelect1, []string{"z"}); err != nil {
+		t.Fatalf("SetKeys(quiz.choice.select1) error = %v", err)
+	}
+	if err := model.keymap.SetKeys(keymap.ContextQuizChoice, keymap.ActionHelp, []string{"f1"}); err != nil {
+		t.Fatalf("SetKeys(quiz.choice.help) error = %v", err)
+	}
+	model.currentQ = &quiz.Question{
+		AnswerMode: store.AnswerModeChoice,
+		Word: store.Word{
+			Lemma: "begin",
+			Pos:   "verb",
+		},
+		Choices: []quiz.Choice{
+			{Meaning: "始める"},
+			{Meaning: "開始する"},
+			{Meaning: "続ける"},
+			{Meaning: "終える"},
+		},
+		Ordinal: 1,
+		Total:   4,
+		Kind:    store.ItemKindNew,
+	}
+
+	quizView := model.renderQuiz()
+	if strings.Contains(quizView, "z=選択肢 1") {
+		t.Fatalf("renderQuiz() unexpectedly shows custom select binding inline:\n%s", quizView)
+	}
+	if !strings.Contains(quizView, "f1=ヘルプ") {
+		t.Fatalf("renderQuiz() missing custom help binding inline:\n%s", quizView)
+	}
+
+	helpView := model.openHelp().renderHelp()
+	if !strings.Contains(helpView, helpLine(model.binding(keymap.ContextQuizChoice, keymap.ActionSelect1))) {
+		t.Fatalf("renderHelp() missing custom select binding:\n%s", helpView)
+	}
+	if !strings.Contains(helpView, helpLine(model.binding(keymap.ContextQuizChoice, keymap.ActionHelp))) {
+		t.Fatalf("renderHelp() missing custom help binding:\n%s", helpView)
+	}
+}
+
 func TestRenderWriteFeedbackHelpShowsUnboundQuitPlaceholder(t *testing.T) {
 	t.Parallel()
 

@@ -191,15 +191,12 @@ func (m RootModel) renderChoiceQuiz() string {
 		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.QuizAudio), 14), audioStateLabel(m.autoplayActive())),
 		m.styles.Muted.Render(m.renderInlineGuides(
 			keymap.ContextQuizChoice,
-			keymap.ActionSelect1,
-			keymap.ActionSelect2,
-			keymap.ActionSelect3,
-			keymap.ActionSelect4,
 			keymap.ActionUp,
 			keymap.ActionDown,
 			keymap.ActionConfirm,
 			keymap.ActionSpeak,
 			keymap.ActionToggleAutoplay,
+			keymap.ActionHelp,
 			keymap.ActionQuit,
 		)),
 	)

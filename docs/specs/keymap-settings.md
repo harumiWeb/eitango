@@ -52,3 +52,4 @@ write_quit = ["esc"]
 - record mode は `Esc` 自体も割り当て可能にし、cancel は `Ctrl+G` で行う
 - editor 本体は terminal 高を超えて伸ばさず、表示可能高を超える action 一覧だけをスクロール表示する
 - 保存後は再起動なしで runtime keymap と help/key guide に反映する
+- `quiz.choice` のインライン key guide は横幅節約のため `select1-4` を省略し、choice の選択肢キー詳細は help 画面だけに表示する。インラインには help binding を残して導線を維持する
