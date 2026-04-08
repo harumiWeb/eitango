@@ -18,6 +18,9 @@ update = "Update available"
 update_detail = "%s is available (current: %s)"
 update_hint = "Run `eitango version` to see release details"
 keys = "Tab=mode  Enter=start/resume  n=new  r=review  s=stats  c=settings  q=quit"
+key_start = "start"
+key_toggle_mode = "mode"
+key_new = "new"
 
 [settings]
 title = "Home settings"

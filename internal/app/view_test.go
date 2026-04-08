@@ -221,6 +221,12 @@ func TestRenderHomeShowsWaitToday(t *testing.T) {
 	if !strings.Contains(got, i18n.T(i18n.AnswerModeWrite)) {
 		t.Fatalf("renderHome() missing selected answer mode:\n%s", got)
 	}
+	if !strings.Contains(got, "[Enter]"+i18n.T(i18n.HomeKeyStart)+"  [Tab]"+i18n.T(i18n.HomeKeyToggleMode)+"  [q]"+i18n.T(i18n.KeyQuit)) {
+		t.Fatalf("renderHome() missing primary compact key guide:\n%s", got)
+	}
+	if !strings.Contains(got, "[n]"+i18n.T(i18n.HomeKeyNew)+"  [r]"+i18n.T(i18n.KeyReview)+"  [s]"+i18n.T(i18n.KeyStats)+"  [c]"+i18n.T(i18n.KeySettings)) {
+		t.Fatalf("renderHome() missing secondary compact key guide:\n%s", got)
+	}
 }
 
 func TestRenderHomeLocalizesActiveSessionMode(t *testing.T) {

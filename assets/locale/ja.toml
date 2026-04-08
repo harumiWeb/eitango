@@ -18,6 +18,9 @@ update = "更新があります"
 update_detail = "%s を利用できます (現在: %s)"
 update_hint = "`eitango version` でリリース情報を確認できます"
 keys = "Tab=回答方式  Enter=開始/再開  n=新規  r=復習  s=統計  c=設定  q=終了"
+key_start = "開始"
+key_toggle_mode = "方式切替"
+key_new = "新規"
 
 [settings]
 title = "ホーム設定"

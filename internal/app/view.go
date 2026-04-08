@@ -83,16 +83,7 @@ func (m RootModel) renderHome() string {
 	}
 	lines = append(lines,
 		"",
-		m.styles.Muted.Render(m.renderInlineGuides(
-			keymap.ContextHome,
-			keymap.ActionToggleAnswerMode,
-			keymap.ActionConfirm,
-			keymap.ActionNewSession,
-			keymap.ActionReview,
-			keymap.ActionStats,
-			keymap.ActionSettings,
-			keymap.ActionQuit,
-		)),
+		m.styles.Muted.Render(m.renderHomeGuides()),
 	)
 	return m.styles.Panel.Render(strings.Join(lines, "\n"))
 }
@@ -855,6 +846,38 @@ func (m RootModel) renderInlineGuides(ctx keymap.Context, actions ...keymap.Acti
 			continue
 		}
 		parts = append(parts, fmt.Sprintf("%s=%s", help.Key, help.Desc))
+	}
+	return strings.Join(parts, "  ")
+}
+
+type homeGuideItem struct {
+	action keymap.Action
+	label  string
+}
+
+func (m RootModel) renderHomeGuides() string {
+	primary := m.renderHomeGuideLine(
+		homeGuideItem{action: keymap.ActionConfirm, label: i18n.T(i18n.HomeKeyStart)},
+		homeGuideItem{action: keymap.ActionToggleAnswerMode, label: i18n.T(i18n.HomeKeyToggleMode)},
+		homeGuideItem{action: keymap.ActionQuit, label: i18n.T(i18n.KeyQuit)},
+	)
+	secondary := m.renderHomeGuideLine(
+		homeGuideItem{action: keymap.ActionNewSession, label: i18n.T(i18n.HomeKeyNew)},
+		homeGuideItem{action: keymap.ActionReview, label: i18n.T(i18n.KeyReview)},
+		homeGuideItem{action: keymap.ActionStats, label: i18n.T(i18n.KeyStats)},
+		homeGuideItem{action: keymap.ActionSettings, label: i18n.T(i18n.KeySettings)},
+	)
+	return strings.TrimSpace(strings.Join([]string{primary, secondary}, "\n"))
+}
+
+func (m RootModel) renderHomeGuideLine(items ...homeGuideItem) string {
+	parts := make([]string, 0, len(items))
+	for _, item := range items {
+		keys := m.keymap.Keys(keymap.ContextHome, item.action)
+		if len(keys) == 0 || item.label == "" {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("[%s]%s", keymap.FormatKeys(keys[:1]), item.label))
 	}
 	return strings.Join(parts, "  ")
 }

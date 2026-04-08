@@ -22,6 +22,9 @@ const (
 	HomeUpdateDetail   = "home.update_detail"
 	HomeUpdateHint     = "home.update_hint"
 	HomeKeys           = "home.keys"
+	HomeKeyStart       = "home.key_start"
+	HomeKeyToggleMode  = "home.key_toggle_mode"
+	HomeKeyNew         = "home.key_new"
 )
 
 // Home settings overlay
