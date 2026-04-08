@@ -550,3 +550,40 @@
 - `width == 0` では narrow message に切り替わらない。
 - narrow case の `View().Content` は各行 display width が `model.width` を超えない。
 - `go test ./internal/app` が通る。
+
+## Narrow Width Compact Layout v2
+
+### Scope
+
+- `internal/app` の主要画面描画
+- `docs/specs/tui-layout.md` / README / 回帰テスト
+
+### Non-Goals
+
+- `results` / `stats` / `keymap editor` の compact layout
+- input handling や keymap 契約の変更
+- locale key の追加
+
+### Required Behavior
+
+- 画面ごとに `normal / compact / narrow` の 3 段階レイアウトを持つ。
+- `width >= normalMin` では既存の通常表示を使う。
+- `compactMin <= width < normalMin` では compact layout に切り替える。
+- `width < compactMin` では v1 と同様に narrow message に切り替える。
+- compact 対象は `home`, `home confirm`, `settings overlay`, `help`, `quiz.choice`, `quiz.write`, `feedback.choice`, `feedback.write` とする。
+- しきい値は `home/quiz.write/feedback.write=44/56`, `home confirm/settings overlay/help/quiz.choice/feedback.choice=48/64` を `compactMin/normalMin` として固定する。
+- `results`, `stats`, `keymap editor` は compact layout を持たず、v1 の narrow guard のまま維持する。
+- compact layout では border と余白を減らし、固定幅 `AlignLabel` と単一行 key guide を避ける。
+- compact の key guide は current width に収まるよう複数行へ詰めて表示する。
+- compact の label/value 表示と help line は長文でも wrap し、各行 display width が `model.width` を超えない。
+- `width == 0` の間は compact / narrow 判定を無効にし、初回 `WindowSizeMsg` 前の描画挙動は変えない。
+- `Update` の input handling は変えず、compact/narrow でも既存 key handling はそのまま動く。
+
+### Acceptance
+
+- compact 対象画面で `compactMin <= width < normalMin` のとき narrow message に切り替わらず compact layout が出る。
+- compact 対象画面で `width < compactMin` のとき narrow message に切り替わる。
+- compact 対象画面で `width >= normalMin` のとき通常表示へ戻る。
+- `results`, `stats`, `keymap editor` は v2 でも compact に入らず、従来どおり narrow fallback を使う。
+- compact / narrow の `View().Content` は各行 display width が `model.width` を超えない。
+- `go test ./internal/app` が通る。

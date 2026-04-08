@@ -170,7 +170,8 @@ On first run, `eitango` initializes the local database. By default it uses the e
 
 ## Narrow Terminal Width
 
-- below the minimum width for a screen, `eitango` shows a dedicated fallback message instead of rendering a broken layout
+- on major screens, `eitango` first switches to a compact layout that reduces borders and packs key guides more tightly
+- below that compact band, `eitango` shows a dedicated fallback message instead of rendering a broken layout
 - widening the terminal automatically returns to the normal screen
 - if the UI looks simplified in a split pane, SSH session, or mobile terminal, increase the terminal width first
 

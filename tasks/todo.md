@@ -170,3 +170,6 @@
 - [x] issue #29 v1 として狭幅 terminal 向け narrow-width guard を描画入口へ追加する
 - [x] locale / README / `docs/specs/` を狭幅 guard の恒久仕様へ追従させる
 - [x] 狭幅 guard の回帰テストを追加し、`go test ./internal/app` で検証する
+- [x] issue #29 v2 として主要画面に `normal / compact / narrow` の 3 段階描画を導入する
+- [x] compact layout 用の key guide / help / label-value wrap helper を追加する
+- [x] compact layout の回帰テストと docs を更新し、`go test ./internal/app` で検証する

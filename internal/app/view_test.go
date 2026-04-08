@@ -16,6 +16,7 @@ import (
 	"github.com/harumiWeb/eitango/internal/quiz"
 	"github.com/harumiWeb/eitango/internal/stats"
 	"github.com/harumiWeb/eitango/internal/store"
+	"github.com/harumiWeb/eitango/internal/tui"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -867,13 +868,7 @@ func TestViewShowsNarrowWidthFallbackByScreen(t *testing.T) {
 			unwanted:  i18n.T(i18n.SettingsQuestions),
 			mouseMode: tea.MouseModeNone,
 			prepare: func(model *RootModel) {
-				model.screen = ScreenHome
-				model.settingsOpen = true
-				model.settingsInput = "10"
-				model.settingsWriteDifficulty = config.WriteModeDifficultyBasic
-				model.settingsAudioEnabled = true
-				model.settingsLanguage = i18n.LangJA
-				model.settingsThemeMode = config.ThemeModeDefault
+				prepareCompactSettingsModel(model)
 			},
 		},
 		{
@@ -884,24 +879,12 @@ func TestViewShowsNarrowWidthFallbackByScreen(t *testing.T) {
 			mouseMode: tea.MouseModeNone,
 			prepare: func(model *RootModel) {
 				model.screen = ScreenQuiz
-				model.currentQ = &quiz.Question{
-					AnswerMode: store.AnswerModeChoice,
-					Word:       store.Word{Lemma: "begin", Pos: "verb"},
-					Choices: []quiz.Choice{
-						{Meaning: "始める"},
-						{Meaning: "開始する"},
-						{Meaning: "続ける"},
-						{Meaning: "終える"},
-					},
-					Ordinal: 1,
-					Total:   4,
-					Kind:    store.ItemKindNew,
-				}
+				model.currentQ = sampleChoiceQuestion()
 			},
 		},
 		{
 			name:      "keymap editor",
-			width:     compactWidthKeymap - 1,
+			width:     normalWidthKeymap - 1,
 			wantLabel: i18n.T(i18n.KeymapTitle),
 			unwanted:  i18n.T(i18n.KeymapContext),
 			mouseMode: tea.MouseModeCellMotion,
@@ -924,14 +907,14 @@ func TestViewShowsNarrowWidthFallbackByScreen(t *testing.T) {
 			}
 
 			view := model.View()
-			if !strings.Contains(view.Content, i18n.T(i18n.NarrowWidthTitle)) {
-				t.Fatalf("View() missing narrow width title:\n%s", view.Content)
-			}
 			if !strings.Contains(view.Content, tc.wantLabel) {
 				t.Fatalf("View() missing label %q:\n%s", tc.wantLabel, view.Content)
 			}
 			if strings.Contains(view.Content, tc.unwanted) {
 				t.Fatalf("View() unexpectedly contains %q:\n%s", tc.unwanted, view.Content)
+			}
+			if !strings.Contains(view.Content, "cols") {
+				t.Fatalf("View() missing narrow width body:\n%s", view.Content)
 			}
 			if view.MouseMode != tc.mouseMode {
 				t.Fatalf("MouseMode = %v, want %v", view.MouseMode, tc.mouseMode)
@@ -941,33 +924,171 @@ func TestViewShowsNarrowWidthFallbackByScreen(t *testing.T) {
 	}
 }
 
-func TestViewAtOrAboveNarrowWidthThresholdRendersNormalScreen(t *testing.T) {
+func TestViewShowsCompactLayoutByScreen(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		width        int
+		want         string
+		unwanted     string
+		normalMarker string
+		prepare      func(*RootModel)
+	}{
+		{
+			name:         "home",
+			width:        compactWidthStandard,
+			want:         i18n.T(i18n.HomeSubtitle),
+			unwanted:     i18n.T(i18n.NarrowWidthTitle),
+			normalMarker: "1,2,3,4=選択",
+			prepare: func(model *RootModel) {
+				model.screen = ScreenHome
+				model.home = store.HomeSnapshot{DueCount: 3, NewCount: 2, StreakDays: 1}
+				model.stats.Today.WaitMinutes = 2.5
+			},
+		},
+		{
+			name:         "settings overlay",
+			width:        compactWidthWide,
+			want:         i18n.T(i18n.SettingsQuestions),
+			unwanted:     i18n.T(i18n.NarrowWidthTitle),
+			normalMarker: tui.AlignLabel(i18n.T(i18n.SettingsQuestions), 18),
+			prepare: func(model *RootModel) {
+				prepareCompactSettingsModel(model)
+			},
+		},
+		{
+			name:         "choice quiz",
+			width:        compactWidthWide,
+			want:         "始める",
+			unwanted:     i18n.T(i18n.NarrowWidthTitle),
+			normalMarker: "  •  ",
+			prepare: func(model *RootModel) {
+				model.screen = ScreenQuiz
+				model.currentQ = sampleChoiceQuestion()
+			},
+		},
+		{
+			name:         "write quiz",
+			width:        compactWidthStandard,
+			want:         i18n.T(i18n.QuizMeaning),
+			unwanted:     i18n.T(i18n.NarrowWidthTitle),
+			normalMarker: tui.AlignLabel(i18n.T(i18n.QuizMeaning), 14),
+			prepare: func(model *RootModel) {
+				model.screen = ScreenQuiz
+				model.currentQ = sampleWriteQuestion()
+				model.writeInput = "ap"
+				model.writeHintCount = 1
+			},
+		},
+		{
+			name:         "choice feedback",
+			width:        compactWidthWide,
+			want:         i18n.T(i18n.FbCorrectAnswer),
+			unwanted:     i18n.T(i18n.NarrowWidthTitle),
+			normalMarker: tui.AlignLabel(i18n.T(i18n.FbCorrectAnswer), 14),
+			prepare: func(model *RootModel) {
+				model.screen = ScreenFeedback
+				model.feedback = sampleChoiceFeedback()
+			},
+		},
+		{
+			name:         "help",
+			width:        compactWidthWide,
+			want:         i18n.T(i18n.HelpTitle),
+			unwanted:     i18n.T(i18n.NarrowWidthTitle),
+			normalMarker: "",
+			prepare: func(model *RootModel) {
+				model.screen = ScreenHelp
+				model.helpReturn = ScreenQuiz
+				model.currentQ = sampleChoiceQuestion()
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			model := NewModel(nil, Options{})
+			model.loading = false
+			model.width = tc.width
+			model.status = "compact layout should stay within the available width"
+			if tc.prepare != nil {
+				tc.prepare(&model)
+			}
+
+			view := model.View().Content
+			if !strings.Contains(view, tc.want) {
+				t.Fatalf("View() missing compact marker %q:\n%s", tc.want, view)
+			}
+			if strings.Contains(view, tc.unwanted) {
+				t.Fatalf("View() unexpectedly contains %q:\n%s", tc.unwanted, view)
+			}
+			if tc.normalMarker != "" && strings.Contains(view, tc.normalMarker) {
+				t.Fatalf("View() unexpectedly contains normal-layout marker %q:\n%s", tc.normalMarker, view)
+			}
+			assertViewFitsWidth(t, view, tc.width)
+		})
+	}
+}
+
+func TestViewAtOrAboveNormalWidthThresholdRendersNormalScreen(t *testing.T) {
 	t.Parallel()
 
 	model := NewModel(nil, Options{})
 	model.loading = false
 	model.screen = ScreenQuiz
-	model.width = compactWidthWide
-	model.currentQ = &quiz.Question{
-		AnswerMode: store.AnswerModeChoice,
-		Word:       store.Word{Lemma: "begin", Pos: "verb"},
-		Choices: []quiz.Choice{
-			{Meaning: "始める"},
-			{Meaning: "開始する"},
-			{Meaning: "続ける"},
-			{Meaning: "終える"},
-		},
-		Ordinal: 1,
-		Total:   4,
-		Kind:    store.ItemKindNew,
-	}
+	model.width = normalWidthWide
+	model.currentQ = sampleChoiceQuestion()
 
 	view := model.View().Content
 	if strings.Contains(view, i18n.T(i18n.NarrowWidthTitle)) {
 		t.Fatalf("View() unexpectedly shows narrow width fallback at threshold:\n%s", view)
 	}
-	if !strings.Contains(view, "始める") {
-		t.Fatalf("View() missing normal quiz content at threshold:\n%s", view)
+	if !strings.Contains(view, "  •  ") {
+		t.Fatalf("View() missing normal quiz meta separator at threshold:\n%s", view)
+	}
+}
+
+func TestViewNonCompactScreensStillUseNarrowFallback(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		width   int
+		prepare func(*RootModel)
+	}{
+		{
+			name:  "results",
+			width: normalWidthStandard - 1,
+			prepare: func(model *RootModel) {
+				model.screen = ScreenResults
+				model.summary = &store.SessionSummary{Accuracy: 80, CorrectAnswers: 4, TotalQuestions: 5}
+			},
+		},
+		{
+			name:  "stats",
+			width: normalWidthStandard - 1,
+			prepare: func(model *RootModel) {
+				model.screen = ScreenStats
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			model := NewModel(nil, Options{})
+			model.loading = false
+			model.width = tc.width
+			tc.prepare(&model)
+
+			view := model.View().Content
+			if !strings.Contains(view, i18n.T(i18n.NarrowWidthTitle)) {
+				t.Fatalf("View() missing narrow fallback for %s:\n%s", tc.name, view)
+			}
+			assertViewFitsWidth(t, view, tc.width)
+		})
 	}
 }
 
@@ -1039,6 +1160,70 @@ func TestRenderHelpFromHomeConfirmShowsConfirmAndBack(t *testing.T) {
 		if strings.Contains(helpView, unwanted) {
 			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)
 		}
+	}
+}
+
+func TestCompactHelpersFitWidth(t *testing.T) {
+	t.Parallel()
+
+	if got := packTextPartsWidth([]string{"tab=answer mode", "enter=start", "s=settings"}, 18, "  "); strings.Contains(got, "tab=answer mode  enter=start") {
+		t.Fatalf("packTextPartsWidth() failed to wrap:\n%s", got)
+	}
+	assertViewFitsWidth(t, packTextPartsWidth([]string{"tab=answer mode", "enter=start", "s=settings"}, 18, "  "), 18)
+	assertViewFitsWidth(t, renderStackedField("Meaning", "a very long explanation that must wrap", 18), 18)
+	assertViewFitsWidth(t, renderPrefixedWrap("ctrl+h: ", "show the help screen and keep every line within width", 20), 20)
+}
+
+func prepareCompactSettingsModel(model *RootModel) {
+	model.screen = ScreenHome
+	model.settingsOpen = true
+	model.settingsInput = "10"
+	model.settingsWriteDifficulty = config.WriteModeDifficultyBasic
+	model.settingsAudioEnabled = true
+	model.settingsLanguage = i18n.LangJA
+	model.settingsThemeMode = config.ThemeModeDefault
+}
+
+func sampleChoiceQuestion() *quiz.Question {
+	return &quiz.Question{
+		AnswerMode: store.AnswerModeChoice,
+		Word:       store.Word{Lemma: "begin", Pos: "verb"},
+		Choices: []quiz.Choice{
+			{Meaning: "始める"},
+			{Meaning: "開始する"},
+			{Meaning: "続ける"},
+			{Meaning: "終える"},
+		},
+		Ordinal: 1,
+		Total:   4,
+		Kind:    store.ItemKindNew,
+	}
+}
+
+func sampleWriteQuestion() *quiz.Question {
+	return &quiz.Question{
+		AnswerMode: store.AnswerModeWrite,
+		Word: store.Word{
+			Lemma:     "apply",
+			MeaningJA: "応募する",
+			Pos:       "verb",
+		},
+		Ordinal: 2,
+		Total:   4,
+		Kind:    store.ItemKindReview,
+	}
+}
+
+func sampleChoiceFeedback() *quiz.Feedback {
+	return &quiz.Feedback{
+		Question: quiz.Question{
+			Word:         store.Word{Lemma: "begin", ExampleEN: "We begin at dawn.", ExampleJA: "夜明けに始める。"},
+			Choices:      []quiz.Choice{{Meaning: "始める"}, {Meaning: "終える"}},
+			CorrectIndex: 0,
+		},
+		Correct:       false,
+		SelectedIndex: 1,
+		ResponseMS:    1250,
 	}
 }
 
