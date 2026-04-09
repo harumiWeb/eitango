@@ -18,26 +18,22 @@ import (
 )
 
 const (
-	compactWidthStandard = 44
-	compactWidthWide     = 48
-	normalWidthStandard  = 56
-	normalWidthWide      = 64
-	normalWidthKeymap    = 76
+	compactWidthStandard = 28
+	compactWidthWide     = 32
+	adaptiveLabelWidth   = 8
 )
 
 type layoutVariant int
 
 const (
-	layoutNormal layoutVariant = iota
-	layoutCompact
+	layoutAdaptive layoutVariant = iota
 	layoutNarrow
 )
 
 type layoutSpec struct {
-	compactMin int
-	normalMin  int
-	title      string
-	modal      bool
+	minWidth int
+	title    string
+	modal    bool
 }
 
 func (m RootModel) View() tea.View {
@@ -46,7 +42,7 @@ func (m RootModel) View() tea.View {
 	if variant == layoutNarrow {
 		body = m.renderNarrowWidthMessage(spec)
 	} else {
-		body = m.renderScreen(variant)
+		body = m.renderScreen()
 	}
 
 	if m.loading {
@@ -60,61 +56,44 @@ func (m RootModel) View() tea.View {
 	return view
 }
 
-func (m RootModel) renderScreen(variant layoutVariant) string {
+func (m RootModel) renderScreen() string {
 	switch m.screen {
 	case ScreenHome:
-		return m.renderHomeScreen(variant)
+		return m.renderHomeScreen()
 	case ScreenQuiz:
-		return m.renderQuizScreen(variant)
+		return m.renderQuizScreen()
 	case ScreenFeedback:
-		return m.renderFeedbackScreen(variant)
+		return m.renderFeedbackScreen()
 	case ScreenResults:
-		return m.renderResults()
+		return m.renderResultsCompact()
 	case ScreenStats:
-		return m.renderStats()
+		return m.renderStatsCompact()
 	case ScreenHelp:
-		if variant == layoutCompact {
-			return m.renderHelpCompact()
-		}
-		return m.renderHelp()
+		return m.renderHelpCompact()
 	case ScreenKeymap:
-		return m.renderKeymapEditor()
+		return m.renderKeymapEditorCompact()
 	default:
 		return ""
 	}
 }
 
-func (m RootModel) renderHomeScreen(variant layoutVariant) string {
+func (m RootModel) renderHomeScreen() string {
 	switch {
 	case m.settingsOpen:
-		if variant == layoutCompact {
-			return m.renderSettingsOverlayCompact()
-		}
-		return m.renderHomeWithSettingsOverlay()
+		return m.renderSettingsOverlayCompact()
 	case m.homeConfirm != nil:
-		if variant == layoutCompact {
-			return m.renderHomeConfirmOverlayCompact()
-		}
-		return m.renderHomeWithConfirmOverlay()
-	case variant == layoutCompact:
-		return m.renderHomeCompact()
+		return m.renderHomeConfirmOverlayCompact()
 	default:
-		return m.renderHome()
+		return m.renderHomeCompact()
 	}
 }
 
-func (m RootModel) renderQuizScreen(variant layoutVariant) string {
-	if variant == layoutCompact {
-		return m.renderQuizCompact()
-	}
-	return m.renderQuiz()
+func (m RootModel) renderQuizScreen() string {
+	return m.renderQuizCompact()
 }
 
-func (m RootModel) renderFeedbackScreen(variant layoutVariant) string {
-	if variant == layoutCompact {
-		return m.renderFeedbackCompact()
-	}
-	return m.renderFeedback()
+func (m RootModel) renderFeedbackScreen() string {
+	return m.renderFeedbackCompact()
 }
 
 func (m RootModel) renderHome() string {
@@ -238,7 +217,7 @@ func (m RootModel) renderHomeCompact() string {
 		m.styles.Title.Render(title),
 		m.styles.Muted.Render(m.wrapToPanelWidth(i18n.T(i18n.HomeSubtitle), style)),
 		"",
-		m.renderCompactField(style, i18n.T(i18n.HomeAnswerMode), m.renderAnswerModeTabsPlain()),
+		m.renderCompactStyledField(style, i18n.T(i18n.HomeAnswerMode), m.renderAnswerModeTabs(), m.renderAnswerModeTabsPlain(), adaptiveLabelWidth),
 		m.renderCompactParts(style,
 			fmt.Sprintf("%s %d", i18n.T(i18n.HomeDue), m.home.DueCount),
 			fmt.Sprintf("%s %d", i18n.T(i18n.HomeNew), m.home.NewCount),
@@ -392,10 +371,10 @@ func (m RootModel) renderChoiceQuizCompact() string {
 	style := m.compactPanelStyle(false)
 	meta1, meta2 := m.compactQuizMeta()
 	lines := []string{
-		m.styles.Title.Render(m.wrapToPanelWidth(m.currentQ.Word.Lemma, style)),
+		m.styles.Title.Render(m.truncateToPanelWidth(m.currentQ.Word.Lemma, style)),
 		"",
-		m.styles.QuizMeta.Render(m.wrapToPanelWidth(meta1, style)),
-		m.styles.QuizMeta.Render(m.wrapToPanelWidth(meta2, style)),
+		m.styles.QuizMeta.Render(m.truncateToPanelWidth(meta1, style)),
+		m.styles.QuizMeta.Render(m.truncateToPanelWidth(meta2, style)),
 		"",
 	}
 	for i, choice := range m.currentQ.Choices {
@@ -405,11 +384,11 @@ func (m RootModel) renderChoiceQuizCompact() string {
 			prefix = fmt.Sprintf("▸ %d. ", i+1)
 			styleForChoice = m.styles.ChoiceSelected
 		}
-		lines = append(lines, styleForChoice.Render(m.renderCompactPrefixed(style, prefix, choice.Meaning)))
+		lines = append(lines, styleForChoice.Render(m.renderCompactPrefixedEllipsis(style, prefix, choice.Meaning)))
 	}
 	lines = append(lines,
 		"",
-		m.renderCompactField(style, i18n.T(i18n.QuizAudio), audioStateLabel(m.autoplayActive())),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.QuizAudio), audioStateLabel(m.autoplayActive())),
 		m.styles.Muted.Render(m.renderCompactInlineGuides(style, keymap.ContextQuizChoice,
 			keymap.ActionUp,
 			keymap.ActionDown,
@@ -449,15 +428,15 @@ func (m RootModel) renderWriteQuizCompact() string {
 	style := m.compactPanelStyle(false)
 	meta1, meta2 := m.compactQuizMeta()
 	lines := []string{
-		m.styles.Title.Render(i18n.T(i18n.AnswerModeWrite)),
+		m.styles.Title.Render(m.truncateToPanelWidth(i18n.T(i18n.AnswerModeWrite), style)),
 		"",
-		m.styles.QuizMeta.Render(m.wrapToPanelWidth(meta1, style)),
-		m.styles.QuizMeta.Render(m.wrapToPanelWidth(meta2, style)),
+		m.styles.QuizMeta.Render(m.truncateToPanelWidth(meta1, style)),
+		m.styles.QuizMeta.Render(m.truncateToPanelWidth(meta2, style)),
 		"",
-		m.renderCompactField(style, i18n.T(i18n.QuizMeaning), m.currentQ.Word.MeaningJA),
-		m.renderCompactField(style, i18n.T(i18n.QuizWord), renderSlots(m.currentQ.Word.Lemma, m.writeHintIndices)),
-		m.renderCompactField(style, i18n.T(i18n.QuizInput), renderSpacedInput(m.writeInput)),
-		m.renderCompactField(style, i18n.T(i18n.QuizHints), formatHintCount(m.writeHintCount)),
+		m.renderCompactAlignedField(style, i18n.T(i18n.QuizMeaning), m.currentQ.Word.MeaningJA, adaptiveLabelWidth),
+		m.renderCompactAlignedFieldEllipsis(style, i18n.T(i18n.QuizWord), renderSlots(m.currentQ.Word.Lemma, m.writeHintIndices), adaptiveLabelWidth),
+		m.renderCompactAlignedFieldEllipsis(style, i18n.T(i18n.QuizInput), renderSpacedInput(m.writeInput), adaptiveLabelWidth),
+		m.renderCompactAlignedFieldEllipsis(style, i18n.T(i18n.QuizHints), formatHintCount(m.writeHintCount), adaptiveLabelWidth),
 		"",
 		m.styles.Muted.Render(m.renderCompactInlineGuides(style, keymap.ContextQuizWrite,
 			keymap.ActionHint,
@@ -542,7 +521,7 @@ func (m RootModel) renderChoiceFeedback() string {
 }
 
 func (m RootModel) renderChoiceFeedbackCompact() string {
-	style := m.compactPanelStyle(false)
+	style := m.compactFeedbackPanelStyle()
 	lines := []string{m.compactFeedbackHeadline()}
 
 	if m.feedback.Correct && m.correctStreak >= 3 {
@@ -551,20 +530,20 @@ func (m RootModel) renderChoiceFeedbackCompact() string {
 
 	lines = append(lines,
 		"",
-		m.renderCompactField(style, i18n.T(i18n.FbWord), m.feedback.Question.Word.Lemma),
-		m.renderCompactField(style, i18n.T(i18n.FbCorrectAnswer), m.feedback.Question.CorrectChoice().Meaning),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbWord), m.feedback.Question.Word.Lemma),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbCorrectAnswer), m.feedback.Question.CorrectChoice().Meaning),
 	)
 
 	if !m.feedback.Correct {
 		selected := m.feedback.Question.Choices[m.feedback.SelectedIndex].Meaning
-		lines = append(lines, m.renderCompactField(style, i18n.T(i18n.FbYourAnswer), selected))
+		lines = append(lines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbYourAnswer), selected))
 	}
 
-	lines = append(lines, m.renderCompactField(style, i18n.T(i18n.FbResponseTime), fmt.Sprintf("%d ms", m.feedback.ResponseMS)))
+	lines = append(lines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbResponseTime), fmt.Sprintf("%d ms", m.feedback.ResponseMS)))
 	lines = append(lines, m.renderCompactFeedbackExamples(style)...)
 	lines = append(lines,
 		"",
-		m.renderCompactField(style, i18n.T(i18n.QuizAudio), audioStateLabel(m.autoplayActive())),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.QuizAudio), audioStateLabel(m.autoplayActive())),
 		m.styles.Muted.Render(m.renderCompactInlineGuides(style, keymap.ContextFeedbackRate,
 			keymap.ActionAgain,
 			keymap.ActionHard,
@@ -632,7 +611,7 @@ func (m RootModel) renderWriteFeedback() string {
 }
 
 func (m RootModel) renderWriteFeedbackCompact() string {
-	style := m.compactPanelStyle(false)
+	style := m.compactFeedbackPanelStyle()
 	lines := []string{m.compactFeedbackHeadline()}
 	if m.feedback.Correct && m.correctStreak >= 3 {
 		lines = append(lines, m.styles.Correct.Render(m.wrapToPanelWidth(i18n.Tf(i18n.FbStreak, m.correctStreak), style)))
@@ -640,7 +619,7 @@ func (m RootModel) renderWriteFeedbackCompact() string {
 
 	lines = append(lines,
 		"",
-		m.renderCompactField(style, i18n.T(i18n.FbWord), m.feedback.Question.Word.Lemma),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbWord), m.feedback.Question.Word.Lemma),
 		m.renderCompactField(style, i18n.T(i18n.FbMeaning), m.feedback.Question.Word.MeaningJA),
 	)
 
@@ -649,17 +628,17 @@ func (m RootModel) renderWriteFeedbackCompact() string {
 		if m.feedback.Skipped {
 			answer = i18n.T(i18n.FbSkipped)
 		}
-		lines = append(lines, m.renderCompactField(style, i18n.T(i18n.FbYourAnswer), answer))
+		lines = append(lines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbYourAnswer), answer))
 	}
 	if m.feedback.HintCount > 0 {
-		lines = append(lines, m.renderCompactField(style, i18n.T(i18n.FbHints), fmt.Sprintf("%d", m.feedback.HintCount)))
+		lines = append(lines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbHints), fmt.Sprintf("%d", m.feedback.HintCount)))
 	}
-	lines = append(lines, m.renderCompactField(style, i18n.T(i18n.FbResponseTime), fmt.Sprintf("%d ms", m.feedback.ResponseMS)))
+	lines = append(lines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbResponseTime), fmt.Sprintf("%d ms", m.feedback.ResponseMS)))
 	lines = append(lines, m.renderCompactFeedbackExamples(style)...)
 
 	lines = append(lines,
 		"",
-		m.renderCompactField(style, i18n.T(i18n.QuizAudio), audioStateLabel(m.autoplayActive())),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.QuizAudio), audioStateLabel(m.autoplayActive())),
 		m.styles.Muted.Render(m.renderCompactInlineGuides(style, keymap.ContextFeedbackWrite,
 			keymap.ActionConfirm,
 			keymap.ActionSpeak,
@@ -669,39 +648,57 @@ func (m RootModel) renderWriteFeedbackCompact() string {
 	return m.renderConstrainedPanel(style, strings.Join(lines, "\n"))
 }
 
-func (m RootModel) renderResults() string {
+func (m RootModel) renderResultsCompact() string {
+	style := m.compactPanelStyle(false)
 	if m.summary == nil {
-		return m.styles.Panel.Render(i18n.T(i18n.ResultsNoSummary))
+		return m.renderConstrainedPanel(style, m.truncateToPanelWidth(i18n.T(i18n.ResultsNoSummary), style))
 	}
 
 	lines := []string{
-		m.styles.Title.Render(i18n.T(i18n.ResultsTitle)),
-		fmt.Sprintf("%s: %.1f%%", tui.AlignLabel(i18n.T(i18n.ResultsAccuracy), 14), m.summary.Accuracy),
-		fmt.Sprintf("%s: %d/%d", tui.AlignLabel(i18n.T(i18n.ResultsCorrect), 14), m.summary.CorrectAnswers, m.summary.TotalQuestions),
-		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.ResultsMix), 14), i18n.Tf(i18n.ResultsMixDetail, m.summary.NewCount, m.summary.ReviewCount, m.summary.RetryCount)),
+		m.styles.Title.Render(m.truncateToPanelWidth(i18n.T(i18n.ResultsTitle), style)),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.ResultsAccuracy), fmt.Sprintf("%.1f%%", m.summary.Accuracy)),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.ResultsCorrect), fmt.Sprintf("%d/%d", m.summary.CorrectAnswers, m.summary.TotalQuestions)),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.ResultsMix), i18n.Tf(i18n.ResultsMixDetail, m.summary.NewCount, m.summary.ReviewCount, m.summary.RetryCount)),
 	}
 	if len(m.summary.HardWords) > 0 {
-		lines = append(lines, "", m.styles.Subtitle.Render(i18n.T(i18n.ResultsHardWords)))
+		lines = append(lines, "", m.styles.Subtitle.Render(m.truncateToPanelWidth(i18n.T(i18n.ResultsHardWords), style)))
 		for _, word := range m.summary.HardWords {
-			lines = append(lines, fmt.Sprintf("- %s: %s", word.Lemma, word.MeaningJA))
+			lines = append(lines, m.renderCompactPrefixedEllipsis(style, "- ", word.Lemma+": "+word.MeaningJA))
 		}
 	}
-	lines = append(lines, "", m.styles.Muted.Render(m.renderInlineGuides(
-		keymap.ContextResults,
-		keymap.ActionConfirm,
-		keymap.ActionBack,
-		keymap.ActionQuit,
-	)))
-	return m.styles.Panel.Render(strings.Join(lines, "\n"))
+	lines = append(lines,
+		"",
+		m.styles.Muted.Render(m.renderCompactInlineGuides(style,
+			keymap.ContextResults,
+			keymap.ActionConfirm,
+			keymap.ActionBack,
+			keymap.ActionQuit,
+		)),
+	)
+	return m.renderConstrainedPanel(style, strings.Join(lines, "\n"))
 }
 
-func (m RootModel) renderStats() string {
-	return m.styles.Panel.Render(stats.RenderText(m.stats) + "\n" + m.renderInlineGuides(
-		keymap.ContextStats,
-		keymap.ActionConfirm,
-		keymap.ActionBack,
-		keymap.ActionQuit,
-	))
+func (m RootModel) renderStatsCompact() string {
+	style := m.compactPanelStyle(false)
+	lines := []string{
+		m.styles.Title.Render(m.truncateToPanelWidth(i18n.T(i18n.StatsTitle), style)),
+		m.renderCompactFieldEllipsis(style, m.stats.Today.Label, m.compactStatsWindowValue(m.stats.Today)),
+		m.renderCompactFieldEllipsis(style, m.stats.SevenDays.Label, m.compactStatsWindowValue(m.stats.SevenDays)),
+		m.renderCompactFieldEllipsis(style, m.stats.ThirtyDays.Label, m.compactStatsWindowValue(m.stats.ThirtyDays)),
+		m.renderCompactFieldEllipsis(style, m.stats.Total.Label, m.compactStatsWindowValue(m.stats.Total)),
+		"",
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.StatsDue), fmt.Sprintf("%d", m.stats.DueCount)),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.StatsNew), fmt.Sprintf("%d", m.stats.NewCount)),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.StatsStreak), fmt.Sprintf("%d", m.stats.StreakDays)),
+		"",
+		m.styles.Muted.Render(m.renderCompactInlineGuides(style,
+			keymap.ContextStats,
+			keymap.ActionConfirm,
+			keymap.ActionBack,
+			keymap.ActionQuit,
+		)),
+	}
+	return m.renderConstrainedPanel(style, strings.Join(lines, "\n"))
 }
 
 func (m RootModel) renderHelp() string {
@@ -748,15 +745,16 @@ func (m RootModel) renderStatusLine() string {
 	return m.styles.Status.Render(m.wrapToWindow("status: " + msg))
 }
 
-func (m RootModel) renderKeymapEditor() string {
+func (m RootModel) renderKeymapEditorCompact() string {
+	style := m.compactPanelStyle(false)
 	if m.keymapEditor == nil {
-		return m.styles.Panel.Render(i18n.T(i18n.KeymapTitle))
+		return m.renderConstrainedPanel(style, m.truncateToPanelWidth(i18n.T(i18n.KeymapTitle), style))
 	}
 
 	editor := m.keymapEditor
 	headerLines := []string{
-		m.styles.Title.Render(i18n.T(i18n.KeymapTitle)),
-		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.KeymapContext), 14), m.keymapFilterLabel(editor.filter)),
+		m.styles.Title.Render(m.truncateToPanelWidth(i18n.T(i18n.KeymapTitle), style)),
+		m.renderCompactFieldEllipsis(style, i18n.T(i18n.KeymapContext), m.keymapFilterLabel(editor.filter)),
 		"",
 	}
 
@@ -764,36 +762,33 @@ func (m RootModel) renderKeymapEditor() string {
 	detailLines := []string{}
 	if row, ok := editor.selectedRow(); ok {
 		detailLines = append(detailLines, "")
-		detailLines = append(detailLines, m.styles.Subtitle.Render(i18n.T(i18n.KeymapDetails)))
-		detailLines = append(detailLines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.KeymapAction), 14), keymap.ActionLabel(row.Action)))
-		detailLines = append(detailLines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.KeymapDefault), 14), keymap.FormatKeys(keymap.DefaultKeys(row.Context, row.Action))))
-		detailLines = append(detailLines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.KeymapCurrent), 14), keymap.FormatKeys(editor.draft.Keys(row.Context, row.Action))))
+		detailLines = append(detailLines, m.styles.Subtitle.Render(m.truncateToPanelWidth(i18n.T(i18n.KeymapDetails), style)))
+		detailLines = append(detailLines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.KeymapAction), keymap.ActionLabel(row.Action)))
+		detailLines = append(detailLines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.KeymapDefault), keymap.FormatKeys(keymap.DefaultKeys(row.Context, row.Action))))
+		detailLines = append(detailLines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.KeymapCurrent), keymap.FormatKeys(editor.draft.Keys(row.Context, row.Action))))
 		if row.Context == keymap.ContextQuizWrite {
-			detailLines = append(detailLines, m.styles.Muted.Render(i18n.T(i18n.KeymapWriteNote)))
+			detailLines = append(detailLines, m.styles.Muted.Render(m.truncateToPanelWidth(i18n.T(i18n.KeymapWriteNote), style)))
 		}
 	}
 
 	recordingLines := []string{}
 	if editor.recording {
 		recordingLines = append(recordingLines, "")
-		recordingLines = append(recordingLines, m.styles.Subtitle.Render(i18n.T(i18n.KeymapRecordingTitle)))
-		recordingLines = append(recordingLines, m.styles.Muted.Render(i18n.T(i18n.KeymapRecordingBody)))
+		recordingLines = append(recordingLines, m.styles.Subtitle.Render(m.truncateToPanelWidth(i18n.T(i18n.KeymapRecordingTitle), style)))
+		recordingLines = append(recordingLines, m.styles.Muted.Render(m.truncateToPanelWidth(i18n.T(i18n.KeymapRecordingBody), style)))
 	}
 
 	conflictLines := []string{}
 	if editor.conflict != nil {
 		conflictLines = append(conflictLines, "")
-		conflictLines = append(conflictLines, m.styles.Subtitle.Render(i18n.T(i18n.KeymapConflictTitle)))
-		conflictLines = append(conflictLines, m.styles.Muted.Render(i18n.Tf(i18n.KeymapConflictBody, keymap.FormatKeys([]string{editor.conflict.Token}), keymap.ActionLabel(editor.conflict.Conflicts[0].Action), keymap.ContextLabel(editor.conflict.Conflicts[0].Context))))
-		conflictLines = append(conflictLines, m.styles.Muted.Render(i18n.T(i18n.KeymapConflictKeys)))
+		conflictLines = append(conflictLines, m.styles.Subtitle.Render(m.truncateToPanelWidth(i18n.T(i18n.KeymapConflictTitle), style)))
+		conflictLines = append(conflictLines, m.styles.Muted.Render(m.truncateToPanelWidth(i18n.Tf(i18n.KeymapConflictBody, keymap.FormatKeys([]string{editor.conflict.Token}), keymap.ActionLabel(editor.conflict.Conflicts[0].Action), keymap.ContextLabel(editor.conflict.Conflicts[0].Context)), style)))
+		conflictLines = append(conflictLines, m.styles.Muted.Render(m.truncateToPanelWidth(i18n.T(i18n.KeymapConflictKeys), style)))
 	}
 
-	footerLines := []string{"", m.styles.Muted.Render(i18n.T(i18n.KeymapKeys))}
+	footerLines := []string{"", m.styles.Muted.Render(m.truncateToPanelWidth(i18n.T(i18n.KeymapKeys), style))}
 
-	// Determine which optional sections to render based on available height.
-	// Priority: recording > conflict > detail. Each section is only shown when
-	// including it still leaves room for at least one action-list row.
-	available := m.keymapEditorInnerHeight()
+	available := m.keymapEditorInnerHeightForStyle(style)
 	fixedLines := len(headerLines) + len(footerLines)
 
 	showRecording := len(recordingLines) > 0 && available-fixedLines >= len(recordingLines)+1
@@ -811,16 +806,16 @@ func (m RootModel) renderKeymapEditor() string {
 
 	listLines := make([]string, 0, len(rows))
 	if len(rows) == 0 {
-		listLines = append(listLines, m.styles.Muted.Render(i18n.T(i18n.KeymapEmpty)))
+		listLines = append(listLines, m.styles.Muted.Render(m.truncateToPanelWidth(i18n.T(i18n.KeymapEmpty), style)))
 	} else {
-		start, end := m.keymapEditorRowWindow(len(rows), editor.cursor, fixedLines)
+		start, end := m.keymapEditorRowWindowForStyle(style, len(rows), editor.cursor, fixedLines)
 		scrollbar := m.keymapEditorScrollbar(len(rows), start, end)
 		for index := start; index < end; index++ {
 			marker := ""
 			if len(scrollbar) > 0 {
 				marker = scrollbar[index-start]
 			}
-			listLines = append(listLines, m.renderKeymapEditorRow(editor, index, rows[index], marker))
+			listLines = append(listLines, m.renderKeymapEditorRowCompact(style, editor, index, rows[index], marker))
 		}
 	}
 
@@ -836,14 +831,13 @@ func (m RootModel) renderKeymapEditor() string {
 		lines = append(lines, conflictLines...)
 	}
 	lines = append(lines, footerLines...)
-	// Safety clip: ensure total lines never exceed the available inner height.
 	if available > 0 && len(lines) > available {
 		lines = lines[:available]
 	}
-	return m.styles.Panel.Render(strings.Join(lines, "\n"))
+	return m.renderConstrainedPanel(style, strings.Join(lines, "\n"))
 }
 
-func (m RootModel) renderKeymapEditorRow(editor *keymapEditorState, index int, row keymapEditorRow, scrollbar string) string {
+func (m RootModel) renderKeymapEditorRowCompact(style lipgloss.Style, editor *keymapEditorState, index int, row keymapEditorRow, scrollbar string) string {
 	current := editor.draft.Keys(row.Context, row.Action)
 	value := keymap.FormatKeys(current)
 	if value == "" {
@@ -856,30 +850,30 @@ func (m RootModel) renderKeymapEditorRow(editor *keymapEditorState, index int, r
 	}
 
 	prefix := "  "
-	style := m.styles.Choice
+	rowStyle := m.styles.Choice
 	if editor.cursor == index {
 		prefix = "> "
-		style = m.styles.ChoiceSelected
+		rowStyle = m.styles.ChoiceSelected
 	}
 
-	line := strings.Join([]string{
-		prefix + tui.AlignText(keymap.ContextLabel(row.Context), 18),
-		tui.AlignText(keymap.ActionLabel(row.Action), 22),
-		tui.AlignText(value, 12),
-		status,
-	}, " ")
+	contentWidth := m.panelContentWidth(style)
 	if scrollbar != "" {
-		return style.Render(line) + " " + scrollbar
+		contentWidth -= 2
 	}
-	return style.Render(line)
+	left := fmt.Sprintf("%s/%s: %s", keymap.ContextLabel(row.Context), keymap.ActionLabel(row.Action), value)
+	line := fitCompactKeymapRow(prefix, left, status, contentWidth)
+	if scrollbar != "" {
+		return rowStyle.Render(line) + " " + scrollbar
+	}
+	return rowStyle.Render(line)
 }
 
-func (m RootModel) keymapEditorRowWindow(totalRows, cursor, fixedLines int) (int, int) {
+func (m RootModel) keymapEditorRowWindowForStyle(style lipgloss.Style, totalRows, cursor, fixedLines int) (int, int) {
 	if totalRows <= 0 {
 		return 0, 0
 	}
 
-	available := m.keymapEditorInnerHeight()
+	available := m.keymapEditorInnerHeightForStyle(style)
 	if available <= 0 {
 		return 0, totalRows
 	}
@@ -914,7 +908,7 @@ func (m RootModel) keymapEditorRowWindow(totalRows, cursor, fixedLines int) (int
 	return start, start + visible
 }
 
-func (m RootModel) keymapEditorInnerHeight() int {
+func (m RootModel) keymapEditorInnerHeightForStyle(style lipgloss.Style) int {
 	if m.height <= 0 {
 		return 0
 	}
@@ -923,7 +917,7 @@ func (m RootModel) keymapEditorInnerHeight() int {
 	if m.loading {
 		reserved += 2
 	}
-	available := m.height - reserved - lipgloss.Height(m.styles.Panel.Render(""))
+	available := m.height - reserved - lipgloss.Height(style.Render(""))
 	if available < 1 {
 		return 1
 	}
@@ -1251,13 +1245,42 @@ func (m RootModel) renderCompactField(style lipgloss.Style, label, value string)
 	return renderStackedField(label, value, width)
 }
 
+func (m RootModel) renderCompactAlignedField(style lipgloss.Style, label, value string, labelWidth int) string {
+	if m.panelContentWidth(style) < labelWidth+10 {
+		return m.renderCompactField(style, label, value)
+	}
+	return renderPrefixedWrap(fmt.Sprintf("%s: ", tui.AlignLabel(label, labelWidth)), value, m.panelContentWidth(style))
+}
+
+func (m RootModel) renderCompactFieldEllipsis(style lipgloss.Style, label, value string) string {
+	return renderSingleLineField(label, value, m.panelContentWidth(style))
+}
+
+func (m RootModel) renderCompactAlignedFieldEllipsis(style lipgloss.Style, label, value string, labelWidth int) string {
+	if m.panelContentWidth(style) < labelWidth+10 {
+		return m.renderCompactFieldEllipsis(style, label, value)
+	}
+	return renderSingleLinePrefixed(fmt.Sprintf("%s: ", tui.AlignLabel(label, labelWidth)), value, m.panelContentWidth(style))
+}
+
+func (m RootModel) renderCompactStyledField(style lipgloss.Style, label, styledValue, plainValue string, labelWidth int) string {
+	width := m.panelContentWidth(style)
+	if width < labelWidth+8 {
+		return renderSingleLineField(label, plainValue, width)
+	}
+	prefix := fmt.Sprintf("%s: ", tui.AlignLabel(label, labelWidth))
+	if runewidth.StringWidth(prefix)+runewidth.StringWidth(plainValue) <= width {
+		return prefix + styledValue
+	}
+	return renderSingleLinePrefixed(prefix, plainValue, width)
+}
+
 func (m RootModel) renderCompactParts(style lipgloss.Style, parts ...string) string {
 	return packTextPartsWidth(parts, m.panelContentWidth(style), "  ")
 }
 
-func (m RootModel) renderCompactPrefixed(style lipgloss.Style, prefix, value string) string {
-	width := m.panelContentWidth(style)
-	return renderPrefixedWrap(prefix, value, width)
+func (m RootModel) renderCompactPrefixedEllipsis(style lipgloss.Style, prefix, value string) string {
+	return renderSingleLinePrefixed(prefix, value, m.panelContentWidth(style))
 }
 
 func (m RootModel) renderCompactSelectable(style lipgloss.Style, selected bool, label, value string) string {
@@ -1267,7 +1290,7 @@ func (m RootModel) renderCompactSelectable(style lipgloss.Style, selected bool, 
 		prefix = "> "
 		rowStyle = m.styles.ChoiceSelected
 	}
-	return rowStyle.Render(renderPrefixedWrap(prefix, fmt.Sprintf("%s: %s", label, value), m.panelContentWidth(style)))
+	return rowStyle.Render(renderSingleLinePrefixed(prefix+label+": ", value, m.panelContentWidth(style)))
 }
 
 func (m RootModel) compactQuizMeta() (string, string) {
@@ -1280,6 +1303,15 @@ func (m RootModel) compactFeedbackHeadline() string {
 		return m.styles.Correct.Render("✓ " + i18n.T(i18n.FbCorrect))
 	}
 	return m.styles.Wrong.Render("✗ " + i18n.T(i18n.FbIncorrect))
+}
+
+func (m RootModel) compactStatsWindowValue(window stats.Window) string {
+	return strings.Join([]string{
+		fmt.Sprintf("%s=%d", i18n.T(i18n.StatsReviews), window.Reviews),
+		fmt.Sprintf("%s=%d", i18n.T(i18n.StatsCorrect), window.Correct),
+		fmt.Sprintf("%s=%.1f%%", i18n.T(i18n.StatsAccuracy), window.Accuracy()),
+		fmt.Sprintf("%s=%.1fm", i18n.T(i18n.StatsWait), window.WaitMinutes),
+	}, "  ")
 }
 
 func (m RootModel) renderCompactFeedbackExamples(style lipgloss.Style) []string {
@@ -1308,7 +1340,7 @@ func (m RootModel) renderNarrowWidthMessage(spec layoutSpec) string {
 		m.styles.Title.Render(m.wrapToPanelWidth(i18n.T(i18n.NarrowWidthTitle), m.narrowPanelStyle(spec.modal))),
 		m.styles.Muted.Render(m.wrapToPanelWidth(spec.title, m.narrowPanelStyle(spec.modal))),
 		"",
-		m.wrapToPanelWidth(i18n.Tf(i18n.NarrowWidthBody, m.width, spec.normalMin), m.narrowPanelStyle(spec.modal)),
+		m.wrapToPanelWidth(i18n.Tf(i18n.NarrowWidthBody, m.width, spec.minWidth), m.narrowPanelStyle(spec.modal)),
 		m.styles.Muted.Render(m.wrapToPanelWidth(i18n.T(i18n.NarrowWidthHint), m.narrowPanelStyle(spec.modal))),
 	}
 	return m.renderConstrainedPanel(m.narrowPanelStyle(spec.modal), strings.Join(lines, "\n"))
@@ -1317,50 +1349,41 @@ func (m RootModel) renderNarrowWidthMessage(spec layoutSpec) string {
 func (m RootModel) currentLayout() (layoutSpec, layoutVariant, bool) {
 	spec, ok := m.layoutSpec()
 	if !ok {
-		return layoutSpec{}, layoutNormal, false
+		return layoutSpec{}, layoutAdaptive, false
 	}
 	if m.width <= 0 {
-		return spec, layoutNormal, true
+		return spec, layoutAdaptive, true
 	}
-	if spec.compactMin > 0 {
-		if m.width < spec.compactMin {
-			return spec, layoutNarrow, true
-		}
-		if m.width < spec.normalMin {
-			return spec, layoutCompact, true
-		}
-		return spec, layoutNormal, true
-	}
-	if m.width < spec.normalMin {
+	if m.width < spec.minWidth {
 		return spec, layoutNarrow, true
 	}
-	return spec, layoutNormal, true
+	return spec, layoutAdaptive, true
 }
 
 func (m RootModel) layoutSpec() (layoutSpec, bool) {
 	switch {
 	case m.screen == ScreenHome && m.settingsOpen:
-		return layoutSpec{compactMin: compactWidthWide, normalMin: normalWidthWide, title: i18n.T(i18n.SettingsTitle), modal: true}, true
+		return layoutSpec{minWidth: compactWidthWide, title: i18n.T(i18n.SettingsTitle), modal: true}, true
 	case m.screen == ScreenHome && m.homeConfirm != nil:
-		return layoutSpec{compactMin: compactWidthWide, normalMin: normalWidthWide, title: i18n.T(i18n.HomeConfirmTitle), modal: true}, true
+		return layoutSpec{minWidth: compactWidthWide, title: i18n.T(i18n.HomeConfirmTitle), modal: true}, true
 	case m.screen == ScreenQuiz && m.currentQ != nil && m.currentQ.AnswerMode == store.AnswerModeWrite:
-		return layoutSpec{compactMin: compactWidthStandard, normalMin: normalWidthStandard, title: i18n.T(i18n.AnswerModeWrite)}, true
+		return layoutSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.AnswerModeWrite)}, true
 	case m.screen == ScreenQuiz:
-		return layoutSpec{compactMin: compactWidthWide, normalMin: normalWidthWide, title: i18n.T(i18n.HelpScreenQuiz)}, true
+		return layoutSpec{minWidth: compactWidthWide, title: i18n.T(i18n.HelpScreenQuiz)}, true
 	case m.screen == ScreenFeedback && m.isWriteFeedback():
-		return layoutSpec{compactMin: compactWidthStandard, normalMin: normalWidthStandard, title: i18n.T(i18n.HelpScreenFeedback)}, true
+		return layoutSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.HelpScreenFeedback)}, true
 	case m.screen == ScreenFeedback:
-		return layoutSpec{compactMin: compactWidthWide, normalMin: normalWidthWide, title: i18n.T(i18n.HelpScreenFeedback)}, true
+		return layoutSpec{minWidth: compactWidthWide, title: i18n.T(i18n.HelpScreenFeedback)}, true
 	case m.screen == ScreenResults:
-		return layoutSpec{normalMin: normalWidthStandard, title: i18n.T(i18n.ResultsTitle)}, true
+		return layoutSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.ResultsTitle)}, true
 	case m.screen == ScreenStats:
-		return layoutSpec{normalMin: normalWidthStandard, title: i18n.T(i18n.StatsTitle)}, true
+		return layoutSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.StatsTitle)}, true
 	case m.screen == ScreenHelp:
-		return layoutSpec{compactMin: compactWidthWide, normalMin: normalWidthWide, title: i18n.T(i18n.HelpTitle)}, true
+		return layoutSpec{minWidth: compactWidthWide, title: i18n.T(i18n.HelpTitle)}, true
 	case m.screen == ScreenKeymap:
-		return layoutSpec{normalMin: normalWidthKeymap, title: i18n.T(i18n.KeymapTitle)}, true
+		return layoutSpec{minWidth: compactWidthWide, title: i18n.T(i18n.KeymapTitle)}, true
 	case m.screen == ScreenHome:
-		return layoutSpec{compactMin: compactWidthStandard, normalMin: normalWidthStandard, title: i18n.T(i18n.HelpScreenHome)}, true
+		return layoutSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.HelpScreenHome)}, true
 	default:
 		return layoutSpec{}, false
 	}
@@ -1373,8 +1396,22 @@ func (m RootModel) narrowPanelStyle(modal bool) lipgloss.Style {
 	return m.styles.Panel
 }
 
-func (m RootModel) compactPanelStyle(_ bool) lipgloss.Style {
-	return lipgloss.NewStyle().Padding(0, 1)
+func (m RootModel) compactPanelStyle(modal bool) lipgloss.Style {
+	return m.compactPanelBase(modal)
+}
+
+func (m RootModel) compactPanelBase(modal bool) lipgloss.Style {
+	if modal {
+		return m.styles.ModalPanel.Padding(1, 1)
+	}
+	return m.styles.Panel.Padding(1, 1)
+}
+
+func (m RootModel) compactFeedbackPanelStyle() lipgloss.Style {
+	if m.feedback != nil && m.feedback.Correct {
+		return m.styles.CorrectPanel.Padding(1, 1)
+	}
+	return m.styles.WrongPanel.Padding(1, 1)
 }
 
 func (m RootModel) wrapToWindow(text string) string {
@@ -1388,11 +1425,18 @@ func (m RootModel) wrapToPanelWidth(text string, style lipgloss.Style) string {
 	return wrapTextWidth(text, m.panelContentWidth(style))
 }
 
+func (m RootModel) truncateToPanelWidth(text string, style lipgloss.Style) string {
+	return truncateWithEllipsis(text, m.panelContentWidth(style))
+}
+
 func (m RootModel) panelContentWidth(style lipgloss.Style) int {
 	if m.width <= 0 {
 		return 0
 	}
 	width := m.width - style.GetHorizontalFrameSize()
+	if style.GetHorizontalFrameSize() > 0 {
+		width--
+	}
 	if width < 1 {
 		return 1
 	}
@@ -1416,6 +1460,55 @@ func renderStackedField(label, value string, width int) string {
 	}
 	prefix := label + ": "
 	return renderPrefixedWrap(prefix, value, width)
+}
+
+func renderSingleLineField(label, value string, width int) string {
+	if value == "" {
+		return truncateWithEllipsis(label, width)
+	}
+	return renderSingleLinePrefixed(label+": ", value, width)
+}
+
+func renderSingleLinePrefixed(prefix, value string, width int) string {
+	if width <= 0 {
+		return prefix + value
+	}
+	prefixWidth := runewidth.StringWidth(prefix)
+	if prefixWidth >= width {
+		return truncateWithEllipsis(prefix, width)
+	}
+	return prefix + truncateWithEllipsis(value, width-prefixWidth)
+}
+
+func fitCompactKeymapRow(prefix, left, status string, width int) string {
+	if width <= 0 {
+		return prefix + left + " " + status
+	}
+	prefixWidth := runewidth.StringWidth(prefix)
+	if prefixWidth >= width {
+		return truncateWithEllipsis(prefix, width)
+	}
+
+	remaining := width - prefixWidth
+	status = truncateWithEllipsis(status, remaining)
+	if left == "" {
+		return prefix + status
+	}
+
+	statusWidth := runewidth.StringWidth(status)
+	separator := " "
+	separatorWidth := runewidth.StringWidth(separator)
+	if statusWidth+separatorWidth >= remaining {
+		return prefix + truncateWithEllipsis(status, remaining)
+	}
+
+	leftWidth := remaining - statusWidth - separatorWidth
+	leftText := truncateWithEllipsis(left, leftWidth)
+	leftTextWidth := runewidth.StringWidth(leftText)
+	if leftTextWidth < leftWidth {
+		leftText += strings.Repeat(" ", leftWidth-leftTextWidth)
+	}
+	return prefix + leftText + separator + status
 }
 
 func renderPrefixedWrap(prefix, value string, width int) string {
@@ -1456,7 +1549,7 @@ func packTextPartsWidth(parts []string, width int, separator string) string {
 		return strings.Join(filtered, separator)
 	}
 
-	lines := []string{filtered[0]}
+	lines := []string{truncateWithEllipsis(filtered[0], width)}
 	for _, part := range filtered[1:] {
 		current := lines[len(lines)-1]
 		candidate := current + separator + part
@@ -1464,13 +1557,44 @@ func packTextPartsWidth(parts []string, width int, separator string) string {
 			lines[len(lines)-1] = candidate
 			continue
 		}
+		part = truncateWithEllipsis(part, width)
 		if runewidth.StringWidth(part) <= width {
 			lines = append(lines, part)
 			continue
 		}
-		lines = append(lines, wrapSegments(part, width)...)
+		lines = append(lines, truncateWithEllipsis(part, width))
 	}
 	return strings.Join(lines, "\n")
+}
+
+func truncateWithEllipsis(text string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if runewidth.StringWidth(text) <= width {
+		return text
+	}
+	ellipsis := "..."
+	ellipsisWidth := runewidth.StringWidth(ellipsis)
+	if width <= ellipsisWidth {
+		return strings.Repeat(".", width)
+	}
+
+	var b strings.Builder
+	currentWidth := 0
+	limit := width - ellipsisWidth
+	for _, r := range text {
+		rw := runewidth.RuneWidth(r)
+		if rw <= 0 {
+			rw = 1
+		}
+		if currentWidth+rw > limit {
+			break
+		}
+		b.WriteRune(r)
+		currentWidth += rw
+	}
+	return b.String() + ellipsis
 }
 
 func wrapSegments(text string, width int) []string {

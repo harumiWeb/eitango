@@ -173,3 +173,10 @@
 - [x] issue #29 v2 として主要画面に `normal / compact / narrow` の 3 段階描画を導入する
 - [x] compact layout 用の key guide / help / label-value wrap helper を追加する
 - [x] compact layout の回帰テストと docs を更新し、`go test ./internal/app` で検証する
+- [x] issue #29 v3 として主要画面の compact panel を border 付き shrink layout へ切り替える
+- [x] 単一行 UI 向けの `...` 省略 helper を追加し、key guide / settings / results / keymap editor に適用する
+- [x] issue #29 v3 の回帰テストと docs を更新し、`go test ./internal/app` で検証する
+- [x] issue #29 v4 として主要画面を `adaptive / narrow` の 2 段描画へ整理する
+- [x] `normal / compact` 閾値切替をやめ、最小幅以上では同じ renderer が terminal 幅へ連続追従するようにする
+- [x] issue #29 v4 の回帰テストと docs を更新し、`go test ./internal/app` で検証する
+- [x] adaptive 化で落ちた `home` の選択色、`quiz.write` の固定幅ラベル整列、panel の上下余白を復元する
