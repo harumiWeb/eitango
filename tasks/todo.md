@@ -180,3 +180,5 @@
 - [x] `normal / compact` 閾値切替をやめ、最小幅以上では同じ renderer が terminal 幅へ連続追従するようにする
 - [x] issue #29 v4 の回帰テストと docs を更新し、`go test ./internal/app` で検証する
 - [x] adaptive 化で落ちた `home` の選択色、`quiz.write` の固定幅ラベル整列、panel の上下余白を復元する
+- [x] `home` のメトリクス行を縦並びの固定幅ラベル整列へ戻し、adaptive panel の左右余白を復元する
+- [x] adaptive panel の左右余白を「外側 0 / 内側 2」へ調整し、terminal 幅内に収まることを維持する

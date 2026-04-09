@@ -843,6 +843,30 @@ func TestRenderHomeAdaptiveKeepsStyledAnswerModeTabs(t *testing.T) {
 	}
 }
 
+func TestRenderHomeAdaptiveKeepsAlignedMetricRowsWhenWidthAllows(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.width = 72
+	model.screen = ScreenHome
+	model.selectedAnswerMode = store.AnswerModeChoice
+	model.home = store.HomeSnapshot{DueCount: 78, NewCount: 4946, StreakDays: 4}
+	model.stats.Today.WaitMinutes = 1.1
+
+	got := model.View().Content
+	for _, want := range []string{
+		fmt.Sprintf("%s: %d", tui.AlignLabel(i18n.T(i18n.HomeDue), homeLabelWidth), model.home.DueCount),
+		fmt.Sprintf("%s: %d", tui.AlignLabel(i18n.T(i18n.HomeNew), homeLabelWidth), model.home.NewCount),
+		fmt.Sprintf("%s: %d", tui.AlignLabel(i18n.T(i18n.HomeStreak), homeLabelWidth), model.home.StreakDays),
+		fmt.Sprintf("%s: %.1f min", tui.AlignLabel(i18n.T(i18n.HomeWait), homeLabelWidth), model.stats.Today.WaitMinutes),
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("View() missing aligned home metric row %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestRenderStatusLineUsesErrorPrefix(t *testing.T) {
 	t.Parallel()
 
@@ -1196,6 +1220,40 @@ func TestCompactPanelStyleKeepsVerticalPadding(t *testing.T) {
 	}
 	if got := lipgloss.Height(model.compactPanelStyle(true).Render("x")); got < 5 {
 		t.Fatalf("compact modal panel height = %d, want >= 5", got)
+	}
+}
+
+func TestCompactPanelStyleKeepsHorizontalSideSpacing(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+
+	for _, rendered := range []string{
+		model.compactPanelStyle(false).Render("x"),
+		model.compactPanelStyle(true).Render("x"),
+		model.compactFeedbackPanelStyle().Render("x"),
+	} {
+		lines := strings.Split(ansi.Strip(rendered), "\n")
+		if len(lines) == 0 {
+			t.Fatalf("rendered panel is empty")
+		}
+		if strings.HasPrefix(lines[0], " ") || strings.HasSuffix(lines[0], " ") {
+			t.Fatalf("panel unexpectedly has outer horizontal margin:\n%s", rendered)
+		}
+		foundContentLine := false
+		for _, line := range lines {
+			if strings.Contains(line, "x") {
+				foundContentLine = true
+				if !strings.Contains(line, "  x  ") {
+					t.Fatalf("panel is missing inner horizontal padding:\n%s", rendered)
+				}
+				break
+			}
+		}
+		if !foundContentLine {
+			t.Fatalf("rendered panel is missing content line:\n%s", rendered)
+		}
 	}
 }
 

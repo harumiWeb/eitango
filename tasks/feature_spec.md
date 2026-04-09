@@ -653,4 +653,7 @@
 - `width < minWidth` のとき narrow message に切り替わる。
 - 十分な幅の `home` では answer mode の selected state が theme の accent color を保つ。
 - 十分な幅の `quiz.write` では label 列が固定幅で整列し、panel の上下余白も残る。
+- 十分な幅の `home` では `answer mode / due / new / streak / wait` が従来どおり縦並びの固定幅ラベルで整列する。
+- adaptive panel は terminal に追従しつつも、左右の外側余白は持たない。
+- adaptive panel の枠内には、左右に 2 文字ぶんの内側余白を残す。
 - `go test ./internal/app` が通る。

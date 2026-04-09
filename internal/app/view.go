@@ -21,6 +21,7 @@ const (
 	compactWidthStandard = 28
 	compactWidthWide     = 32
 	adaptiveLabelWidth   = 8
+	homeLabelWidth       = 14
 )
 
 type layoutVariant int
@@ -217,13 +218,11 @@ func (m RootModel) renderHomeCompact() string {
 		m.styles.Title.Render(title),
 		m.styles.Muted.Render(m.wrapToPanelWidth(i18n.T(i18n.HomeSubtitle), style)),
 		"",
-		m.renderCompactStyledField(style, i18n.T(i18n.HomeAnswerMode), m.renderAnswerModeTabs(), m.renderAnswerModeTabsPlain(), adaptiveLabelWidth),
-		m.renderCompactParts(style,
-			fmt.Sprintf("%s %d", i18n.T(i18n.HomeDue), m.home.DueCount),
-			fmt.Sprintf("%s %d", i18n.T(i18n.HomeNew), m.home.NewCount),
-			fmt.Sprintf("%s %d", i18n.T(i18n.HomeStreak), m.home.StreakDays),
-		),
-		m.renderCompactField(style, i18n.T(i18n.HomeWait), fmt.Sprintf("%.1f min", m.stats.Today.WaitMinutes)),
+		m.renderCompactStyledField(style, i18n.T(i18n.HomeAnswerMode), m.renderAnswerModeTabs(), m.renderAnswerModeTabsPlain(), homeLabelWidth),
+		m.renderCompactAlignedField(style, i18n.T(i18n.HomeDue), fmt.Sprintf("%d", m.home.DueCount), homeLabelWidth),
+		m.renderCompactAlignedField(style, i18n.T(i18n.HomeNew), fmt.Sprintf("%d", m.home.NewCount), homeLabelWidth),
+		m.renderCompactAlignedField(style, i18n.T(i18n.HomeStreak), fmt.Sprintf("%d", m.home.StreakDays), homeLabelWidth),
+		m.renderCompactAlignedField(style, i18n.T(i18n.HomeWait), fmt.Sprintf("%.1f min", m.stats.Today.WaitMinutes), homeLabelWidth),
 	}
 	if m.home.ActiveSession != nil {
 		lines = append(lines,
@@ -1275,10 +1274,6 @@ func (m RootModel) renderCompactStyledField(style lipgloss.Style, label, styledV
 	return renderSingleLinePrefixed(prefix, plainValue, width)
 }
 
-func (m RootModel) renderCompactParts(style lipgloss.Style, parts ...string) string {
-	return packTextPartsWidth(parts, m.panelContentWidth(style), "  ")
-}
-
 func (m RootModel) renderCompactPrefixedEllipsis(style lipgloss.Style, prefix, value string) string {
 	return renderSingleLinePrefixed(prefix, value, m.panelContentWidth(style))
 }
@@ -1402,16 +1397,16 @@ func (m RootModel) compactPanelStyle(modal bool) lipgloss.Style {
 
 func (m RootModel) compactPanelBase(modal bool) lipgloss.Style {
 	if modal {
-		return m.styles.ModalPanel.Padding(1, 1)
+		return m.styles.ModalPanel.Padding(1, 2).Margin(0)
 	}
-	return m.styles.Panel.Padding(1, 1)
+	return m.styles.Panel.Padding(1, 2).Margin(0)
 }
 
 func (m RootModel) compactFeedbackPanelStyle() lipgloss.Style {
 	if m.feedback != nil && m.feedback.Correct {
-		return m.styles.CorrectPanel.Padding(1, 1)
+		return m.styles.CorrectPanel.Padding(1, 2).Margin(0)
 	}
-	return m.styles.WrongPanel.Padding(1, 1)
+	return m.styles.WrongPanel.Padding(1, 2).Margin(0)
 }
 
 func (m RootModel) wrapToWindow(text string) string {
@@ -1435,7 +1430,7 @@ func (m RootModel) panelContentWidth(style lipgloss.Style) int {
 	}
 	width := m.width - style.GetHorizontalFrameSize()
 	if style.GetHorizontalFrameSize() > 0 {
-		width--
+		width -= 2
 	}
 	if width < 1 {
 		return 1
