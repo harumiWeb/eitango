@@ -34,3 +34,12 @@
 - 入力系 validation は実際の入力受付ルールと一致させる。`quiz.write` の衝突回避は「ASCII 英字 1 文字だけ禁止」のように runtime と同じ集合へ揃え、過剰禁止で設定自由度を落とさない。
 - 複数 binding を跨ぐ置換操作は、中間状態の validation で失敗しないよう原子的に適用する。help の escape key のような「最終状態では妥当」な更新を remove→add の逐次適用で壊さない。
 - process-global な i18n state を書き換えるテストは `t.Parallel()` にしない。`i18n.Load(...)` を使う描画・更新テストは直列化するか state を隔離して、翻訳文字列の競合で flaky にしない。
+- adaptive な UI へ寄せるときも、十分な幅では既存の視覚的 affordance を落とさない。選択色、固定幅ラベル整列、panel の上下余白のような情報設計は狭幅対策と別軸で回帰確認する。
+- adaptive な home 画面を調整するときは、回答方式から学習時間までのメトリクス行を横圧縮でまとめない。十分な幅では従来どおり縦並びの固定幅ラベル整列を維持し、panel の左右余白も回帰テストで固定する。
+- panel の外側余白を追加・変更するときは、見た目だけでなく terminal 幅内に収まることも同じテストで確認する。margin は「増やしたら終わり」にせず、幅計算との整合まで見る。
+- panel の左右余白は「外側 margin」と「枠内 padding」を分けて扱う。ユーザーが求める余白がどちらかを確認せずに片方だけ増やさない。
+- UI の余白調整では、外側 margin は既定で 0 を維持し、見た目の余白要求はまず枠内 padding で満たす。外側 margin を触るのはレイアウト意図が明示されている場合だけにする。
+- adaptive TUI の描画契約は `docs/specs/tui-layout.md` を正本にし、`tasks/lessons.md` へ width tier・省略対象・legacy fallback 画面一覧のような仕様本文を複製しない。
+- adaptive TUI を触るときは、主情報の wrap、`width == 0` の legacy fallback、`results` / `stats` / `keymap editor` を含む回帰比較を `docs/specs/tui-layout.md` に沿って確認する。
+- embedded core words のような full dataset を舐める診断では、語ごとの高コスト query を繰り返さない。`doctor` の健全性 check は SQL 集約で十分な不変条件を先に判定し、CI の遅い runner でも timeout しない形にする。
+- terminal 高さ制約の回帰テストは「view が収まる」だけで終わらせない。keymap editor のような可変リスト画面では `height + 1` で可視行がちょうど 1 行増えることまで固定し、underfill を見逃さない。

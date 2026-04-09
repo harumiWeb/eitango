@@ -36,6 +36,7 @@
 - [x] review 指摘に合わせて keymap save 時も settings overlay の draft を保持し、help 退路と Esc 録音の回帰を追加する
 - [x] review 指摘に合わせて unbound help 表示、`quiz.write` の ASCII 限定 validation、到達不能分岐を修正する
 - [x] review 指摘に合わせて `help.back` 必須化、key conflict 置換の原子化、startup keymap error 保持を追加する
+- [x] `quiz.choice` のインライン key guide から `select1-4` を外し、詳細は help 画面へ寄せる
 
 ## 2026-04-01 PR #12: Codacy follow-up
 
@@ -166,3 +167,20 @@
 - [x] `go run ./cmd/eitango doctor` で metadata / distractor 周りに新しい問題が出ていないことを確認する
 - [x] `goreleaser check` と snapshot build で法務ファイルの同梱を確認する
 - [x] `dict_version` と `reset --reseed` の最終導線を初回リリース前提で仕上げる
+- [x] issue #29 v1 として狭幅 terminal 向け narrow-width guard を描画入口へ追加する
+- [x] locale / README / `docs/specs/` を狭幅 guard の恒久仕様へ追従させる
+- [x] 狭幅 guard の回帰テストを追加し、`go test ./internal/app` で検証する
+- [x] issue #29 v2 として主要画面に `normal / compact / narrow` の 3 段階描画を導入する
+- [x] compact layout 用の key guide / help / label-value wrap helper を追加する
+- [x] compact layout の回帰テストと docs を更新し、`go test ./internal/app` で検証する
+- [x] issue #29 v3 として主要画面の compact panel を border 付き shrink layout へ切り替える
+- [x] 単一行 UI 向けの `...` 省略 helper を追加し、key guide / settings / results / keymap editor に適用する
+- [x] issue #29 v3 の回帰テストと docs を更新し、`go test ./internal/app` で検証する
+- [x] issue #29 v4 として主要画面を `adaptive / narrow` の 2 段描画へ整理する
+- [x] `normal / compact` 閾値切替をやめ、最小幅以上では同じ renderer が terminal 幅へ連続追従するようにする
+- [x] issue #29 v4 の回帰テストと docs を更新し、`go test ./internal/app` で検証する
+- [x] adaptive 化で落ちた `home` の選択色、`quiz.write` の固定幅ラベル整列、panel の上下余白を復元する
+- [x] `home` のメトリクス行を縦並びの固定幅ラベル整列へ戻し、adaptive panel の左右余白を復元する
+- [x] adaptive panel の左右余白を「外側 0 / 内側 2」へ調整し、terminal 幅内に収まることを維持する
+- [x] review 指摘に合わせて `quiz.choice` の選択肢本文と `results` の hard words は省略せず wrap し、`width == 0` では旧 renderer 経路を維持する
+- [x] review 指摘に合わせて `width == 0` の legacy renderer 経路を `results` / `stats` / `keymap editor` まで揃え、回帰テストで固定する

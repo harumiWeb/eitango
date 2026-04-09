@@ -167,6 +167,12 @@ const (
 	HelpSettingsDigits    = "help.settings_digits"
 )
 
+const (
+	NarrowWidthTitle = "narrow.title"
+	NarrowWidthBody  = "narrow.body"
+	NarrowWidthHint  = "narrow.hint"
+)
+
 // Help section titles
 const (
 	HelpSectionAnswer   = "help.section.answer"

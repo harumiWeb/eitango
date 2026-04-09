@@ -505,6 +505,7 @@
 - settings 保存後と keymap editor 保存後のどちらでも、runtime keymap は再起動なしで差し替わる。
 - keymap editor の save は keymap だけでなく settings overlay の未保存 draft も同時に保存し、overlay 上の変更を巻き戻さない。
 - help 画面と各 screen の key guide は current keymap を使って描画する。
+- `quiz.choice` のインライン key guide は横幅を抑えるため `select1-4` を表示せず、選択肢キーの詳細は help 画面だけに出す。インラインには help action を残して詳細導線を維持する。
 - `help.back` を unbind する設定は保存できない。help 画面の復帰は `back` に依存し、`quit` だけでは代替できない。
 - ホーム設定 overlay に keymap editor への導線を追加する。
 - keymap editor は context filter、action 一覧、record mode、clear、reset、save を持つ。
@@ -520,3 +521,143 @@
 - 一般的な terminal 高でも keymap editor 全体が画面内に収まり、cursor 移動で非表示行へ到達できる。
 - `go test ./internal/keymap ./internal/config ./internal/app` が通る。
 - `go test ./...` が通る。
+
+## Narrow Width Guard v1
+
+### Scope
+
+- `internal/app` の TUI 描画入口
+- locale / README / specs / 回帰テスト
+
+### Non-Goals
+
+- 2 行 key guide
+- 画面ごとの簡易レイアウト
+- data-dependent な長文 overflow の包括対処
+
+### Required Behavior
+
+- `RootModel.width` が既知で、現在 screen/overlay に対応する最小幅を下回るときは通常 UI を描かず narrow message に切り替える。
+- 最小幅は `home/results/stats/quiz.write/feedback.write=56`, `settings overlay/home confirm/quiz.choice/feedback.rate/help=64`, `keymap editor=76` とする。
+- `width == 0` の間は narrow guard を無効にし、初回 `WindowSizeMsg` 前の描画挙動は変えない。
+- narrow message は現在幅と必要幅を表示し、横幅を広げる案内を出す。
+- narrow message 自体と status line は現在幅に収まるよう wrap / width constrain する。
+- `Update` の input handling は変えず、狭幅でも既存 key handling はそのまま動く。
+
+### Acceptance
+
+- 代表画面で、しきい値未満では narrow message に切り替わり、しきい値以上では通常画面へ戻る。
+- `width == 0` では narrow message に切り替わらない。
+- narrow case の `View().Content` は各行 display width が `model.width` を超えない。
+- `go test ./internal/app` が通る。
+
+## Narrow Width Compact Layout v2
+
+### Scope
+
+- `internal/app` の主要画面描画
+- `docs/specs/tui-layout.md` / README / 回帰テスト
+
+### Non-Goals
+
+- `results` / `stats` / `keymap editor` の compact layout
+- input handling や keymap 契約の変更
+- locale key の追加
+
+### Required Behavior
+
+- 画面ごとに `normal / compact / narrow` の 3 段階レイアウトを持つ。
+- `width >= normalMin` では既存の通常表示を使う。
+- `compactMin <= width < normalMin` では compact layout に切り替える。
+- `width < compactMin` では v1 と同様に narrow message に切り替える。
+- compact 対象は `home`, `home confirm`, `settings overlay`, `help`, `quiz.choice`, `quiz.write`, `feedback.choice`, `feedback.write` とする。
+- しきい値は `home/quiz.write/feedback.write=44/56`, `home confirm/settings overlay/help/quiz.choice/feedback.choice=48/64` を `compactMin/normalMin` として固定する。
+- `results`, `stats`, `keymap editor` は compact layout を持たず、v1 の narrow guard のまま維持する。
+- compact layout では border と余白を減らし、固定幅 `AlignLabel` と単一行 key guide を避ける。
+- compact の key guide は current width に収まるよう複数行へ詰めて表示する。
+- compact の label/value 表示と help line は長文でも wrap し、各行 display width が `model.width` を超えない。
+- `width == 0` の間は compact / narrow 判定を無効にし、初回 `WindowSizeMsg` 前の描画挙動は変えない。
+- `Update` の input handling は変えず、compact/narrow でも既存 key handling はそのまま動く。
+
+### Acceptance
+
+- compact 対象画面で `compactMin <= width < normalMin` のとき narrow message に切り替わらず compact layout が出る。
+- compact 対象画面で `width < compactMin` のとき narrow message に切り替わる。
+- compact 対象画面で `width >= normalMin` のとき通常表示へ戻る。
+- `results`, `stats`, `keymap editor` は v2 でも compact に入らず、従来どおり narrow fallback を使う。
+- compact / narrow の `View().Content` は各行 display width が `model.width` を超えない。
+- `go test ./internal/app` が通る。
+
+## Narrow Width Shrink Panels v3
+
+### Scope
+
+- `internal/app` の主要画面描画全体
+- `docs/specs/tui-layout.md` / README / 回帰テスト
+
+### Non-Goals
+
+- CLI / config / keymap schema の変更
+- runtime input handling の変更
+- locale key の追加
+
+### Required Behavior
+
+- 主要画面の compact layout は border を残したまま terminal 幅へ追従して縮む。
+- `compact` は `home`, `home confirm`, `settings overlay`, `help`, `quiz.choice`, `quiz.write`, `feedback.choice`, `feedback.write`, `results`, `stats`, `keymap editor` を対象にする。
+- しきい値は `home/results/stats/quiz.write/feedback.write=28/56`, `settings overlay/home confirm/help/quiz.choice/feedback.choice=32/64`, `keymap editor=32/76` を `compactMin/normalMin` として固定する。
+- `width >= normalMin` では通常表示を使う。
+- `compactMin <= width < normalMin` では border 付き compact layout に切り替える。
+- `width < compactMin` では narrow message に切り替える。
+- compact layout では panel の horizontal padding を減らし、単一行 UI は `...` による省略で current width に収める。
+- `...` の対象は key guide / keymap 表示 / settings row / quiz meta / results-stat summary / keymap editor row とする。
+- help 本文、settings note、feedback examples、narrow message 本文のような prose は wrap を維持する。
+- `width == 0` の間は compact / narrow 判定を無効にし、初回 `WindowSizeMsg` 前の描画挙動は変えない。
+
+### Acceptance
+
+- compact 対象画面で `compactMin <= width < normalMin` のとき narrow message ではなく border 付き compact layout が出る。
+- compact 対象画面で `width < compactMin` のとき narrow message に切り替わる。
+- compact / narrow の `View().Content` は各行 display width が `model.width` を超えない。
+- 長い custom key binding を入れた compact case で `...` が表示される。
+- `go test ./internal/app` が通る。
+
+## 2026-04-08 issue #29 v4: 横幅の連続追従
+
+### Scope
+
+- `internal/app` の主要画面描画
+- `docs/specs/tui-layout.md` / README / 回帰テスト
+
+### Non-Goals
+
+- CLI / config / keymap schema の変更
+- runtime input handling の変更
+- locale key の追加
+
+### Required Behavior
+
+- 主要画面は `normal / compact` の段階切替をやめ、最小幅以上では同じ adaptive renderer で terminal 幅へ連続追従する。
+- 最小幅は `home/results/stats/quiz.write/feedback.write=28`, `settings overlay/home confirm/help/quiz.choice/feedback.choice/keymap editor=32` とする。
+- `width < minWidth` のときだけ narrow message に切り替える。
+- adaptive renderer では border を維持し、horizontal padding を詰める。
+- 単一行 UI は width budget に応じて `...` で省略する。
+- `quiz.choice` の選択肢本文や `results` の hard words のような主情報は `...` で潰さず、adaptive 幅でも wrap して全文を読めるようにする。
+- prose は wrap を維持する。
+- `width == 0` の間は narrow 判定を無効にするだけでなく、`renderHome` / `renderQuiz` / `renderFeedback` / `renderResults` / `renderStats` / `renderHelp` / `renderKeymapEditor` など全 screen の従来 renderer を維持し、初回 `WindowSizeMsg` 前の描画挙動を変えない。
+
+### Acceptance
+
+- 主要画面は `width >= minWidth` の複数幅で narrow message に切り替わらない。
+- 主要画面の `View().Content` は各行 display width が `model.width` を超えない。
+- 長い custom key binding を入れた adaptive case で `...` が表示される。
+- `width < minWidth` のとき narrow message に切り替わる。
+- 十分な幅の `home` では answer mode の selected state が theme の accent color を保つ。
+- 十分な幅の `quiz.write` では label 列が固定幅で整列し、panel の上下余白も残る。
+- 十分な幅の `home` では `answer mode / due / new / streak / wait` が従来どおり縦並びの固定幅ラベルで整列する。
+- adaptive panel は terminal に追従しつつも、左右の外側余白は持たない。
+- adaptive panel の枠内には、左右に 2 文字ぶんの内側余白を残す。
+- `quiz.choice` の長い選択肢でも、adaptive 幅で選択肢末尾の違いまで読める回帰テストがある。
+- `results` の hard words は adaptive 幅でも全文を読める回帰テストがある。
+- `width == 0` のときは `results` / `stats` / `keymap editor` を含む旧 renderer 経路を通す回帰テストがある。
+- `go test ./internal/app` が通る。

@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-04-09
+
+### Changed
+
+- ホーム、設定オーバーレイ、help、quiz、feedback、results、stats、keymap editor の各画面は terminal 幅へ連続追従する adaptive layout になり、必要幅を下回ったときだけ狭幅案内へ切り替わるようにしました。
+- 狭めの terminal でも panel の枠と余白を保ったまま表示を詰め、key guide や key binding 表示を幅に合わせて省略・折り返しするようにしました。
+
+### Fixed
+
+- choice quiz の選択肢本文と results 画面の hard words 一覧は `...` で潰さず折り返して表示するようにし、中幅 terminal でも解答や復習に必要な全文を読めるようにしました。
+- 初回 `WindowSizeMsg` 前など幅未確定 (`width == 0`) の間は、全 screen で従来 renderer を維持し、起動直後や再初期化直後のレイアウトジャンプを防ぐようにしました。
+
 ## [0.6.0] - 2026-04-07
 
 ### Added
@@ -152,7 +164,8 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/harumiWeb/eitango/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/harumiWeb/eitango/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/harumiWeb/eitango/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/harumiWeb/eitango/compare/v0.5.0...v0.5.1

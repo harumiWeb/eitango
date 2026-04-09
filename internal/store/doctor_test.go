@@ -244,6 +244,34 @@ func TestRunDiagnosticsDetectsUnquizzableWords(t *testing.T) {
 	}
 }
 
+func TestRunDiagnosticsDetectsUnquizzableWordsWhenMeaningsDuplicate(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	if err := st.SeedWords(ctx, []dict.Entry{
+		{Lemma: "adopt", Pos: "verb", MeaningJA: "採用する", Level: "core-1", FrequencyRank: 100, DistractorGroup: "basic-verb-action"},
+		{Lemma: "apply", Pos: "verb", MeaningJA: "応募する", Level: "core-1", FrequencyRank: 120, DistractorGroup: "basic-verb-action"},
+		{Lemma: "submit", Pos: "verb", MeaningJA: "応募する", Level: "core-1", FrequencyRank: 140, DistractorGroup: "basic-verb-action"},
+		{Lemma: "deliver", Pos: "verb", MeaningJA: "届ける", Level: "core-1", FrequencyRank: 160, DistractorGroup: "basic-verb-action"},
+	}, dict.CoreWordsVersion); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	report := st.RunDiagnostics(ctx)
+
+	quizability, ok := report.Check("quizability")
+	if !ok {
+		t.Fatal("quizability check not found")
+	}
+	if quizability.Status != DiagnosticStatusError {
+		t.Fatalf("quizability status = %q, want %q", quizability.Status, DiagnosticStatusError)
+	}
+	if !strings.Contains(strings.Join(quizability.Details, "\n"), "adopt [verb]") {
+		t.Fatalf("quizability details = %+v, want sampled verb", quizability.Details)
+	}
+}
+
 func TestRunDiagnosticsWarnsOnCrossSourceDuplicates(t *testing.T) {
 	t.Parallel()
 

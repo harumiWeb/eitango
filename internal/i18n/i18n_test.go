@@ -115,6 +115,7 @@ func TestAllJAKeysExistInEN(t *testing.T) {
 		i18n.StatsStreak, i18n.StatsReviews, i18n.StatsCorrect,
 		i18n.StatsAccuracy, i18n.StatsWait,
 		i18n.HelpTitle, i18n.HelpBack, i18n.HelpQuitDisabled, i18n.HelpQuitDisabledWrite,
+		i18n.NarrowWidthTitle, i18n.NarrowWidthBody, i18n.NarrowWidthHint,
 		i18n.HelpSectionAnswer, i18n.HelpSectionMove, i18n.HelpSectionGeneral,
 		i18n.HelpSectionRate, i18n.HelpSectionNav, i18n.HelpSectionSessions,
 		i18n.HelpScreenQuiz, i18n.HelpScreenFeedback, i18n.HelpScreenResults,

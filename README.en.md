@@ -168,6 +168,14 @@ On first run, `eitango` initializes the local database. By default it uses the e
 - support scope and platform policy may change in future releases
 - see [SECURITY.md](SECURITY.md) for the private vulnerability reporting process and supported-version policy
 
+## Narrow Terminal Width
+
+- on major screens, the same layout keeps the panel border and continuously shrinks to the terminal width as long as the terminal stays above the minimum width
+- single-line UI such as key guides and keymap displays is shortened with `...` when it would otherwise overflow
+- below that minimum width, `eitango` shows a dedicated fallback message instead of rendering a broken layout
+- widening the terminal automatically returns to the normal screen
+- if the UI looks simplified in a split pane, SSH session, or mobile terminal, increase the terminal width first
+
 ## Write Difficulty
 
 - `write_mode_difficulty = "basic"` is the default
