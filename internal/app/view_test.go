@@ -1359,6 +1359,27 @@ func TestCompactHelpersFitWidth(t *testing.T) {
 	}
 }
 
+func TestRenderCompactStyledFieldMeasuresStyledWidth(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.selectedAnswerMode = store.AnswerModeWrite
+
+	style := model.compactPanelStyle(false)
+	label := i18n.T(i18n.HomeAnswerMode)
+	styledValue := model.renderAnswerModeTabs()
+	plainValue := model.renderAnswerModeTabsPlain()
+	prefix := fmt.Sprintf("%s: ", tui.AlignLabel(label, homeLabelWidth))
+	model.width = runewidth.StringWidth(prefix) + runewidth.StringWidth(plainValue) + lipgloss.Width(style.Render(""))
+
+	got := model.renderCompactStyledField(style, label, styledValue, plainValue, homeLabelWidth)
+	if strings.Contains(got, styledValue) {
+		t.Fatalf("renderCompactStyledField() kept styled value despite overflow risk:\n%s", got)
+	}
+	assertViewFitsWidth(t, got, model.panelContentWidth(style))
+}
+
 func TestPanelContentWidthMatchesFrameBudget(t *testing.T) {
 	t.Parallel()
 

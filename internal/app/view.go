@@ -1525,7 +1525,7 @@ func (m RootModel) renderCompactStyledField(style lipgloss.Style, label, styledV
 		return renderSingleLineField(label, plainValue, width)
 	}
 	prefix := fmt.Sprintf("%s: ", tui.AlignLabel(label, labelWidth))
-	if runewidth.StringWidth(prefix)+runewidth.StringWidth(plainValue) <= width {
+	if runewidth.StringWidth(prefix)+lipgloss.Width(styledValue) <= width {
 		return prefix + styledValue
 	}
 	return renderSingleLinePrefixed(prefix, plainValue, width)
