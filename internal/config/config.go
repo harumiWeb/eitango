@@ -121,7 +121,7 @@ func Load(path string) (Settings, error) {
 		return Settings{}, fmt.Errorf("parse config %s: %w", path, err)
 	}
 	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
-		return Settings{}, fmt.Errorf("unknown config keys: %s", joinUndecoded(undecoded))
+		return Settings{}, fmt.Errorf("unknown config keys in %s: %s", path, joinUndecoded(undecoded))
 	}
 
 	if raw.SessionSize != nil {
