@@ -39,11 +39,15 @@ type layoutSpec struct {
 
 func (m RootModel) View() tea.View {
 	body := ""
-	spec, variant, _ := m.currentLayout()
-	if variant == layoutNarrow {
-		body = m.renderNarrowWidthMessage(spec)
+	if m.width <= 0 {
+		body = m.renderLegacyScreen()
 	} else {
-		body = m.renderScreen()
+		spec, variant, _ := m.currentLayout()
+		if variant == layoutNarrow {
+			body = m.renderNarrowWidthMessage(spec)
+		} else {
+			body = m.renderScreen()
+		}
 	}
 
 	if m.loading {
@@ -55,6 +59,34 @@ func (m RootModel) View() tea.View {
 		view.MouseMode = tea.MouseModeCellMotion
 	}
 	return view
+}
+
+func (m RootModel) renderLegacyScreen() string {
+	switch m.screen {
+	case ScreenHome:
+		switch {
+		case m.settingsOpen:
+			return m.renderHomeWithSettingsOverlay()
+		case m.homeConfirm != nil:
+			return m.renderHomeWithConfirmOverlay()
+		default:
+			return m.renderHome()
+		}
+	case ScreenQuiz:
+		return m.renderQuiz()
+	case ScreenFeedback:
+		return m.renderFeedback()
+	case ScreenResults:
+		return m.renderResultsCompact()
+	case ScreenStats:
+		return m.renderStatsCompact()
+	case ScreenHelp:
+		return m.renderHelp()
+	case ScreenKeymap:
+		return m.renderKeymapEditorCompact()
+	default:
+		return ""
+	}
 }
 
 func (m RootModel) renderScreen() string {
@@ -383,7 +415,7 @@ func (m RootModel) renderChoiceQuizCompact() string {
 			prefix = fmt.Sprintf("▸ %d. ", i+1)
 			styleForChoice = m.styles.ChoiceSelected
 		}
-		lines = append(lines, styleForChoice.Render(m.renderCompactPrefixedEllipsis(style, prefix, choice.Meaning)))
+		lines = append(lines, styleForChoice.Render(m.renderCompactPrefixedWrap(style, prefix, choice.Meaning)))
 	}
 	lines = append(lines,
 		"",
@@ -433,8 +465,8 @@ func (m RootModel) renderWriteQuizCompact() string {
 		m.styles.QuizMeta.Render(m.truncateToPanelWidth(meta2, style)),
 		"",
 		m.renderCompactAlignedField(style, i18n.T(i18n.QuizMeaning), m.currentQ.Word.MeaningJA, adaptiveLabelWidth),
-		m.renderCompactAlignedFieldEllipsis(style, i18n.T(i18n.QuizWord), renderSlots(m.currentQ.Word.Lemma, m.writeHintIndices), adaptiveLabelWidth),
-		m.renderCompactAlignedFieldEllipsis(style, i18n.T(i18n.QuizInput), renderSpacedInput(m.writeInput), adaptiveLabelWidth),
+		m.renderCompactAlignedField(style, i18n.T(i18n.QuizWord), renderSlots(m.currentQ.Word.Lemma, m.writeHintIndices), adaptiveLabelWidth),
+		m.renderCompactAlignedField(style, i18n.T(i18n.QuizInput), renderSpacedInput(m.writeInput), adaptiveLabelWidth),
 		m.renderCompactAlignedFieldEllipsis(style, i18n.T(i18n.QuizHints), formatHintCount(m.writeHintCount), adaptiveLabelWidth),
 		"",
 		m.styles.Muted.Render(m.renderCompactInlineGuides(style, keymap.ContextQuizWrite,
@@ -530,12 +562,12 @@ func (m RootModel) renderChoiceFeedbackCompact() string {
 	lines = append(lines,
 		"",
 		m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbWord), m.feedback.Question.Word.Lemma),
-		m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbCorrectAnswer), m.feedback.Question.CorrectChoice().Meaning),
+		m.renderCompactField(style, i18n.T(i18n.FbCorrectAnswer), m.feedback.Question.CorrectChoice().Meaning),
 	)
 
 	if !m.feedback.Correct {
 		selected := m.feedback.Question.Choices[m.feedback.SelectedIndex].Meaning
-		lines = append(lines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbYourAnswer), selected))
+		lines = append(lines, m.renderCompactField(style, i18n.T(i18n.FbYourAnswer), selected))
 	}
 
 	lines = append(lines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbResponseTime), fmt.Sprintf("%d ms", m.feedback.ResponseMS)))
@@ -627,7 +659,7 @@ func (m RootModel) renderWriteFeedbackCompact() string {
 		if m.feedback.Skipped {
 			answer = i18n.T(i18n.FbSkipped)
 		}
-		lines = append(lines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbYourAnswer), answer))
+		lines = append(lines, m.renderCompactField(style, i18n.T(i18n.FbYourAnswer), answer))
 	}
 	if m.feedback.HintCount > 0 {
 		lines = append(lines, m.renderCompactFieldEllipsis(style, i18n.T(i18n.FbHints), fmt.Sprintf("%d", m.feedback.HintCount)))
@@ -662,7 +694,7 @@ func (m RootModel) renderResultsCompact() string {
 	if len(m.summary.HardWords) > 0 {
 		lines = append(lines, "", m.styles.Subtitle.Render(m.truncateToPanelWidth(i18n.T(i18n.ResultsHardWords), style)))
 		for _, word := range m.summary.HardWords {
-			lines = append(lines, m.renderCompactPrefixedEllipsis(style, "- ", word.Lemma+": "+word.MeaningJA))
+			lines = append(lines, m.renderCompactPrefixedWrap(style, "- ", word.Lemma+": "+word.MeaningJA))
 		}
 	}
 	lines = append(lines,
@@ -1274,8 +1306,8 @@ func (m RootModel) renderCompactStyledField(style lipgloss.Style, label, styledV
 	return renderSingleLinePrefixed(prefix, plainValue, width)
 }
 
-func (m RootModel) renderCompactPrefixedEllipsis(style lipgloss.Style, prefix, value string) string {
-	return renderSingleLinePrefixed(prefix, value, m.panelContentWidth(style))
+func (m RootModel) renderCompactPrefixedWrap(style lipgloss.Style, prefix, value string) string {
+	return renderPrefixedWrap(prefix, value, m.panelContentWidth(style))
 }
 
 func (m RootModel) renderCompactSelectable(style lipgloss.Style, selected bool, label, value string) string {

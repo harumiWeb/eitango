@@ -39,3 +39,5 @@
 - panel の外側余白を追加・変更するときは、見た目だけでなく terminal 幅内に収まることも同じテストで確認する。margin は「増やしたら終わり」にせず、幅計算との整合まで見る。
 - panel の左右余白は「外側 margin」と「枠内 padding」を分けて扱う。ユーザーが求める余白がどちらかを確認せずに片方だけ増やさない。
 - UI の余白調整では、外側 margin は既定で 0 を維持し、見た目の余白要求はまず枠内 padding で満たす。外側 margin を触るのはレイアウト意図が明示されている場合だけにする。
+- adaptive UI で `...` を使う対象は key guide や要約行のような補助情報に限る。choice の選択肢、results の hard words、feedback の正解/誤答のような主情報は wrap して全文を残す。
+- `RootModel.width == 0` の間は narrow guard を無効にするだけでは足りない。初回 `WindowSizeMsg` 前の 1 フレームでは、従来 renderer を明示的に通して描画契約を守る。

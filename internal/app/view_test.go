@@ -1150,6 +1150,124 @@ func TestRenderWriteQuizAdaptiveKeepsAlignedLabelsWhenWidthAllows(t *testing.T) 
 	}
 }
 
+func TestRenderChoiceQuizAdaptiveWrapsLongChoiceText(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.screen = ScreenQuiz
+	model.width = compactWidthWide
+	model.currentQ = &quiz.Question{
+		AnswerMode: store.AnswerModeChoice,
+		Word: store.Word{
+			Lemma: "begin",
+			Pos:   "verb",
+		},
+		Choices: []quiz.Choice{
+			{Meaning: "共通の長い説明が続いて最後だけ変わる TAIL-ONE"},
+			{Meaning: "共通の長い説明が続いて最後だけ変わる TAIL-TWO"},
+			{Meaning: "短い選択肢 3"},
+			{Meaning: "短い選択肢 4"},
+		},
+		Ordinal: 2,
+		Total:   5,
+		Kind:    store.ItemKindReview,
+	}
+
+	got := model.View().Content
+	for _, want := range []string{"TAIL-ONE", "TAIL-TWO"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("View() missing wrapped choice tail %q:\n%s", want, got)
+		}
+	}
+	assertViewFitsWidth(t, got, model.width)
+}
+
+func TestRenderResultsAdaptiveWrapsHardWords(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.screen = ScreenResults
+	model.width = compactWidthStandard
+	model.summary = &store.SessionSummary{
+		Accuracy:       80,
+		CorrectAnswers: 4,
+		TotalQuestions: 5,
+		HardWords: []store.Word{
+			{Lemma: "accelerate", MeaningJA: "長い説明の末尾まで読ませたい HARD-ONE"},
+			{Lemma: "accumulate", MeaningJA: "別の長い説明の末尾まで読ませたい HARD-TWO"},
+		},
+	}
+
+	got := model.View().Content
+	for _, want := range []string{"HARD-ONE", "HARD-TWO"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("View() missing wrapped hard word tail %q:\n%s", want, got)
+		}
+	}
+	assertViewFitsWidth(t, got, model.width)
+}
+
+func TestViewWidthZeroUsesLegacyRenderers(t *testing.T) {
+	testCases := []struct {
+		name    string
+		prepare func(*RootModel)
+		render  func(*RootModel) string
+	}{
+		{
+			name: "home",
+			prepare: func(model *RootModel) {
+				model.screen = ScreenHome
+				model.home = store.HomeSnapshot{DueCount: 3, NewCount: 2, StreakDays: 1}
+				model.stats.Today.WaitMinutes = 2.5
+			},
+			render: func(model *RootModel) string { return model.renderHome() },
+		},
+		{
+			name: "quiz",
+			prepare: func(model *RootModel) {
+				model.screen = ScreenQuiz
+				model.currentQ = sampleChoiceQuestion()
+			},
+			render: func(model *RootModel) string { return model.renderQuiz() },
+		},
+		{
+			name: "feedback",
+			prepare: func(model *RootModel) {
+				model.screen = ScreenFeedback
+				model.feedback = sampleChoiceFeedback()
+			},
+			render: func(model *RootModel) string { return model.renderFeedback() },
+		},
+		{
+			name: "help",
+			prepare: func(model *RootModel) {
+				model.screen = ScreenHelp
+				model.helpReturn = ScreenQuiz
+				model.currentQ = sampleChoiceQuestion()
+			},
+			render: func(model *RootModel) string { return model.renderHelp() },
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			model := NewModel(nil, Options{})
+			model.loading = false
+			model.width = 0
+			tc.prepare(&model)
+
+			want := tc.render(&model)
+			got := model.View().Content
+			if !strings.Contains(got, want) {
+				t.Fatalf("View() should include legacy renderer output when width is unknown\nwant body:\n%s\n\ngot:\n%s", want, got)
+			}
+		})
+	}
+}
+
 func TestViewCompactScreensUseEllipsisForLongBindings(t *testing.T) {
 	t.Parallel()
 
