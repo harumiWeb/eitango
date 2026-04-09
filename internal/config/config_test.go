@@ -117,6 +117,9 @@ func TestLoadRejectsUnknownKeys(t *testing.T) {
 	if !strings.Contains(err.Error(), "unknown config keys") {
 		t.Fatalf("Load() error = %v, want unknown key error", err)
 	}
+	if !strings.Contains(err.Error(), path) {
+		t.Fatalf("Load() error = %v, want config path %q", err, path)
+	}
 }
 
 func TestSaveRoundTripsSettings(t *testing.T) {
