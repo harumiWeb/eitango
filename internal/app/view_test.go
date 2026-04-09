@@ -1532,13 +1532,45 @@ func TestViewKeymapEditorFitsHeightWithWrappedFooter(t *testing.T) {
 	model = model.openKeymapEditor()
 	model.screen = ScreenKeymap
 	model.width = compactWidthWide
-	model.height = 14
+	model.height = 15
 	model.loading = true
-	model.status = "status line should wrap in narrow-ish width and still keep the keymap editor inside the terminal height"
+	model.status = "status footer wraps to two lines in compact width"
 
 	view := model.View().Content
 	assertViewFitsWidth(t, view, model.width)
 	assertViewFitsHeight(t, view, model.height)
+
+	visible := visibleKeymapRowLines(view)
+	if len(visible) == 0 {
+		t.Fatalf("expected at least one visible keymap row:\n%s", view)
+	}
+
+	taller := model
+	taller.height++
+	tallerView := taller.View().Content
+	assertViewFitsWidth(t, tallerView, taller.width)
+	assertViewFitsHeight(t, tallerView, taller.height)
+
+	tallerVisible := visibleKeymapRowLines(tallerView)
+	if len(tallerVisible) != len(visible)+1 {
+		t.Fatalf("visible row count = %d at height %d and %d at height %d, want exactly one more row\nbase:\n%s\n\ntaller:\n%s", len(visible), model.height, len(tallerVisible), taller.height, view, tallerView)
+	}
+	if view == tallerView {
+		t.Fatalf("expected height+1 to change rendered keymap rows, but views matched:\n%s", view)
+	}
+}
+
+func visibleKeymapRowLines(view string) []string {
+	lines := make([]string, 0)
+	for _, line := range strings.Split(ansi.Strip(view), "\n") {
+		if !strings.Contains(line, "/") {
+			continue
+		}
+		if strings.Contains(line, "default") || strings.Contains(line, "custom") {
+			lines = append(lines, line)
+		}
+	}
+	return lines
 }
 
 func TestRenderHelpFromHomeConfirmShowsConfirmAndBack(t *testing.T) {

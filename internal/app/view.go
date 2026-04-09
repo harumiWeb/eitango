@@ -1152,7 +1152,7 @@ func (m RootModel) keymapEditorInnerHeightForStyle(style lipgloss.Style) int {
 	}
 
 	reserved := m.viewFooterHeight()
-	available := m.height - reserved - lipgloss.Height(style.Render(""))
+	available := m.height - reserved - style.GetVerticalFrameSize()
 	if available < 1 {
 		return 1
 	}
@@ -1165,7 +1165,7 @@ func (m RootModel) keymapEditorInnerHeight() int {
 	}
 
 	reserved := m.viewFooterHeight()
-	available := m.height - reserved - lipgloss.Height(m.styles.Panel.Render(""))
+	available := m.height - reserved - m.styles.Panel.GetVerticalFrameSize()
 	if available < 1 {
 		return 1
 	}

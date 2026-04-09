@@ -42,3 +42,4 @@
 - adaptive TUI の描画契約は `docs/specs/tui-layout.md` を正本にし、`tasks/lessons.md` へ width tier・省略対象・legacy fallback 画面一覧のような仕様本文を複製しない。
 - adaptive TUI を触るときは、主情報の wrap、`width == 0` の legacy fallback、`results` / `stats` / `keymap editor` を含む回帰比較を `docs/specs/tui-layout.md` に沿って確認する。
 - embedded core words のような full dataset を舐める診断では、語ごとの高コスト query を繰り返さない。`doctor` の健全性 check は SQL 集約で十分な不変条件を先に判定し、CI の遅い runner でも timeout しない形にする。
+- terminal 高さ制約の回帰テストは「view が収まる」だけで終わらせない。keymap editor のような可変リスト画面では `height + 1` で可視行がちょうど 1 行増えることまで固定し、underfill を見逃さない。

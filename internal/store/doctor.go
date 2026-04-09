@@ -829,6 +829,12 @@ func (s *Store) checkQuizability(ctx context.Context) DiagnosticCheck {
 		return diagnosticCheckError("quizability", "words table is empty")
 	}
 
+	// This diagnostic intentionally uses a set-based approximation instead of
+	// calling ListDistractorCandidates for every word. It checks the minimum
+	// invariant needed for 4-choice quizzes in bulk: each POS must expose at
+	// least four distinct meanings. That keeps doctor fast on CI-sized datasets,
+	// but it can miss edge cases from the runtime distractor filters
+	// (distractor_group, level, frequency proximity, excluded IDs).
 	const quizabilityCountsCTE = `
 WITH pos_meaning_counts AS (
   SELECT IFNULL(pos, '') AS pos_key, COUNT(DISTINCT meaning_ja) AS distinct_meaning_count
@@ -875,12 +881,12 @@ LIMIT ?
 		}
 		return diagnosticCheckError(
 			"quizability",
-			fmt.Sprintf("%d word(s) cannot form %d-choice quizzes", failureCount, doctorQuizChoiceSize),
+			fmt.Sprintf("%d word(s) cannot form %d-choice quizzes under the diagnostic distinct-meaning check", failureCount, doctorQuizChoiceSize),
 			formatStringSamples("words", failureCount, failures),
 		)
 	}
 
-	return diagnosticCheckOK("quizability", fmt.Sprintf("all %d words can form %d-choice quizzes", wordCount, doctorQuizChoiceSize))
+	return diagnosticCheckOK("quizability", fmt.Sprintf("all %d words pass the diagnostic distinct-meaning check for %d-choice quizzes", wordCount, doctorQuizChoiceSize))
 }
 
 func (s *Store) countRows(ctx context.Context, query string, args ...any) (int, error) {
