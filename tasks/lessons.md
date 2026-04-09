@@ -39,6 +39,6 @@
 - panel の外側余白を追加・変更するときは、見た目だけでなく terminal 幅内に収まることも同じテストで確認する。margin は「増やしたら終わり」にせず、幅計算との整合まで見る。
 - panel の左右余白は「外側 margin」と「枠内 padding」を分けて扱う。ユーザーが求める余白がどちらかを確認せずに片方だけ増やさない。
 - UI の余白調整では、外側 margin は既定で 0 を維持し、見た目の余白要求はまず枠内 padding で満たす。外側 margin を触るのはレイアウト意図が明示されている場合だけにする。
-- adaptive UI で `...` を使う対象は key guide や要約行のような補助情報に限る。choice の選択肢、results の hard words、feedback の正解/誤答のような主情報は wrap して全文を残す。
-- `RootModel.width == 0` の間は narrow guard を無効にするだけでは足りない。初回 `WindowSizeMsg` 前の 1 フレームでは、従来 renderer を明示的に通して描画契約を守る。
-- `width == 0` の legacy renderer 回帰は代表画面だけで済ませない。adaptive 対象に入っている `results` / `stats` / `keymap editor` も個別に比較し、compact renderer への取りこぼしを防ぐ。
+- adaptive TUI の描画契約は `docs/specs/tui-layout.md` を正本にし、`tasks/lessons.md` へ width tier・省略対象・legacy fallback 画面一覧のような仕様本文を複製しない。
+- adaptive TUI を触るときは、主情報の wrap、`width == 0` の legacy fallback、`results` / `stats` / `keymap editor` を含む回帰比較を `docs/specs/tui-layout.md` に沿って確認する。
+- embedded core words のような full dataset を舐める診断では、語ごとの高コスト query を繰り返さない。`doctor` の健全性 check は SQL 集約で十分な不変条件を先に判定し、CI の遅い runner でも timeout しない形にする。

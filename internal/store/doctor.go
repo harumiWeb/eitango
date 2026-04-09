@@ -13,7 +13,6 @@ import (
 const (
 	doctorSampleLimit    = 5
 	doctorQuizChoiceSize = 4
-	doctorQuizPoolLimit  = 64
 )
 
 type DiagnosticStatus string
@@ -822,34 +821,66 @@ func (s *Store) tableHasColumn(ctx context.Context, tableName, columnName string
 }
 
 func (s *Store) checkQuizability(ctx context.Context) DiagnosticCheck {
-	words, err := s.listAllWords(ctx)
+	wordCount, err := s.wordCount(ctx)
 	if err != nil {
 		return diagnosticCheckError("quizability", "words could not be loaded", err.Error())
 	}
-	if len(words) == 0 {
+	if wordCount == 0 {
 		return diagnosticCheckError("quizability", "words table is empty")
 	}
 
-	failures := make([]string, 0)
-	for _, word := range words {
-		pool, err := s.ListDistractorCandidates(ctx, word, doctorQuizPoolLimit, []int64{word.ID})
+	const quizabilityCountsCTE = `
+WITH pos_meaning_counts AS (
+  SELECT IFNULL(pos, '') AS pos_key, COUNT(DISTINCT meaning_ja) AS distinct_meaning_count
+  FROM words
+  GROUP BY IFNULL(pos, '')
+)
+`
+
+	failureCount, err := s.countRows(ctx, quizabilityCountsCTE+`
+SELECT COUNT(*)
+FROM words w
+LEFT JOIN pos_meaning_counts pmc ON IFNULL(w.pos, '') = pmc.pos_key
+WHERE COALESCE(pmc.distinct_meaning_count, 0) < ?
+`, doctorQuizChoiceSize)
+	if err != nil {
+		return diagnosticCheckError("quizability", "same-pos distractor meanings could not be counted", err.Error())
+	}
+	if failureCount > 0 {
+		rows, err := s.db.QueryContext(ctx, quizabilityCountsCTE+`
+SELECT w.lemma, w.pos
+FROM words w
+LEFT JOIN pos_meaning_counts pmc ON IFNULL(w.pos, '') = pmc.pos_key
+WHERE COALESCE(pmc.distinct_meaning_count, 0) < ?
+ORDER BY COALESCE(w.frequency_rank, 999999) ASC, w.id ASC
+LIMIT ?
+`, doctorQuizChoiceSize, doctorSampleLimit)
 		if err != nil {
-			return diagnosticCheckError("quizability", fmt.Sprintf("distractor pool for %s could not be loaded", word.Lemma), err.Error())
+			return diagnosticCheckError("quizability", "unquizzable word samples could not be loaded", err.Error())
 		}
-		if countUniqueDistractorMeanings(word, pool) < doctorQuizChoiceSize-1 {
+		defer func() {
+			_ = rows.Close()
+		}()
+
+		failures := make([]string, 0, doctorSampleLimit)
+		for rows.Next() {
+			var word Word
+			if err := rows.Scan(&word.Lemma, &word.Pos); err != nil {
+				return diagnosticCheckError("quizability", "unquizzable word samples could not be scanned", err.Error())
+			}
 			failures = append(failures, describeWord(word))
 		}
-	}
-
-	if len(failures) > 0 {
+		if err := rows.Err(); err != nil {
+			return diagnosticCheckError("quizability", "unquizzable word samples could not be iterated", err.Error())
+		}
 		return diagnosticCheckError(
 			"quizability",
-			fmt.Sprintf("%d word(s) cannot form %d-choice quizzes", len(failures), doctorQuizChoiceSize),
-			formatStringSamples("words", len(failures), failures),
+			fmt.Sprintf("%d word(s) cannot form %d-choice quizzes", failureCount, doctorQuizChoiceSize),
+			formatStringSamples("words", failureCount, failures),
 		)
 	}
 
-	return diagnosticCheckOK("quizability", fmt.Sprintf("all %d words can form %d-choice quizzes", len(words), doctorQuizChoiceSize))
+	return diagnosticCheckOK("quizability", fmt.Sprintf("all %d words can form %d-choice quizzes", wordCount, doctorQuizChoiceSize))
 }
 
 func (s *Store) countRows(ctx context.Context, query string, args ...any) (int, error) {
@@ -904,36 +935,6 @@ func (s *Store) sampleStringRows(ctx context.Context, query string, args ...any)
 		return nil, err
 	}
 	return values, nil
-}
-
-func (s *Store) listAllWords(ctx context.Context) ([]Word, error) {
-	rows, err := s.db.QueryContext(ctx, `
-SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
-       distractor_group, example_en, example_ja, source, created_at
-FROM words
-ORDER BY COALESCE(frequency_rank, 999999) ASC, id ASC
-`)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = rows.Close()
-	}()
-	return scanWords(rows)
-}
-
-func countUniqueDistractorMeanings(correct Word, pool []Word) int {
-	meanings := make(map[string]struct{}, len(pool))
-	for _, candidate := range pool {
-		if candidate.ID == correct.ID {
-			continue
-		}
-		if candidate.MeaningJA == correct.MeaningJA {
-			continue
-		}
-		meanings[candidate.MeaningJA] = struct{}{}
-	}
-	return len(meanings)
 }
 
 func describeWord(word Word) string {

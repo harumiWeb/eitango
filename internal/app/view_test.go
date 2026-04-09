@@ -1359,6 +1359,19 @@ func TestCompactHelpersFitWidth(t *testing.T) {
 	}
 }
 
+func TestPanelContentWidthMatchesFrameBudget(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.width = 40
+
+	style := model.compactPanelStyle(false)
+	want := model.width - lipgloss.Width(style.Render(""))
+	if got := model.panelContentWidth(style); got != want {
+		t.Fatalf("panelContentWidth() = %d, want %d", got, want)
+	}
+}
+
 func TestCompactPanelStyleKeepsVerticalPadding(t *testing.T) {
 	t.Parallel()
 
@@ -1471,6 +1484,14 @@ func assertViewFitsWidth(t *testing.T, view string, width int) {
 	}
 }
 
+func assertViewFitsHeight(t *testing.T, view string, height int) {
+	t.Helper()
+
+	if got := lipgloss.Height(view); got > height {
+		t.Fatalf("view height = %d, want <= %d\nview=\n%s", got, height, view)
+	}
+}
+
 func TestViewWidthZeroDoesNotTriggerNarrowWidthFallback(t *testing.T) {
 	t.Parallel()
 
@@ -1502,6 +1523,22 @@ func TestViewNarrowWidthFallbackFitsVerySmallTerminal(t *testing.T) {
 		t.Fatalf("View() unexpectedly contains normal home content in very small terminal:\n%s", view)
 	}
 	assertViewFitsWidth(t, view, model.width)
+}
+
+func TestViewKeymapEditorFitsHeightWithWrappedFooter(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model = model.openKeymapEditor()
+	model.screen = ScreenKeymap
+	model.width = compactWidthWide
+	model.height = 14
+	model.loading = true
+	model.status = "status line should wrap in narrow-ish width and still keep the keymap editor inside the terminal height"
+
+	view := model.View().Content
+	assertViewFitsWidth(t, view, model.width)
+	assertViewFitsHeight(t, view, model.height)
 }
 
 func TestRenderHelpFromHomeConfirmShowsConfirmAndBack(t *testing.T) {

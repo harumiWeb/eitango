@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -50,8 +51,8 @@ func (m RootModel) View() tea.View {
 		}
 	}
 
-	if m.loading {
-		body += "\n\n" + m.styles.Muted.Render(m.wrapToWindow(i18n.T(i18n.StatusLoading)))
+	if loading := m.renderLoadingFooter(); loading != "" {
+		body += "\n\n" + loading
 	}
 	body += "\n" + m.renderStatusLine()
 	view := tea.NewView(body)
@@ -415,7 +416,8 @@ func (m RootModel) renderChoiceQuizCompact() string {
 			prefix = fmt.Sprintf("▸ %d. ", i+1)
 			styleForChoice = m.styles.ChoiceSelected
 		}
-		lines = append(lines, styleForChoice.Render(m.renderCompactPrefixedWrap(style, prefix, choice.Meaning)))
+		choiceWidth := m.panelContentWidth(style) - styleForChoice.GetHorizontalFrameSize()
+		lines = append(lines, styleForChoice.Render(renderPrefixedWrap(prefix, choice.Meaning, choiceWidth)))
 	}
 	lines = append(lines,
 		"",
@@ -811,6 +813,13 @@ func (m RootModel) renderStatusLine() string {
 	return m.styles.Status.Render(m.wrapToWindow("status: " + msg))
 }
 
+func (m RootModel) renderLoadingFooter() string {
+	if !m.loading {
+		return ""
+	}
+	return m.styles.Muted.Render(m.wrapToWindow(i18n.T(i18n.StatusLoading)))
+}
+
 func (m RootModel) renderKeymapEditor() string {
 	if m.keymapEditor == nil {
 		return m.styles.Panel.Render(i18n.T(i18n.KeymapTitle))
@@ -1014,6 +1023,7 @@ func (m RootModel) renderKeymapEditorRowCompact(style lipgloss.Style, editor *ke
 	}
 
 	contentWidth := m.panelContentWidth(style)
+	contentWidth -= rowStyle.GetHorizontalFrameSize()
 	if scrollbar != "" {
 		contentWidth -= 2
 	}
@@ -1141,10 +1151,7 @@ func (m RootModel) keymapEditorInnerHeightForStyle(style lipgloss.Style) int {
 		return 0
 	}
 
-	reserved := 1 // status line
-	if m.loading {
-		reserved += 2
-	}
+	reserved := m.viewFooterHeight()
 	available := m.height - reserved - lipgloss.Height(style.Render(""))
 	if available < 1 {
 		return 1
@@ -1157,15 +1164,20 @@ func (m RootModel) keymapEditorInnerHeight() int {
 		return 0
 	}
 
-	reserved := 1 // status line
-	if m.loading {
-		reserved += 2
-	}
+	reserved := m.viewFooterHeight()
 	available := m.height - reserved - lipgloss.Height(m.styles.Panel.Render(""))
 	if available < 1 {
 		return 1
 	}
 	return available
+}
+
+func (m RootModel) viewFooterHeight() int {
+	height := lipgloss.Height(m.renderStatusLine())
+	if loading := m.renderLoadingFooter(); loading != "" {
+		height += 2 + lipgloss.Height(loading)
+	}
+	return height
 }
 
 func (m RootModel) keymapEditorScrollbar(totalRows, start, end int) []string {
@@ -1673,10 +1685,8 @@ func (m RootModel) panelContentWidth(style lipgloss.Style) int {
 	if m.width <= 0 {
 		return 0
 	}
-	width := m.width - style.GetHorizontalFrameSize()
-	if style.GetHorizontalFrameSize() > 0 {
-		width -= 2
-	}
+	frameWidth := lipgloss.Width(style.Render(""))
+	width := m.width - frameWidth
 	if width < 1 {
 		return 1
 	}
@@ -1851,27 +1861,122 @@ func wrapSegments(text string, width int) []string {
 
 		current := strings.Builder{}
 		currentWidth := 0
-		for _, r := range rawLine {
-			rw := runewidth.RuneWidth(r)
-			if rw <= 0 {
-				rw = 1
+		for _, token := range wrapTokens(rawLine) {
+			tokenWidth := runewidth.StringWidth(token)
+			if strings.TrimSpace(token) == "" {
+				if currentWidth == 0 {
+					continue
+				}
+				if currentWidth+tokenWidth <= width {
+					current.WriteString(token)
+					currentWidth += tokenWidth
+					continue
+				}
+				lines = append(lines, strings.TrimRight(current.String(), " "))
+				current.Reset()
+				currentWidth = 0
+				continue
 			}
-			if currentWidth > 0 && currentWidth+rw > width {
-				lines = append(lines, current.String())
+
+			if tokenWidth > width {
+				if currentWidth > 0 {
+					lines = append(lines, strings.TrimRight(current.String(), " "))
+					current.Reset()
+					currentWidth = 0
+				}
+				lines = append(lines, splitTokenWidth(token, width)...)
+				continue
+			}
+
+			if currentWidth > 0 && currentWidth+tokenWidth > width {
+				lines = append(lines, strings.TrimRight(current.String(), " "))
 				current.Reset()
 				currentWidth = 0
 			}
-			current.WriteRune(r)
-			currentWidth += rw
+			current.WriteString(token)
+			currentWidth += tokenWidth
 		}
 		if current.Len() > 0 {
-			lines = append(lines, current.String())
+			lines = append(lines, strings.TrimRight(current.String(), " "))
 		}
 	}
 	if len(lines) == 0 {
 		return []string{""}
 	}
 	return lines
+}
+
+func wrapTokens(text string) []string {
+	tokens := make([]string, 0, len(text))
+	var current strings.Builder
+	currentKind := wrapTokenOther
+
+	flush := func() {
+		if current.Len() == 0 {
+			return
+		}
+		tokens = append(tokens, current.String())
+		current.Reset()
+	}
+
+	for _, r := range text {
+		kind := classifyWrapRune(r)
+		if current.Len() > 0 && kind != currentKind {
+			flush()
+		}
+		currentKind = kind
+		current.WriteRune(r)
+	}
+	flush()
+	return tokens
+}
+
+type wrapTokenKind int
+
+const (
+	wrapTokenWhitespace wrapTokenKind = iota
+	wrapTokenASCIIWord
+	wrapTokenOther
+)
+
+func classifyWrapRune(r rune) wrapTokenKind {
+	if r == ' ' || r == '\t' {
+		return wrapTokenWhitespace
+	}
+	if r <= unicode.MaxASCII && !unicode.IsSpace(r) {
+		return wrapTokenASCIIWord
+	}
+	return wrapTokenOther
+}
+
+func splitTokenWidth(token string, width int) []string {
+	if width <= 0 || token == "" {
+		return []string{token}
+	}
+
+	segments := make([]string, 0, len(token))
+	current := strings.Builder{}
+	currentWidth := 0
+	for _, r := range token {
+		rw := runewidth.RuneWidth(r)
+		if rw <= 0 {
+			rw = 1
+		}
+		if currentWidth > 0 && currentWidth+rw > width {
+			segments = append(segments, current.String())
+			current.Reset()
+			currentWidth = 0
+		}
+		current.WriteRune(r)
+		currentWidth += rw
+	}
+	if current.Len() > 0 {
+		segments = append(segments, current.String())
+	}
+	if len(segments) == 0 {
+		return []string{""}
+	}
+	return segments
 }
 
 func wrapTextWidth(text string, width int) string {
