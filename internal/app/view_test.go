@@ -1249,6 +1249,38 @@ func TestViewWidthZeroUsesLegacyRenderers(t *testing.T) {
 			},
 			render: func(model *RootModel) string { return model.renderHelp() },
 		},
+		{
+			name: "results",
+			prepare: func(model *RootModel) {
+				model.screen = ScreenResults
+				model.summary = &store.SessionSummary{
+					Accuracy:       80,
+					CorrectAnswers: 4,
+					TotalQuestions: 5,
+					HardWords: []store.Word{
+						{Lemma: "begin", MeaningJA: "始める"},
+					},
+				}
+			},
+			render: func(model *RootModel) string { return model.renderResults() },
+		},
+		{
+			name: "stats",
+			prepare: func(model *RootModel) {
+				model.screen = ScreenStats
+				model.stats = sampleStatsSnapshot()
+			},
+			render: func(model *RootModel) string { return model.renderStats() },
+		},
+		{
+			name: "keymap",
+			prepare: func(model *RootModel) {
+				*model = model.openKeymapEditor()
+				model.loading = false
+				model.width = 0
+			},
+			render: func(model *RootModel) string { return model.renderKeymapEditor() },
+		},
 	}
 
 	for _, tc := range testCases {

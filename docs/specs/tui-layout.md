@@ -1,6 +1,6 @@
 # TUI Layout
 
-- width が未確定 (`WindowSizeMsg` 前で `RootModel.width == 0`) の間は、狭幅 guard を発火させず、`renderHome` / `renderQuiz` / `renderFeedback` / `renderHelp` などの従来 renderer を維持する
+- width が未確定 (`WindowSizeMsg` 前で `RootModel.width == 0`) の間は、狭幅 guard を発火させず、`renderHome` / `renderQuiz` / `renderFeedback` / `renderResults` / `renderStats` / `renderHelp` / `renderKeymapEditor` など全 screen の従来 renderer を維持する
 - 現在の主要 screen / overlay は `adaptive / narrow` の 2 段階レイアウトを持つ
 - adaptive 対象は `home`, `home confirm`, `settings overlay`, `help`, `quiz.choice`, `quiz.write`, `feedback.choice`, `feedback.write`, `results`, `stats`, `keymap editor` とする
 - 幅 tier は次で固定する

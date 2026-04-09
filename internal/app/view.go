@@ -77,13 +77,13 @@ func (m RootModel) renderLegacyScreen() string {
 	case ScreenFeedback:
 		return m.renderFeedback()
 	case ScreenResults:
-		return m.renderResultsCompact()
+		return m.renderResults()
 	case ScreenStats:
-		return m.renderStatsCompact()
+		return m.renderStats()
 	case ScreenHelp:
 		return m.renderHelp()
 	case ScreenKeymap:
-		return m.renderKeymapEditorCompact()
+		return m.renderKeymapEditor()
 	default:
 		return ""
 	}
@@ -679,6 +679,32 @@ func (m RootModel) renderWriteFeedbackCompact() string {
 	return m.renderConstrainedPanel(style, strings.Join(lines, "\n"))
 }
 
+func (m RootModel) renderResults() string {
+	if m.summary == nil {
+		return m.styles.Panel.Render(i18n.T(i18n.ResultsNoSummary))
+	}
+
+	lines := []string{
+		m.styles.Title.Render(i18n.T(i18n.ResultsTitle)),
+		fmt.Sprintf("%s: %.1f%%", tui.AlignLabel(i18n.T(i18n.ResultsAccuracy), 14), m.summary.Accuracy),
+		fmt.Sprintf("%s: %d/%d", tui.AlignLabel(i18n.T(i18n.ResultsCorrect), 14), m.summary.CorrectAnswers, m.summary.TotalQuestions),
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.ResultsMix), 14), i18n.Tf(i18n.ResultsMixDetail, m.summary.NewCount, m.summary.ReviewCount, m.summary.RetryCount)),
+	}
+	if len(m.summary.HardWords) > 0 {
+		lines = append(lines, "", m.styles.Subtitle.Render(i18n.T(i18n.ResultsHardWords)))
+		for _, word := range m.summary.HardWords {
+			lines = append(lines, fmt.Sprintf("- %s: %s", word.Lemma, word.MeaningJA))
+		}
+	}
+	lines = append(lines, "", m.styles.Muted.Render(m.renderInlineGuides(
+		keymap.ContextResults,
+		keymap.ActionConfirm,
+		keymap.ActionBack,
+		keymap.ActionQuit,
+	)))
+	return m.styles.Panel.Render(strings.Join(lines, "\n"))
+}
+
 func (m RootModel) renderResultsCompact() string {
 	style := m.compactPanelStyle(false)
 	if m.summary == nil {
@@ -707,6 +733,15 @@ func (m RootModel) renderResultsCompact() string {
 		)),
 	)
 	return m.renderConstrainedPanel(style, strings.Join(lines, "\n"))
+}
+
+func (m RootModel) renderStats() string {
+	return m.styles.Panel.Render(stats.RenderText(m.stats) + "\n" + m.renderInlineGuides(
+		keymap.ContextStats,
+		keymap.ActionConfirm,
+		keymap.ActionBack,
+		keymap.ActionQuit,
+	))
 }
 
 func (m RootModel) renderStatsCompact() string {
@@ -774,6 +809,97 @@ func (m RootModel) renderStatusLine() string {
 		return m.styles.Error.Render(m.wrapToWindow("error: " + msg))
 	}
 	return m.styles.Status.Render(m.wrapToWindow("status: " + msg))
+}
+
+func (m RootModel) renderKeymapEditor() string {
+	if m.keymapEditor == nil {
+		return m.styles.Panel.Render(i18n.T(i18n.KeymapTitle))
+	}
+
+	editor := m.keymapEditor
+	headerLines := []string{
+		m.styles.Title.Render(i18n.T(i18n.KeymapTitle)),
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.KeymapContext), 14), m.keymapFilterLabel(editor.filter)),
+		"",
+	}
+
+	rows := editor.rows()
+	detailLines := []string{}
+	if row, ok := editor.selectedRow(); ok {
+		detailLines = append(detailLines, "")
+		detailLines = append(detailLines, m.styles.Subtitle.Render(i18n.T(i18n.KeymapDetails)))
+		detailLines = append(detailLines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.KeymapAction), 14), keymap.ActionLabel(row.Action)))
+		detailLines = append(detailLines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.KeymapDefault), 14), keymap.FormatKeys(keymap.DefaultKeys(row.Context, row.Action))))
+		detailLines = append(detailLines, fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.KeymapCurrent), 14), keymap.FormatKeys(editor.draft.Keys(row.Context, row.Action))))
+		if row.Context == keymap.ContextQuizWrite {
+			detailLines = append(detailLines, m.styles.Muted.Render(i18n.T(i18n.KeymapWriteNote)))
+		}
+	}
+
+	recordingLines := []string{}
+	if editor.recording {
+		recordingLines = append(recordingLines, "")
+		recordingLines = append(recordingLines, m.styles.Subtitle.Render(i18n.T(i18n.KeymapRecordingTitle)))
+		recordingLines = append(recordingLines, m.styles.Muted.Render(i18n.T(i18n.KeymapRecordingBody)))
+	}
+
+	conflictLines := []string{}
+	if editor.conflict != nil {
+		conflictLines = append(conflictLines, "")
+		conflictLines = append(conflictLines, m.styles.Subtitle.Render(i18n.T(i18n.KeymapConflictTitle)))
+		conflictLines = append(conflictLines, m.styles.Muted.Render(i18n.Tf(i18n.KeymapConflictBody, keymap.FormatKeys([]string{editor.conflict.Token}), keymap.ActionLabel(editor.conflict.Conflicts[0].Action), keymap.ContextLabel(editor.conflict.Conflicts[0].Context))))
+		conflictLines = append(conflictLines, m.styles.Muted.Render(i18n.T(i18n.KeymapConflictKeys)))
+	}
+
+	footerLines := []string{"", m.styles.Muted.Render(i18n.T(i18n.KeymapKeys))}
+
+	available := m.keymapEditorInnerHeight()
+	fixedLines := len(headerLines) + len(footerLines)
+
+	showRecording := len(recordingLines) > 0 && available-fixedLines >= len(recordingLines)+1
+	if showRecording {
+		fixedLines += len(recordingLines)
+	}
+	showConflict := len(conflictLines) > 0 && available-fixedLines >= len(conflictLines)+1
+	if showConflict {
+		fixedLines += len(conflictLines)
+	}
+	showDetail := len(detailLines) > 0 && available-fixedLines >= len(detailLines)+1
+	if showDetail {
+		fixedLines += len(detailLines)
+	}
+
+	listLines := make([]string, 0, len(rows))
+	if len(rows) == 0 {
+		listLines = append(listLines, m.styles.Muted.Render(i18n.T(i18n.KeymapEmpty)))
+	} else {
+		start, end := m.keymapEditorRowWindow(len(rows), editor.cursor, fixedLines)
+		scrollbar := m.keymapEditorScrollbar(len(rows), start, end)
+		for index := start; index < end; index++ {
+			marker := ""
+			if len(scrollbar) > 0 {
+				marker = scrollbar[index-start]
+			}
+			listLines = append(listLines, m.renderKeymapEditorRow(editor, index, rows[index], marker))
+		}
+	}
+
+	lines := append([]string{}, headerLines...)
+	lines = append(lines, listLines...)
+	if showDetail {
+		lines = append(lines, detailLines...)
+	}
+	if showRecording {
+		lines = append(lines, recordingLines...)
+	}
+	if showConflict {
+		lines = append(lines, conflictLines...)
+	}
+	lines = append(lines, footerLines...)
+	if available > 0 && len(lines) > available {
+		lines = lines[:available]
+	}
+	return m.styles.Panel.Render(strings.Join(lines, "\n"))
 }
 
 func (m RootModel) renderKeymapEditorCompact() string {
@@ -899,6 +1025,77 @@ func (m RootModel) renderKeymapEditorRowCompact(style lipgloss.Style, editor *ke
 	return rowStyle.Render(line)
 }
 
+func (m RootModel) renderKeymapEditorRow(editor *keymapEditorState, index int, row keymapEditorRow, scrollbar string) string {
+	current := editor.draft.Keys(row.Context, row.Action)
+	value := keymap.FormatKeys(current)
+	if value == "" {
+		value = i18n.T(i18n.KeymapUnbound)
+	}
+
+	status := i18n.T(i18n.KeymapStateDefault)
+	if !slices.Equal(current, keymap.DefaultKeys(row.Context, row.Action)) {
+		status = i18n.T(i18n.KeymapStateCustom)
+	}
+
+	prefix := "  "
+	style := m.styles.Choice
+	if editor.cursor == index {
+		prefix = "> "
+		style = m.styles.ChoiceSelected
+	}
+
+	line := strings.Join([]string{
+		prefix + tui.AlignText(keymap.ContextLabel(row.Context), 18),
+		tui.AlignText(keymap.ActionLabel(row.Action), 22),
+		tui.AlignText(value, 12),
+		status,
+	}, " ")
+	if scrollbar != "" {
+		return style.Render(line) + " " + scrollbar
+	}
+	return style.Render(line)
+}
+
+func (m RootModel) keymapEditorRowWindow(totalRows, cursor, fixedLines int) (int, int) {
+	if totalRows <= 0 {
+		return 0, 0
+	}
+
+	available := m.keymapEditorInnerHeight()
+	if available <= 0 {
+		return 0, totalRows
+	}
+
+	visible := totalRows
+	if available <= fixedLines {
+		visible = 1
+	} else if maxVisible := available - fixedLines; maxVisible < visible {
+		visible = maxVisible
+	}
+	if visible < 1 {
+		visible = 1
+	}
+	if visible >= totalRows {
+		return 0, totalRows
+	}
+	if cursor < 0 {
+		cursor = 0
+	}
+	if cursor >= totalRows {
+		cursor = totalRows - 1
+	}
+
+	start := cursor - visible/2
+	if start < 0 {
+		start = 0
+	}
+	maxStart := totalRows - visible
+	if start > maxStart {
+		start = maxStart
+	}
+	return start, start + visible
+}
+
 func (m RootModel) keymapEditorRowWindowForStyle(style lipgloss.Style, totalRows, cursor, fixedLines int) (int, int) {
 	if totalRows <= 0 {
 		return 0, 0
@@ -949,6 +1146,22 @@ func (m RootModel) keymapEditorInnerHeightForStyle(style lipgloss.Style) int {
 		reserved += 2
 	}
 	available := m.height - reserved - lipgloss.Height(style.Render(""))
+	if available < 1 {
+		return 1
+	}
+	return available
+}
+
+func (m RootModel) keymapEditorInnerHeight() int {
+	if m.height <= 0 {
+		return 0
+	}
+
+	reserved := 1 // status line
+	if m.loading {
+		reserved += 2
+	}
+	available := m.height - reserved - lipgloss.Height(m.styles.Panel.Render(""))
 	if available < 1 {
 		return 1
 	}

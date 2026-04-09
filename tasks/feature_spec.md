@@ -644,7 +644,7 @@
 - 単一行 UI は width budget に応じて `...` で省略する。
 - `quiz.choice` の選択肢本文や `results` の hard words のような主情報は `...` で潰さず、adaptive 幅でも wrap して全文を読めるようにする。
 - prose は wrap を維持する。
-- `width == 0` の間は narrow 判定を無効にするだけでなく、`renderHome` / `renderQuiz` / `renderFeedback` / `renderHelp` などの従来 renderer を維持し、初回 `WindowSizeMsg` 前の描画挙動を変えない。
+- `width == 0` の間は narrow 判定を無効にするだけでなく、`renderHome` / `renderQuiz` / `renderFeedback` / `renderResults` / `renderStats` / `renderHelp` / `renderKeymapEditor` など全 screen の従来 renderer を維持し、初回 `WindowSizeMsg` 前の描画挙動を変えない。
 
 ### Acceptance
 
@@ -659,5 +659,5 @@
 - adaptive panel の枠内には、左右に 2 文字ぶんの内側余白を残す。
 - `quiz.choice` の長い選択肢でも、adaptive 幅で選択肢末尾の違いまで読める回帰テストがある。
 - `results` の hard words は adaptive 幅でも全文を読める回帰テストがある。
-- `width == 0` のときは旧 renderer 経路を通す回帰テストがある。
+- `width == 0` のときは `results` / `stats` / `keymap editor` を含む旧 renderer 経路を通す回帰テストがある。
 - `go test ./internal/app` が通る。

@@ -41,3 +41,4 @@
 - UI の余白調整では、外側 margin は既定で 0 を維持し、見た目の余白要求はまず枠内 padding で満たす。外側 margin を触るのはレイアウト意図が明示されている場合だけにする。
 - adaptive UI で `...` を使う対象は key guide や要約行のような補助情報に限る。choice の選択肢、results の hard words、feedback の正解/誤答のような主情報は wrap して全文を残す。
 - `RootModel.width == 0` の間は narrow guard を無効にするだけでは足りない。初回 `WindowSizeMsg` 前の 1 フレームでは、従来 renderer を明示的に通して描画契約を守る。
+- `width == 0` の legacy renderer 回帰は代表画面だけで済ませない。adaptive 対象に入っている `results` / `stats` / `keymap editor` も個別に比較し、compact renderer への取りこぼしを防ぐ。

@@ -183,3 +183,4 @@
 - [x] `home` のメトリクス行を縦並びの固定幅ラベル整列へ戻し、adaptive panel の左右余白を復元する
 - [x] adaptive panel の左右余白を「外側 0 / 内側 2」へ調整し、terminal 幅内に収まることを維持する
 - [x] review 指摘に合わせて `quiz.choice` の選択肢本文と `results` の hard words は省略せず wrap し、`width == 0` では旧 renderer 経路を維持する
+- [x] review 指摘に合わせて `width == 0` の legacy renderer 経路を `results` / `stats` / `keymap editor` まで揃え、回帰テストで固定する
