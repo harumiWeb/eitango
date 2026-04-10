@@ -85,7 +85,7 @@ func newPlayCommand() *cobra.Command {
 }
 
 func newReviewCommand() *cobra.Command {
-	cmd := newSessionCommand("review", nil, store.ModeReview, "Start a due-only review session")
+	cmd := newSessionCommand("review", nil, store.ModeReview, "Start a review session")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		return runSession(cmd, store.ModeReview, store.AnswerModeChoice)
 	}

@@ -216,26 +216,35 @@ func (m RootModel) renderSettingsOverlay() string {
 }
 
 func (m RootModel) renderHomeConfirmOverlay() string {
-	if m.homeConfirm == nil || m.home.ActiveSession == nil {
+	if m.homeConfirm == nil {
+		return m.renderHome()
+	}
+	if m.homeConfirm.Kind == homeConfirmDiscard && m.home.ActiveSession == nil {
 		return m.renderHome()
 	}
 
 	request := m.homeConfirm.Request
-	active := m.home.ActiveSession
 	lines := []string{
-		m.styles.Title.Render(i18n.T(i18n.HomeConfirmTitle)),
+		m.styles.Title.Render(m.homeConfirmTitle()),
 		"",
-		i18n.T(i18n.HomeConfirmBody),
+		m.homeConfirmBody(),
+	}
+	if active := m.home.ActiveSession; active != nil {
+		lines = append(lines,
+			"",
+			fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.HomeConfirmCurrent), 14), i18n.Tf(i18n.HomeActiveDetail, active.AnsweredQuestions, active.TotalQuestions, sessionModeLabel(active.Mode), answerModeLabel(active.AnswerMode))),
+		)
+	}
+	lines = append(lines,
 		"",
-		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.HomeConfirmCurrent), 14), i18n.Tf(i18n.HomeActiveDetail, active.AnsweredQuestions, active.TotalQuestions, sessionModeLabel(active.Mode), answerModeLabel(active.AnswerMode))),
-		fmt.Sprintf("%s: %s / %s", tui.AlignLabel(i18n.T(i18n.HomeConfirmTarget), 14), sessionModeLabel(request.Mode), answerModeLabel(request.AnswerMode)),
+		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.HomeConfirmTarget), 14), m.homeConfirmTarget(request)),
 		"",
 		m.styles.Muted.Render(m.renderInlineGuides(
 			keymap.ContextHomeConfirm,
 			keymap.ActionConfirm,
 			keymap.ActionBack,
 		)),
-	}
+	)
 	return m.styles.ModalPanel.Render(strings.Join(lines, "\n"))
 }
 
@@ -323,26 +332,35 @@ func (m RootModel) renderSettingsOverlayCompact() string {
 }
 
 func (m RootModel) renderHomeConfirmOverlayCompact() string {
-	if m.homeConfirm == nil || m.home.ActiveSession == nil {
+	if m.homeConfirm == nil {
+		return m.renderHomeCompact()
+	}
+	if m.homeConfirm.Kind == homeConfirmDiscard && m.home.ActiveSession == nil {
 		return m.renderHomeCompact()
 	}
 
 	style := m.compactPanelStyle(true)
 	request := m.homeConfirm.Request
-	active := m.home.ActiveSession
 	lines := []string{
-		m.styles.Title.Render(i18n.T(i18n.HomeConfirmTitle)),
+		m.styles.Title.Render(m.homeConfirmTitle()),
 		"",
-		m.wrapToPanelWidth(i18n.T(i18n.HomeConfirmBody), style),
+		m.wrapToPanelWidth(m.homeConfirmBody(), style),
+	}
+	if active := m.home.ActiveSession; active != nil {
+		lines = append(lines,
+			"",
+			m.renderCompactField(style, i18n.T(i18n.HomeConfirmCurrent), i18n.Tf(i18n.HomeActiveDetail, active.AnsweredQuestions, active.TotalQuestions, sessionModeLabel(active.Mode), answerModeLabel(active.AnswerMode))),
+		)
+	}
+	lines = append(lines,
 		"",
-		m.renderCompactField(style, i18n.T(i18n.HomeConfirmCurrent), i18n.Tf(i18n.HomeActiveDetail, active.AnsweredQuestions, active.TotalQuestions, sessionModeLabel(active.Mode), answerModeLabel(active.AnswerMode))),
-		m.renderCompactField(style, i18n.T(i18n.HomeConfirmTarget), fmt.Sprintf("%s / %s", sessionModeLabel(request.Mode), answerModeLabel(request.AnswerMode))),
+		m.renderCompactField(style, i18n.T(i18n.HomeConfirmTarget), m.homeConfirmTarget(request)),
 		"",
 		m.styles.Muted.Render(m.renderCompactInlineGuides(style, keymap.ContextHomeConfirm,
 			keymap.ActionConfirm,
 			keymap.ActionBack,
 		)),
-	}
+	)
 	return m.renderConstrainedPanel(style, strings.Join(lines, "\n"))
 }
 
@@ -540,15 +558,7 @@ func (m RootModel) renderChoiceFeedback() string {
 	lines = append(lines,
 		"",
 		fmt.Sprintf("%s: %s", tui.AlignLabel(i18n.T(i18n.QuizAudio), 14), audioStateLabel(m.autoplayActive())),
-		m.styles.Muted.Render(m.renderInlineGuides(
-			keymap.ContextFeedbackRate,
-			keymap.ActionAgain,
-			keymap.ActionHard,
-			keymap.ActionGood,
-			keymap.ActionEasy,
-			keymap.ActionSpeak,
-			keymap.ActionToggleAutoplay,
-		)),
+		m.styles.Muted.Render(m.renderChoiceFeedbackGuide()),
 	)
 	return panel.Render(strings.Join(lines, "\n"))
 }
@@ -577,14 +587,7 @@ func (m RootModel) renderChoiceFeedbackCompact() string {
 	lines = append(lines,
 		"",
 		m.renderCompactFieldEllipsis(style, i18n.T(i18n.QuizAudio), audioStateLabel(m.autoplayActive())),
-		m.styles.Muted.Render(m.renderCompactInlineGuides(style, keymap.ContextFeedbackRate,
-			keymap.ActionAgain,
-			keymap.ActionHard,
-			keymap.ActionGood,
-			keymap.ActionEasy,
-			keymap.ActionSpeak,
-			keymap.ActionToggleAutoplay,
-		)),
+		m.styles.Muted.Render(m.renderChoiceFeedbackGuideCompact(style)),
 	)
 	return m.renderConstrainedPanel(style, strings.Join(lines, "\n"))
 }
@@ -1331,7 +1334,7 @@ func (m RootModel) helpSections(screen Screen, compact bool) []helpSection {
 			}},
 		}
 	case ScreenFeedback:
-		if m.isWriteFeedback() {
+		if m.feedbackUsesEnterOnly() {
 			return []helpSection{
 				{title: i18n.T(i18n.HelpSectionNav), lines: []string{
 					renderBinding(m.binding(keymap.ContextFeedbackWrite, keymap.ActionConfirm)),
@@ -1442,6 +1445,46 @@ func audioStateLabel(enabled bool) string {
 
 func (m RootModel) isWriteFeedback() bool {
 	return m.feedback != nil && m.feedback.Question.AnswerMode == store.AnswerModeWrite
+}
+
+func (m RootModel) renderChoiceFeedbackGuide() string {
+	if m.isInfiniteReviewRuntime() {
+		return m.renderInlineGuides(
+			keymap.ContextFeedbackWrite,
+			keymap.ActionConfirm,
+			keymap.ActionSpeak,
+			keymap.ActionToggleAutoplay,
+		)
+	}
+	return m.renderInlineGuides(
+		keymap.ContextFeedbackRate,
+		keymap.ActionAgain,
+		keymap.ActionHard,
+		keymap.ActionGood,
+		keymap.ActionEasy,
+		keymap.ActionSpeak,
+		keymap.ActionToggleAutoplay,
+	)
+}
+
+func (m RootModel) renderChoiceFeedbackGuideCompact(style lipgloss.Style) string {
+	if m.isInfiniteReviewRuntime() {
+		return m.renderCompactInlineGuides(style,
+			keymap.ContextFeedbackWrite,
+			keymap.ActionConfirm,
+			keymap.ActionSpeak,
+			keymap.ActionToggleAutoplay,
+		)
+	}
+	return m.renderCompactInlineGuides(style,
+		keymap.ContextFeedbackRate,
+		keymap.ActionAgain,
+		keymap.ActionHard,
+		keymap.ActionGood,
+		keymap.ActionEasy,
+		keymap.ActionSpeak,
+		keymap.ActionToggleAutoplay,
+	)
 }
 
 func screenHelpTitle(screen Screen) string {
@@ -1617,12 +1660,14 @@ func (m RootModel) layoutSpec() (layoutSpec, bool) {
 	case m.screen == ScreenHome && m.settingsOpen:
 		return layoutSpec{minWidth: compactWidthWide, title: i18n.T(i18n.SettingsTitle), modal: true}, true
 	case m.screen == ScreenHome && m.homeConfirm != nil:
-		return layoutSpec{minWidth: compactWidthWide, title: i18n.T(i18n.HomeConfirmTitle), modal: true}, true
+		return layoutSpec{minWidth: compactWidthWide, title: m.homeConfirmTitle(), modal: true}, true
 	case m.screen == ScreenQuiz && m.currentQ != nil && m.currentQ.AnswerMode == store.AnswerModeWrite:
 		return layoutSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.AnswerModeWrite)}, true
 	case m.screen == ScreenQuiz:
 		return layoutSpec{minWidth: compactWidthWide, title: i18n.T(i18n.HelpScreenQuiz)}, true
 	case m.screen == ScreenFeedback && m.isWriteFeedback():
+		return layoutSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.HelpScreenFeedback)}, true
+	case m.screen == ScreenFeedback && m.feedbackUsesEnterOnly():
 		return layoutSpec{minWidth: compactWidthStandard, title: i18n.T(i18n.HelpScreenFeedback)}, true
 	case m.screen == ScreenFeedback:
 		return layoutSpec{minWidth: compactWidthWide, title: i18n.T(i18n.HelpScreenFeedback)}, true
@@ -1639,6 +1684,28 @@ func (m RootModel) layoutSpec() (layoutSpec, bool) {
 	default:
 		return layoutSpec{}, false
 	}
+}
+
+func (m RootModel) homeConfirmTitle() string {
+	if m.homeConfirm != nil && m.homeConfirm.Kind == homeConfirmReviewFallback {
+		return i18n.T(i18n.HomeReviewFallbackTitle)
+	}
+	return i18n.T(i18n.HomeConfirmTitle)
+}
+
+func (m RootModel) homeConfirmBody() string {
+	if m.homeConfirm != nil && m.homeConfirm.Kind == homeConfirmReviewFallback {
+		return i18n.T(i18n.HomeReviewFallbackBody)
+	}
+	return i18n.T(i18n.HomeConfirmBody)
+}
+
+func (m RootModel) homeConfirmTarget(request sessionRequest) string {
+	target := fmt.Sprintf("%s / %s", sessionModeLabel(request.Mode), answerModeLabel(request.AnswerMode))
+	if m.homeConfirm != nil && m.homeConfirm.Kind == homeConfirmReviewFallback {
+		return fmt.Sprintf("%s / %s", target, i18n.T(i18n.HomeReviewFallbackPool))
+	}
+	return target
 }
 
 func (m RootModel) narrowPanelStyle(modal bool) lipgloss.Style {

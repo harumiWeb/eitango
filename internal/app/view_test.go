@@ -14,6 +14,7 @@ import (
 	"github.com/harumiWeb/eitango/internal/i18n"
 	"github.com/harumiWeb/eitango/internal/keymap"
 	"github.com/harumiWeb/eitango/internal/quiz"
+	"github.com/harumiWeb/eitango/internal/session"
 	"github.com/harumiWeb/eitango/internal/stats"
 	"github.com/harumiWeb/eitango/internal/store"
 	"github.com/harumiWeb/eitango/internal/tui"
@@ -243,6 +244,28 @@ func TestRenderHomeLocalizesActiveSessionMode(t *testing.T) {
 	}
 	if strings.Contains(got, "learn / "+i18n.T(i18n.AnswerModeChoice)) {
 		t.Fatalf("renderHome() unexpectedly contains raw session mode:\n%s", got)
+	}
+}
+
+func TestRenderHomeDistinguishesInfiniteReviewActiveSessionMode(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.home.ActiveSession = &store.SessionRecord{
+		Mode:              store.ModeReviewInfinite,
+		AnswerMode:        store.AnswerModeChoice,
+		AnsweredQuestions: 2,
+		TotalQuestions:    5,
+	}
+
+	got := model.renderHome()
+	wantDetail := i18n.Tf(i18n.HomeActiveDetail, 2, 5, i18n.T(i18n.StartModeReviewPractice), i18n.T(i18n.AnswerModeChoice))
+	if !strings.Contains(got, wantDetail) {
+		t.Fatalf("renderHome() missing infinite review detail %q:\n%s", wantDetail, got)
+	}
+	if strings.Contains(got, i18n.Tf(i18n.HomeActiveDetail, 2, 5, i18n.T(i18n.StartModeReview), i18n.T(i18n.AnswerModeChoice))) {
+		t.Fatalf("renderHome() unexpectedly collapses infinite review into normal review:\n%s", got)
 	}
 }
 
@@ -489,6 +512,91 @@ func TestRenderWriteFeedbackHelpShowsEnterOnly(t *testing.T) {
 		if strings.Contains(helpView, unwanted) {
 			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)
 		}
+	}
+}
+
+func TestRenderChoiceFeedbackInReviewInfiniteShowsEnterOnlyGuide(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
+	})
+	model.loading = false
+	model.runtime = session.NewRuntime(store.SessionRecord{
+		ID:             "session-1",
+		Mode:           store.ModeReviewInfinite,
+		AnswerMode:     store.AnswerModeChoice,
+		TotalQuestions: 2,
+		Status:         store.SessionStatusActive,
+	}, []store.SessionItem{{SessionID: "session-1", Ordinal: 1, WordID: 1, Kind: store.ItemKindReview}})
+	model.screen = ScreenFeedback
+	model.feedback = sampleChoiceFeedback()
+
+	feedbackView := model.renderFeedback()
+	if !strings.Contains(feedbackView, model.renderInlineGuides(
+		keymap.ContextFeedbackWrite,
+		keymap.ActionConfirm,
+		keymap.ActionSpeak,
+		keymap.ActionToggleAutoplay,
+	)) {
+		t.Fatalf("renderFeedback() missing enter-only confirm guide:\n%s", feedbackView)
+	}
+	for _, unwanted := range []string{
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionAgain)),
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionHard)),
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionGood)),
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionEasy)),
+	} {
+		if strings.Contains(feedbackView, unwanted) {
+			t.Fatalf("renderFeedback() unexpectedly contains %q:\n%s", unwanted, feedbackView)
+		}
+	}
+
+	helpView := model.openHelp().renderHelp()
+	for _, want := range []string{
+		helpLine(model.binding(keymap.ContextFeedbackWrite, keymap.ActionConfirm)),
+		helpLine(model.binding(keymap.ContextFeedbackWrite, keymap.ActionSpeak)),
+		helpLine(model.binding(keymap.ContextFeedbackWrite, keymap.ActionToggleAutoplay)),
+	} {
+		if !strings.Contains(helpView, want) {
+			t.Fatalf("renderHelp() missing %q:\n%s", want, helpView)
+		}
+	}
+	for _, unwanted := range []string{
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionAgain)),
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionHard)),
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionGood)),
+		helpLine(model.binding(keymap.ContextFeedbackRate, keymap.ActionEasy)),
+	} {
+		if strings.Contains(helpView, unwanted) {
+			t.Fatalf("renderHelp() unexpectedly contains %q:\n%s", unwanted, helpView)
+		}
+	}
+}
+
+func TestRenderChoiceFeedbackInReviewInfiniteFitsCompactThreshold(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.width = compactWidthStandard
+	model.runtime = session.NewRuntime(store.SessionRecord{
+		ID:             "session-1",
+		Mode:           store.ModeReviewInfinite,
+		AnswerMode:     store.AnswerModeChoice,
+		TotalQuestions: 2,
+		Status:         store.SessionStatusActive,
+	}, []store.SessionItem{{SessionID: "session-1", Ordinal: 1, WordID: 1, Kind: store.ItemKindReview}})
+	model.screen = ScreenFeedback
+	model.feedback = sampleChoiceFeedback()
+
+	got := model.View().Content
+	if strings.Contains(got, i18n.T(i18n.NarrowWidthTitle)) {
+		t.Fatalf("View() unexpectedly used narrow fallback for enter-only review feedback:\n%s", got)
+	}
+	if !strings.Contains(got, i18n.T(i18n.FbCorrectAnswer)) {
+		t.Fatalf("View() missing feedback content at compact threshold:\n%s", got)
 	}
 }
 
@@ -809,6 +917,40 @@ func TestRenderHomeWithConfirmOverlayUsesScreenSwitch(t *testing.T) {
 	}
 	if strings.Contains(got, i18n.T(i18n.HomeSubtitle)) {
 		t.Fatalf("renderHomeWithConfirmOverlay() should not include home background when confirmation is open:\n%s", got)
+	}
+}
+
+func TestRenderHomeWithReviewFallbackConfirmOverlayWithoutActiveSession(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.homeConfirm = &homeConfirmState{
+		Kind: homeConfirmReviewFallback,
+		Request: sessionRequest{
+			Mode:                store.ModeReview,
+			AnswerMode:          store.AnswerModeWrite,
+			AllowReviewFallback: true,
+		},
+		StartStatus: i18n.StatusStartingReview,
+	}
+
+	got := model.renderHomeWithConfirmOverlay()
+	for _, want := range []string{
+		i18n.T(i18n.HomeReviewFallbackTitle),
+		i18n.T(i18n.HomeReviewFallbackBody),
+		i18n.T(i18n.HomeConfirmTarget),
+		i18n.T(i18n.StartModeReview),
+		i18n.T(i18n.AnswerModeWrite),
+		i18n.T(i18n.HomeReviewFallbackPool),
+		model.renderInlineGuides(keymap.ContextHomeConfirm, keymap.ActionConfirm, keymap.ActionBack),
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderHomeWithConfirmOverlay() missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, i18n.T(i18n.HomeConfirmCurrent)) {
+		t.Fatalf("renderHomeWithConfirmOverlay() unexpectedly shows current session without active session:\n%s", got)
 	}
 }
 

@@ -204,6 +204,29 @@ WHERE 1 = 1
 	return scanWords(rows)
 }
 
+func (s *Store) ListReviewedWordsRandom(ctx context.Context, limit int) ([]Word, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT w.id, w.lemma, w.pos, w.meaning_ja, w.level, w.frequency_rank,
+       w.distractor_group, w.example_en, w.example_ja, w.source, w.created_at
+FROM words w
+WHERE EXISTS (
+	SELECT 1
+	FROM reviews r
+	WHERE r.word_id = w.id
+)
+ORDER BY RANDOM()
+LIMIT ?
+`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query reviewed words: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	return scanWords(rows)
+}
+
 func (s *Store) GetWord(ctx context.Context, wordID int64) (Word, error) {
 	row := s.db.QueryRowContext(ctx, `
 SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
@@ -308,6 +331,18 @@ WHERE status = ?
 `, SessionStatusAbandoned, formatTime(time.Now().UTC()), SessionStatusActive)
 	if err != nil {
 		return fmt.Errorf("abandon active session: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) AbandonInfiniteReviewSessions(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `
+UPDATE sessions
+SET status = ?, finished_at = ?
+WHERE status = ? AND mode = ?
+`, SessionStatusAbandoned, formatTime(time.Now().UTC()), SessionStatusActive, ModeReviewInfinite)
+	if err != nil {
+		return fmt.Errorf("abandon infinite review sessions: %w", err)
 	}
 	return nil
 }
@@ -466,23 +501,29 @@ func (s *Store) SaveAnswer(ctx context.Context, event ReviewEvent) (SessionRecor
 		return SessionRecord{}, nil, fmt.Errorf("begin save answer: %w", err)
 	}
 
-	progress, err := loadProgressTx(ctx, tx, event.WordID)
-	if err != nil {
-		_ = tx.Rollback()
-		return SessionRecord{}, nil, err
-	}
-	updatedProgress := srs.Update(progress, event.Rating, now)
-	if err := saveProgressTx(ctx, tx, event.WordID, updatedProgress); err != nil {
-		_ = tx.Rollback()
-		return SessionRecord{}, nil, err
+	if SessionUsesSRS(event.SessionMode) {
+		progress, err := loadProgressTx(ctx, tx, event.WordID)
+		if err != nil {
+			_ = tx.Rollback()
+			return SessionRecord{}, nil, err
+		}
+		updatedProgress := srs.Update(progress, event.Rating, now)
+		if err := saveProgressTx(ctx, tx, event.WordID, updatedProgress); err != nil {
+			_ = tx.Rollback()
+			return SessionRecord{}, nil, err
+		}
 	}
 
+	var ratingValue any
+	if SessionUsesSRS(event.SessionMode) && event.Rating != "" {
+		ratingValue = string(event.Rating)
+	}
 	reviewResult, err := tx.ExecContext(ctx, `
 INSERT INTO reviews (
 word_id, session_id, answered_at, answer_mode, selected_choice,
 correct_choice, is_correct, response_ms, rating
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-`, event.WordID, event.SessionID, formatTime(now), NormalizeAnswerMode(event.AnswerMode), event.SelectedChoice, event.CorrectChoice, boolToInt(event.IsCorrect), event.ResponseMS, string(event.Rating))
+`, event.WordID, event.SessionID, formatTime(now), NormalizeAnswerMode(event.AnswerMode), event.SelectedChoice, event.CorrectChoice, boolToInt(event.IsCorrect), event.ResponseMS, ratingValue)
 	if err != nil {
 		_ = tx.Rollback()
 		return SessionRecord{}, nil, fmt.Errorf("insert review: %w", err)

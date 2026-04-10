@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `eitango review [choice|write]` は due が 0 件のとき、確認後に過去に出題済み語だけを使う reviewed-only ランダム復習へ入れるようになりました。
+- reviewed-only fallback 復習では SRS の interval / due を更新せず、choice / write とも feedback は `Enter` で次へ進むだけの練習フローになりました。
+
+### Fixed
+
+- reviewed-only fallback セッションは通常 review と別ラベルで表示されるようになり、ホーム画面や確認オーバーレイで区別が失われないようにしました。
+- reviewed-only fallback の choice feedback で、ヘルプ文言と狭幅レイアウト判定を Enter-only フローに合わせて修正しました。
+- 中断された reviewed-only fallback セッションは再開せず破棄するようにし、通常の SRS review として誤って復元されないようにしました。
+
 ## [0.6.1] - 2026-04-09
 
 ### Changed

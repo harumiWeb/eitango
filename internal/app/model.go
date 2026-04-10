@@ -55,6 +55,12 @@ type sessionLoadedMsg struct {
 	Question quiz.Question
 }
 
+type reviewFallbackPromptMsg struct {
+	Request sessionRequest
+}
+
+type quitAfterCleanupMsg struct{}
+
 type answerSavedMsg struct {
 	Runtime      *session.Runtime
 	NextQuestion *quiz.Question
@@ -107,7 +113,15 @@ type Options struct {
 	SpeakerFactory func(audio.Config) audio.Speaker
 }
 
+type homeConfirmKind int
+
+const (
+	homeConfirmDiscard homeConfirmKind = iota
+	homeConfirmReviewFallback
+)
+
 type homeConfirmState struct {
+	Kind        homeConfirmKind
 	Request     sessionRequest
 	StartStatus string
 }
@@ -250,6 +264,7 @@ func (m RootModel) sessionRequest(mode string, replaceActive bool) sessionReques
 		Mode:                mode,
 		AnswerMode:          m.selectedAnswerMode,
 		WriteModeDifficulty: m.settings.WriteModeDifficulty,
+		AllowReviewFallback: false,
 		ReplaceActive:       replaceActive,
 		Plan:                m.planOptions,
 	}
@@ -284,11 +299,23 @@ func (m RootModel) closeSettingsOverlay() RootModel {
 
 func (m RootModel) openHomeConfirm(request sessionRequest, startStatus string) RootModel {
 	m.homeConfirm = &homeConfirmState{
+		Kind:        homeConfirmDiscard,
 		Request:     request,
 		StartStatus: startStatus,
 	}
 	m.err = nil
 	m.status = i18n.T(i18n.StatusConfirmDiscard)
+	return m
+}
+
+func (m RootModel) openReviewFallbackConfirm(request sessionRequest) RootModel {
+	m.homeConfirm = &homeConfirmState{
+		Kind:        homeConfirmReviewFallback,
+		Request:     request,
+		StartStatus: i18n.StatusStartingReview,
+	}
+	m.err = nil
+	m.status = i18n.T(i18n.StatusConfirmReviewFallback)
 	return m
 }
 

@@ -51,7 +51,10 @@ SRS での復習に加えて、選択式の `choice` と入力式の `write` の
 - ホーム設定から Key Bindings Editor を開き、キーバインドを保存して即時反映可能
 - macOS / Windows では `Ctrl+P` で現在の単語を発話し、`Shift+Tab` でセッション内の自動再生を切り替え可能
 - `eitango play [choice|write]` で通常学習セッションを開始
-- `eitango review [choice|write]` で due-only の復習セッションを開始
+- `eitango review [choice|write]` で復習セッションを開始
+  - due があれば通常の due-only 復習を開始
+  - due が 0 件でも、確認後に「過去に出題済み語だけのランダム復習」を開始可能
+  - reviewed-only fallback では SRS を更新せず、feedback は `Enter` で次へ進むだけ
 - `eitango stats` で学習統計を表示
 - `eitango version` で現在のビルド情報と最新 release を確認
 - `eitango doctor` で DB と辞書の read-only 診断を実行
@@ -313,7 +316,7 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 | -------------------------------------------------------------------------- | ------------------------------------------ |
 | `eitango version`                                                          | 現在の build info と latest release を表示 |
 | `eitango play [choice write] [--focus-mode] [--questions N]`               | 通常学習セッションを開始                   |
-| `eitango review [choice write] [--focus-mode] [--questions N] [--restart]` | due-only 復習を開始                        |
+| `eitango review [choice write] [--focus-mode] [--questions N] [--restart]` | 復習を開始。due が 0 件なら SRS 非反映の reviewed-only ランダム復習へ入れる |
 | `eitango stats`                                                            | 統計を表示                                 |
 | `eitango --license`                                                        | 同梱ライセンスと notice を表示             |
 | `eitango doctor`                                                           | DB / 辞書の診断                            |

@@ -725,7 +725,7 @@ WHERE session_id = ?
 			return diagnosticCheckError("active sessions", fmt.Sprintf("session %s could not be inspected", session.id), err.Error())
 		}
 
-		if session.mode != ModeLearn && session.mode != ModeReview {
+		if session.mode != ModeLearn && session.mode != ModeReview && session.mode != ModeReviewInfinite {
 			issues = append(issues, fmt.Sprintf("session %s has unsupported mode %q", session.id, session.mode))
 		}
 		if NormalizeAnswerMode(session.answerMode) != session.answerMode {

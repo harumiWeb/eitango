@@ -116,6 +116,54 @@
 
 ---
 
+# 2026-04-10 issue #44: 復習モードの reviewed-only fallback
+
+## Goal
+
+- due の復習予定が 0 件でも、過去に出題済みの語だけを使って復習モードを続けられるようにする。
+- due-only の通常復習と、due が尽きたときの reviewed-only fallback を UI 上で明示的に切り替える。
+
+## Scope
+
+- review session 開始時の候補選定
+- ホーム / startup review 開始時の確認 overlay
+- locale / README の review 説明
+- store / app の回帰テスト
+
+## Non-Goals
+
+- due が残っている session の途中で、同一 session 内に reviewed-only 問題を差し込むこと
+- SRS の interval / due 計算変更
+- DB schema / migration 追加
+
+## Required Behavior
+
+- review 開始時は、まず従来どおり due 語のみを優先する。
+- due 語が 0 件で、かつ review 履歴が 1 件以上ある語が存在する場合は、即エラーにせず reviewed-only fallback 確認を返す。
+- reviewed-only fallback の確認文言は「過去に出題済み語だけをランダム出題する」ことを明示する。
+- fallback を承認した review session は、`reviews` に履歴のある語だけを `ORDER BY RANDOM()` で抽出し、`QuestionCount` 上限まで出題する。
+- fallback session の item kind は通常 review と同じ `review` のままにする。
+- fallback session は内部的に通常 review と別 mode として保持し、active session 再開時も「reviewed-only practice」であることを失わない。
+- fallback session の回答は `progress` / `due_at` / interval など SRS 状態を更新しない。
+- fallback session の回答結果は review row と統計には残してよいが、choice の feedback では 4 段階評価を出さず `Enter` だけで次へ進む。
+- fallback session の write feedback も rating を保存せず、`Enter` だけで次へ進む。
+- review 履歴が 0 件のときだけ、従来どおり `no words available for this session` を返す。
+- startup の `eitango review [choice|write]` 経路でも、同じ fallback 確認 overlay を使う。
+- active session を置き換える review 開始要求でも、fallback 確認を出した時点では active session をまだ abandon しない。
+
+## Acceptance
+
+- `go test ./internal/app ./internal/store ./cmd/eitango` が通る。
+- due 語が 0 件かつ review 履歴ありのとき、review 開始コマンドが fallback 確認 message を返す回帰がある。
+- fallback 承認後の review session が reviewed-only のランダム出題になる回帰がある。
+- fallback session の回答で SRS progress が変化しない回帰がある。
+- fallback session の choice feedback で rating key が消え、`Enter` だけで次へ進む回帰がある。
+- fallback 確認をキャンセルしたとき、active session がある場合はそれが維持される回帰がある。
+- due 語も review 履歴も 0 件のときは、従来どおりエラーになる回帰がある。
+- README / README.en の review 説明が fallback 挙動に追従する。
+
+---
+
 # 2026-03-29 ドキュメント再編仕様
 
 ## Goal

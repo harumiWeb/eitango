@@ -263,6 +263,233 @@ func TestUpdateHomeReviewWithActiveSessionConfirmsThenStartsReview(t *testing.T)
 	}
 }
 
+func TestUpdateHomeReviewWithoutDueOpensFallbackConfirm(t *testing.T) {
+	t.Parallel()
+
+	st := newTestStore(t)
+	recordReviewInMode(t, st, mustWordIDByIndex(t, st, 0), store.AnswerModeChoice, time.Now().UTC())
+
+	model := NewModel(st, Options{})
+	model.loading = false
+
+	next, cmd := model.Update(tea.KeyPressMsg{Text: "r", Code: 'r'})
+	starting := next.(RootModel)
+	if !starting.loading {
+		t.Fatal("loading = false, want true")
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want review session command")
+	}
+
+	next, cmd = starting.Update(cmd())
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.loading {
+		t.Fatal("loading = true, want false after prompt")
+	}
+	if updated.homeConfirm == nil {
+		t.Fatal("homeConfirm = nil, want review fallback confirmation")
+	}
+	if updated.homeConfirm.Kind != homeConfirmReviewFallback {
+		t.Fatalf("homeConfirm.Kind = %v, want review fallback", updated.homeConfirm.Kind)
+	}
+	if updated.status != i18n.T(i18n.StatusConfirmReviewFallback) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusConfirmReviewFallback))
+	}
+}
+
+func TestUpdateHomeReviewFallbackConfirmStartsReviewedOnlySession(t *testing.T) {
+	t.Parallel()
+
+	st := newTestStore(t)
+	first := mustWordIDByIndex(t, st, 0)
+	second := mustWordIDByIndex(t, st, 1)
+	recordReviewInMode(t, st, first, store.AnswerModeChoice, time.Now().UTC())
+	recordReviewInMode(t, st, second, store.AnswerModeWrite, time.Now().UTC().Add(1*time.Minute))
+
+	model := NewModel(st, Options{})
+	model.loading = false
+
+	starting, cmd := model.Update(tea.KeyPressMsg{Text: "r", Code: 'r'})
+	pending, _ := starting.(RootModel).Update(cmd())
+
+	next, cmd := pending.(RootModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated := next.(RootModel)
+	if !updated.loading {
+		t.Fatal("loading = false, want true")
+	}
+	if updated.status != i18n.T(i18n.StatusStartingReview) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusStartingReview))
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want review session command")
+	}
+
+	loaded := mustSessionLoadedMsg(t, cmd())
+	if loaded.Runtime.Session.Mode != store.ModeReviewInfinite {
+		t.Fatalf("session mode = %q, want %q", loaded.Runtime.Session.Mode, store.ModeReviewInfinite)
+	}
+	if len(loaded.Runtime.Items) != 2 {
+		t.Fatalf("len(items) = %d, want 2", len(loaded.Runtime.Items))
+	}
+}
+
+func TestUpdateChoiceFeedbackInReviewInfiniteUsesEnterOnly(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.runtime = session.NewRuntime(store.SessionRecord{
+		ID:             "session-1",
+		Mode:           store.ModeReviewInfinite,
+		AnswerMode:     store.AnswerModeChoice,
+		TotalQuestions: 2,
+		Status:         store.SessionStatusActive,
+	}, []store.SessionItem{{SessionID: "session-1", Ordinal: 1, WordID: 1, Kind: store.ItemKindReview}})
+	model.screen = ScreenFeedback
+	model.feedback = &quiz.Feedback{
+		Question: quiz.Question{
+			AnswerMode:   store.AnswerModeChoice,
+			Word:         store.Word{Lemma: "begin"},
+			Choices:      []quiz.Choice{{Meaning: "始める"}, {Meaning: "終える"}},
+			CorrectIndex: 0,
+		},
+		SelectedIndex: 1,
+		Correct:       false,
+	}
+
+	next, cmd := model.Update(tea.KeyPressMsg{Text: "g", Code: 'g'})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.loading {
+		t.Fatal("loading = true, want false")
+	}
+
+	next, cmd = updated.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated = next.(RootModel)
+	if !updated.loading {
+		t.Fatal("loading = false, want true")
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want submit command")
+	}
+}
+
+func TestUpdateHomeReviewFallbackCancelKeepsActiveSession(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	active := mustCreateActiveSession(t, st, store.ModeLearn, store.AnswerModeChoice)
+	recordReviewInMode(t, st, mustWordIDByIndex(t, st, 1), store.AnswerModeChoice, time.Now().UTC())
+
+	model := NewModel(st, Options{})
+	model.loading = false
+	model.home.ActiveSession = &active
+
+	opened, _ := model.Update(tea.KeyPressMsg{Text: "r", Code: 'r'})
+	discardPending := opened.(RootModel)
+
+	starting, cmd := discardPending.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("cmd = nil, want review session command")
+	}
+	prompted, _ := starting.(RootModel).Update(cmd())
+
+	next, cmd := prompted.(RootModel).Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.homeConfirm != nil {
+		t.Fatalf("homeConfirm = %+v, want nil after cancel", updated.homeConfirm)
+	}
+
+	record, err := st.LoadSession(ctx, active.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if record.Status != store.SessionStatusActive {
+		t.Fatalf("record status = %q, want %q", record.Status, store.SessionStatusActive)
+	}
+}
+
+func TestUpdateHelpQuitFromChoiceReviewInfiniteFeedbackShowsPracticeContinueStatus(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model.runtime = session.NewRuntime(store.SessionRecord{
+		ID:             "session-1",
+		Mode:           store.ModeReviewInfinite,
+		AnswerMode:     store.AnswerModeChoice,
+		TotalQuestions: 1,
+		Status:         store.SessionStatusActive,
+	}, []store.SessionItem{{SessionID: "session-1", Ordinal: 1, WordID: 1, Kind: store.ItemKindReview}})
+	model.screen = ScreenHelp
+	model.helpReturn = ScreenFeedback
+	model.feedback = &quiz.Feedback{
+		Question: quiz.Question{
+			AnswerMode:   store.AnswerModeChoice,
+			Word:         store.Word{Lemma: "begin"},
+			Choices:      []quiz.Choice{{Meaning: "始める"}},
+			CorrectIndex: 0,
+		},
+	}
+
+	next, cmd := model.Update(tea.KeyPressMsg{Text: "q", Code: 'q'})
+	updated := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if updated.status != i18n.T(i18n.StatusReviewPracticeContinue) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusReviewPracticeContinue))
+	}
+}
+
+func TestUpdateQuitInInfiniteReviewAbandonsSession(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	record, _, err := st.CreateSession(ctx, store.ModeReviewInfinite, store.AnswerModeChoice, []store.SessionItemPlan{
+		{WordID: mustWordIDByIndex(t, st, 0), Kind: store.ItemKindReview},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+
+	model := NewModel(st, Options{})
+	model.loading = false
+	model.runtime = session.NewRuntime(record, []store.SessionItem{{SessionID: record.ID, Ordinal: 1, WordID: mustWordIDByIndex(t, st, 0), Kind: store.ItemKindReview}})
+	model.screen = ScreenQuiz
+	model.currentQ = &quiz.Question{
+		AnswerMode:   store.AnswerModeChoice,
+		Word:         store.Word{Lemma: "begin"},
+		Choices:      []quiz.Choice{{Meaning: "始める"}},
+		CorrectIndex: 0,
+	}
+
+	next, cmd := model.Update(tea.KeyPressMsg{Text: "q", Code: 'q'})
+	_ = next.(RootModel)
+	if cmd == nil {
+		t.Fatal("cmd = nil, want quit command")
+	}
+	_ = cmd()
+
+	updatedRecord, err := st.LoadSession(ctx, record.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if updatedRecord.Status != store.SessionStatusAbandoned {
+		t.Fatalf("record status = %q, want %q", updatedRecord.Status, store.SessionStatusAbandoned)
+	}
+}
+
 func TestUpdateHomeNewSessionWithActiveSessionOpensDiscardOverlay(t *testing.T) {
 	t.Parallel()
 

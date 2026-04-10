@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	ModeLearn  = "learn"
-	ModeReview = "review"
+	ModeLearn          = "learn"
+	ModeReview         = "review"
+	ModeReviewInfinite = "review_infinite"
 )
 
 const (
@@ -86,6 +87,7 @@ type HomeSnapshot struct {
 
 type ReviewEvent struct {
 	SessionID      string
+	SessionMode    string
 	ItemOrdinal    int
 	WordID         int64
 	Kind           string
@@ -137,4 +139,16 @@ func NormalizeAnswerMode(mode string) string {
 	default:
 		return AnswerModeChoice
 	}
+}
+
+func IsReviewMode(mode string) bool {
+	return mode == ModeReview || mode == ModeReviewInfinite
+}
+
+func IsInfiniteReviewMode(mode string) bool {
+	return mode == ModeReviewInfinite
+}
+
+func SessionUsesSRS(mode string) bool {
+	return !IsInfiniteReviewMode(mode)
 }

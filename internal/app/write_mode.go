@@ -17,7 +17,10 @@ func answerModeLabel(mode string) string {
 }
 
 func sessionModeLabel(mode string) string {
-	if mode == store.ModeReview {
+	if store.IsInfiniteReviewMode(mode) {
+		return i18n.T(i18n.StartModeReviewPractice)
+	}
+	if store.IsReviewMode(mode) {
 		return i18n.T(i18n.StartModeReview)
 	}
 	return i18n.T(i18n.StartModeLearn)
