@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -204,6 +205,57 @@ WHERE 1 = 1
 	return scanWords(rows)
 }
 
+func (s *Store) ListReviewedWordsRandom(ctx context.Context, limit int) ([]Word, error) {
+	if limit <= 0 {
+		return []Word{}, nil
+	}
+
+	idRows, err := s.db.QueryContext(ctx, `
+SELECT DISTINCT r.word_id
+FROM reviews r
+WHERE r.word_id IS NOT NULL
+ORDER BY RANDOM()
+LIMIT ?
+`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query reviewed word ids: %w", err)
+	}
+	defer func() {
+		_ = idRows.Close()
+	}()
+
+	ids := make([]int64, 0, limit)
+	for idRows.Next() {
+		var id int64
+		if err := idRows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan reviewed word id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := idRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate reviewed word ids: %w", err)
+	}
+	if len(ids) == 0 {
+		return []Word{}, nil
+	}
+
+	ordered := make([]Word, 0, len(ids))
+	for _, id := range ids {
+		word, err := s.GetWord(ctx, id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			return nil, fmt.Errorf("load reviewed word %d: %w", id, err)
+		}
+		if word.ID == 0 {
+			continue
+		}
+		ordered = append(ordered, word)
+	}
+	return ordered, nil
+}
+
 func (s *Store) GetWord(ctx context.Context, wordID int64) (Word, error) {
 	row := s.db.QueryRowContext(ctx, `
 SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
@@ -308,6 +360,18 @@ WHERE status = ?
 `, SessionStatusAbandoned, formatTime(time.Now().UTC()), SessionStatusActive)
 	if err != nil {
 		return fmt.Errorf("abandon active session: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) AbandonInfiniteReviewSessions(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `
+UPDATE sessions
+SET status = ?, finished_at = ?
+WHERE status = ? AND mode = ?
+`, SessionStatusAbandoned, formatTime(time.Now().UTC()), SessionStatusActive, ModeReviewInfinite)
+	if err != nil {
+		return fmt.Errorf("abandon infinite review sessions: %w", err)
 	}
 	return nil
 }
@@ -466,23 +530,35 @@ func (s *Store) SaveAnswer(ctx context.Context, event ReviewEvent) (SessionRecor
 		return SessionRecord{}, nil, fmt.Errorf("begin save answer: %w", err)
 	}
 
-	progress, err := loadProgressTx(ctx, tx, event.WordID)
+	sessionMode, err := loadSessionModeTx(ctx, tx, event.SessionID)
 	if err != nil {
 		_ = tx.Rollback()
 		return SessionRecord{}, nil, err
 	}
-	updatedProgress := srs.Update(progress, event.Rating, now)
-	if err := saveProgressTx(ctx, tx, event.WordID, updatedProgress); err != nil {
-		_ = tx.Rollback()
-		return SessionRecord{}, nil, err
+
+	if SessionUsesSRS(sessionMode) {
+		progress, err := loadProgressTx(ctx, tx, event.WordID)
+		if err != nil {
+			_ = tx.Rollback()
+			return SessionRecord{}, nil, err
+		}
+		updatedProgress := srs.Update(progress, event.Rating, now)
+		if err := saveProgressTx(ctx, tx, event.WordID, updatedProgress); err != nil {
+			_ = tx.Rollback()
+			return SessionRecord{}, nil, err
+		}
 	}
 
+	var ratingValue any
+	if SessionUsesSRS(sessionMode) && event.Rating != "" {
+		ratingValue = string(event.Rating)
+	}
 	reviewResult, err := tx.ExecContext(ctx, `
 INSERT INTO reviews (
 word_id, session_id, answered_at, answer_mode, selected_choice,
 correct_choice, is_correct, response_ms, rating
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-`, event.WordID, event.SessionID, formatTime(now), NormalizeAnswerMode(event.AnswerMode), event.SelectedChoice, event.CorrectChoice, boolToInt(event.IsCorrect), event.ResponseMS, string(event.Rating))
+`, event.WordID, event.SessionID, formatTime(now), NormalizeAnswerMode(event.AnswerMode), event.SelectedChoice, event.CorrectChoice, boolToInt(event.IsCorrect), event.ResponseMS, ratingValue)
 	if err != nil {
 		_ = tx.Rollback()
 		return SessionRecord{}, nil, fmt.Errorf("insert review: %w", err)
@@ -883,6 +959,14 @@ func maxSessionOrdinalTx(ctx context.Context, tx *sql.Tx, sessionID string) (int
 		return 0, fmt.Errorf("max session ordinal: %w", err)
 	}
 	return ordinal, nil
+}
+
+func loadSessionModeTx(ctx context.Context, tx *sql.Tx, sessionID string) (string, error) {
+	var mode string
+	if err := tx.QueryRowContext(ctx, `SELECT mode FROM sessions WHERE id = ?`, sessionID).Scan(&mode); err != nil {
+		return "", fmt.Errorf("load session mode %s: %w", sessionID, err)
+	}
+	return mode, nil
 }
 
 func scanWords(rows *sql.Rows) ([]Word, error) {

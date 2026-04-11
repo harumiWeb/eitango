@@ -21,6 +21,7 @@ type sessionRequest struct {
 	Mode                string
 	AnswerMode          string
 	WriteModeDifficulty string
+	AllowReviewFallback bool
 	ReplaceActive       bool
 	Plan                session.PlanOptions
 }
@@ -28,6 +29,9 @@ type sessionRequest struct {
 func loadHomeCmd(st *store.Store) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
+		if err := st.AbandonInfiniteReviewSessions(ctx); err != nil {
+			return errMsg{err: err}
+		}
 		home, err := st.LoadHomeSnapshot(ctx)
 		if err != nil {
 			return errMsg{err: err}
@@ -72,6 +76,9 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 		options := request.Plan.Normalize()
 
 		if !request.ReplaceActive {
+			if err := st.AbandonInfiniteReviewSessions(ctx); err != nil {
+				return errMsg{err: err}
+			}
 			record, items, err := st.LoadActiveRuntime(ctx)
 			if err != nil {
 				return errMsg{err: err}
@@ -94,8 +101,24 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 		var itemsPlan []store.SessionItemPlan
 		switch mode {
 		case store.ModeReview:
-			plan := session.MakePlan(options, len(dueWords), 0, store.ModeReview)
-			itemsPlan = session.BuildSessionItems(dueWords[:plan.ReviewCount], nil)
+			reviewWords := dueWords
+			sessionMode := store.ModeReview
+			if len(reviewWords) == 0 {
+				reviewWords, err = st.ListReviewedWordsRandom(ctx, options.QuestionCount)
+				if err != nil {
+					return errMsg{err: err}
+				}
+				if len(reviewWords) > 0 && !request.AllowReviewFallback {
+					request.AllowReviewFallback = true
+					return reviewFallbackPromptMsg{Request: request}
+				}
+				if len(reviewWords) > 0 {
+					sessionMode = store.ModeReviewInfinite
+				}
+			}
+			plan := session.MakePlan(options, len(reviewWords), 0, store.ModeReview)
+			itemsPlan = session.BuildSessionItems(reviewWords[:plan.ReviewCount], nil)
+			mode = sessionMode
 		default:
 			dueIDs := make([]int64, 0, len(dueWords))
 			for _, word := range dueWords {
@@ -145,6 +168,18 @@ func sessionCmd(st *store.Store, svc *quiz.Service, request sessionRequest, rece
 			return sessionStartErrMsg(st, err, replacedActive)
 		}
 		return sessionLoadedMsg{Runtime: runtime, Question: question}
+	}
+}
+
+func abandonInfiniteReviewAndQuitCmd(st *store.Store) tea.Cmd {
+	return func() tea.Msg {
+		if st == nil {
+			return quitAfterCleanupMsg{}
+		}
+		if err := st.AbandonInfiniteReviewSessions(context.Background()); err != nil {
+			return errMsg{err: err}
+		}
+		return quitAfterCleanupMsg{}
 	}
 }
 

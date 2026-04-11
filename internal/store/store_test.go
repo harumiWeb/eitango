@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -155,6 +156,48 @@ func TestListWriteBasicCandidatesPrioritizeWriteUnseenAndExcludeDue(t *testing.T
 	}
 }
 
+func TestListReviewedWordsRandomReturnsDistinctReviewedWordsOnly(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+
+	if err := st.SeedWords(ctx, testEntries(), "test-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+
+	base := stableUTCNoon()
+	recordReviewInMode(t, st, words[0].ID, AnswerModeChoice, base.Add(1*time.Minute))
+	recordReviewInMode(t, st, words[0].ID, AnswerModeWrite, base.Add(2*time.Minute))
+	recordReviewInMode(t, st, words[2].ID, AnswerModeChoice, base.Add(3*time.Minute))
+
+	reviewed, err := st.ListReviewedWordsRandom(ctx, 10)
+	if err != nil {
+		t.Fatalf("ListReviewedWordsRandom() error = %v", err)
+	}
+	if len(reviewed) != 2 {
+		t.Fatalf("len(ListReviewedWordsRandom()) = %d, want 2", len(reviewed))
+	}
+
+	got := map[int64]struct{}{}
+	for _, word := range reviewed {
+		got[word.ID] = struct{}{}
+	}
+	for _, want := range []int64{words[0].ID, words[2].ID} {
+		if _, ok := got[want]; !ok {
+			t.Fatalf("reviewed ids = %+v, want %d to be present", got, want)
+		}
+	}
+	if _, ok := got[words[1].ID]; ok {
+		t.Fatalf("reviewed ids = %+v, want unseen word %d to be excluded", got, words[1].ID)
+	}
+}
+
 func TestCreateSessionPersistsAnswerMode(t *testing.T) {
 	t.Parallel()
 
@@ -233,6 +276,62 @@ func TestSaveAnswerPersistsReviewAnswerMode(t *testing.T) {
 	}
 	if answerMode != AnswerModeWrite {
 		t.Fatalf("review answer_mode = %q, want %q", answerMode, AnswerModeWrite)
+	}
+}
+
+func TestSaveAnswerReviewInfiniteDoesNotUpdateProgressOrRating(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+
+	if err := st.SeedWords(ctx, testEntries(), "test-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+	target := words[0]
+	base := stableUTCNoon()
+	recordReviewInMode(t, st, target.ID, AnswerModeChoice, base)
+	before := mustLoadProgress(t, st, target.ID)
+
+	record, _, err := st.CreateSession(ctx, ModeReviewInfinite, AnswerModeChoice, []SessionItemPlan{
+		{WordID: target.ID, Kind: ItemKindReview},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+
+	if _, _, err := st.SaveAnswer(ctx, ReviewEvent{
+		SessionID:      record.ID,
+		ItemOrdinal:    1,
+		WordID:         target.ID,
+		Kind:           ItemKindReview,
+		AnswerMode:     AnswerModeChoice,
+		SelectedChoice: 1,
+		CorrectChoice:  0,
+		IsCorrect:      false,
+		Rating:         srs.Again,
+		AnsweredAt:     base.Add(30 * time.Minute),
+		ResponseMS:     900,
+	}); err != nil {
+		t.Fatalf("SaveAnswer() error = %v", err)
+	}
+
+	after := mustLoadProgress(t, st, target.ID)
+	if !reflect.DeepEqual(after, before) {
+		t.Fatalf("progress changed in review infinite mode:\nbefore=%+v\nafter=%+v", before, after)
+	}
+
+	var rating any
+	if err := st.db.QueryRowContext(ctx, `SELECT rating FROM reviews WHERE session_id = ? LIMIT 1`, record.ID).Scan(&rating); err != nil {
+		t.Fatalf("load review rating: %v", err)
+	}
+	if rating != nil {
+		t.Fatalf("rating = %v, want nil for review infinite answer", rating)
 	}
 }
 

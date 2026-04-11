@@ -115,6 +115,12 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.recentDistracts = appendRecent(m.recentDistracts, msg.Question.DistractorIDs()...)
 		m.autoplayEnabled = m.settings.AudioAutoplay && m.speakerAvailable()
 		return m, m.autoplayCmd()
+	case reviewFallbackPromptMsg:
+		m.loading = false
+		m.err = nil
+		return m.openReviewFallbackConfirm(msg.Request), nil
+	case quitAfterCleanupMsg:
+		return m, tea.Quit
 	case answerSavedMsg:
 		m.runtime = msg.Runtime
 		if msg.Runtime != nil {
@@ -168,25 +174,25 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.screen == ScreenQuiz && m.currentQ != nil && m.currentQ.AnswerMode == store.AnswerModeWrite {
 			switch {
 			case m.keymap.Match(keymap.ContextQuizWrite, keymap.ActionWriteQuit, msg):
-				return m, tea.Quit
+				return m, m.quitCmd()
 			case m.keymap.Match(keymap.ContextQuizWrite, keymap.ActionQuit, msg):
-				return m, tea.Quit
+				return m, m.quitCmd()
 			}
 		} else {
 			switch {
 			case m.matchesQuit(msg):
 				switch m.screen {
 				case ScreenFeedback:
-					if m.feedback != nil && m.feedback.Question.AnswerMode == store.AnswerModeWrite {
-						m.status = i18n.T(i18n.StatusWriteContinue)
+					if m.feedbackUsesEnterOnly() {
+						m.status = m.feedbackContinueStatus()
 					} else {
 						m.status = i18n.T(i18n.StatusSelectRating)
 					}
 					return m, nil
 				case ScreenHelp:
 					if m.helpReturn == ScreenFeedback {
-						if m.isWriteFeedback() {
-							m.status = i18n.T(i18n.StatusWriteContinue)
+						if m.feedbackUsesEnterOnly() {
+							m.status = m.feedbackContinueStatus()
 						} else {
 							m.status = i18n.T(i18n.StatusEscThenRate)
 						}
@@ -195,7 +201,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					return m, nil
 				}
-				return m, tea.Quit
+				return m, m.quitCmd()
 			}
 		}
 
@@ -469,7 +475,7 @@ func (m RootModel) updateFeedback(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	var rating srs.Rating
-	if m.feedback.Question.AnswerMode == store.AnswerModeWrite {
+	if m.feedbackUsesEnterOnly() {
 		switch {
 		case m.keymap.Match(keymap.ContextFeedbackWrite, keymap.ActionConfirm, msg):
 			m.loading = true
@@ -538,6 +544,15 @@ func (m RootModel) showChoiceFeedback(index int) RootModel {
 	feedback := quiz.BuildFeedback(*m.currentQ, index, responseMS)
 	m.feedback = &feedback
 	m.screen = ScreenFeedback
+	if m.isInfiniteReviewRuntime() {
+		if feedback.Correct {
+			m.correctStreak++
+		} else {
+			m.correctStreak = 0
+		}
+		m.status = i18n.T(i18n.StatusReviewPracticeContinue)
+		return m
+	}
 	if feedback.Correct {
 		m.correctStreak++
 		m.status = i18n.T(i18n.StatusCorrect)
@@ -592,6 +607,15 @@ func (m RootModel) showWriteFeedback(skipped bool, forceIncorrect bool) RootMode
 	feedback := quiz.BuildWriteFeedback(*m.currentQ, m.writeInput, m.writeHintCount, skipped, forceIncorrect, responseMS)
 	m.feedback = &feedback
 	m.screen = ScreenFeedback
+	if m.isInfiniteReviewRuntime() {
+		if feedback.Correct {
+			m.correctStreak++
+		} else {
+			m.correctStreak = 0
+		}
+		m.status = i18n.T(i18n.StatusReviewPracticeContinue)
+		return m
+	}
 	if feedback.Correct {
 		m.correctStreak++
 		m.status = i18n.T(i18n.StatusCorrect)
@@ -976,10 +1000,21 @@ func (m RootModel) quizContext() keymap.Context {
 }
 
 func (m RootModel) feedbackContext() keymap.Context {
-	if m.isWriteFeedback() {
+	if m.feedbackUsesEnterOnly() {
 		return keymap.ContextFeedbackWrite
 	}
 	return keymap.ContextFeedbackRate
+}
+
+func (m RootModel) isInfiniteReviewRuntime() bool {
+	return m.runtime != nil && store.IsInfiniteReviewMode(m.runtime.Session.Mode)
+}
+
+func (m RootModel) feedbackUsesEnterOnly() bool {
+	if m.feedback == nil {
+		return false
+	}
+	return m.feedback.Question.AnswerMode == store.AnswerModeWrite || m.isInfiniteReviewRuntime()
 }
 
 func (m RootModel) matchesQuit(msg tea.KeyPressMsg) bool {
@@ -999,4 +1034,18 @@ func (m RootModel) matchesQuit(msg tea.KeyPressMsg) bool {
 	default:
 		return false
 	}
+}
+
+func (m RootModel) quitCmd() tea.Cmd {
+	if m.isInfiniteReviewRuntime() {
+		return abandonInfiniteReviewAndQuitCmd(m.store)
+	}
+	return tea.Quit
+}
+
+func (m RootModel) feedbackContinueStatus() string {
+	if m.isInfiniteReviewRuntime() {
+		return i18n.T(i18n.StatusReviewPracticeContinue)
+	}
+	return i18n.T(i18n.StatusWriteContinue)
 }

@@ -128,6 +128,138 @@ func TestSessionCmdReviewStartsDueOnlySession(t *testing.T) {
 	}
 }
 
+func TestSessionCmdReviewWithoutDueReturnsFallbackPromptWhenReviewedWordsExist(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	wordID := mustWordIDByIndex(t, st, 0)
+	recordReviewInMode(t, st, wordID, store.AnswerModeChoice, time.Now().UTC())
+
+	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
+		Mode: store.ModeReview,
+		Plan: session.PlanOptions{QuestionCount: 3, ReviewRatio: 0.2},
+	}, nil)()
+
+	prompt := mustReviewFallbackPromptMsg(t, msg)
+	if prompt.Request.Mode != store.ModeReview {
+		t.Fatalf("prompt mode = %q, want %q", prompt.Request.Mode, store.ModeReview)
+	}
+	if !prompt.Request.AllowReviewFallback {
+		t.Fatal("AllowReviewFallback = false, want true")
+	}
+
+	active, items, err := st.LoadActiveRuntime(ctx)
+	if err != nil {
+		t.Fatalf("LoadActiveRuntime() error = %v", err)
+	}
+	if active != nil || len(items) != 0 {
+		t.Fatalf("active runtime = %+v / %+v, want none before confirmation", active, items)
+	}
+}
+
+func TestSessionCmdReviewFallbackStartsReviewedOnlySession(t *testing.T) {
+	t.Parallel()
+
+	st := newTestStore(t)
+	first := mustWordIDByIndex(t, st, 0)
+	second := mustWordIDByIndex(t, st, 1)
+	recordReviewInMode(t, st, first, store.AnswerModeChoice, time.Now().UTC())
+	recordReviewInMode(t, st, second, store.AnswerModeWrite, time.Now().UTC().Add(1*time.Minute))
+
+	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
+		Mode:                store.ModeReview,
+		AnswerMode:          store.AnswerModeWrite,
+		AllowReviewFallback: true,
+		Plan:                session.PlanOptions{QuestionCount: 5, ReviewRatio: 0.2},
+	}, nil)()
+	loaded := mustSessionLoadedMsg(t, msg)
+
+	if loaded.Runtime.Session.Mode != store.ModeReviewInfinite {
+		t.Fatalf("session mode = %q, want %q", loaded.Runtime.Session.Mode, store.ModeReviewInfinite)
+	}
+	if loaded.Runtime.Session.AnswerMode != store.AnswerModeWrite {
+		t.Fatalf("session answer mode = %q, want %q", loaded.Runtime.Session.AnswerMode, store.AnswerModeWrite)
+	}
+	if got := loaded.Runtime.Total(); got != 2 {
+		t.Fatalf("Total() = %d, want 2 reviewed words", got)
+	}
+
+	gotIDs := map[int64]struct{}{}
+	for _, item := range loaded.Runtime.Items {
+		if item.Kind != store.ItemKindReview {
+			t.Fatalf("item kind = %q, want %q", item.Kind, store.ItemKindReview)
+		}
+		gotIDs[item.WordID] = struct{}{}
+	}
+	for _, want := range []int64{first, second} {
+		if _, ok := gotIDs[want]; !ok {
+			t.Fatalf("runtime word ids = %+v, want %d", gotIDs, want)
+		}
+	}
+}
+
+func TestSessionCmdReplaceActiveReviewFallbackPromptKeepsExistingActiveSession(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	activeRecord, _, err := st.CreateSession(ctx, store.ModeLearn, store.AnswerModeChoice, []store.SessionItemPlan{
+		{WordID: mustWordIDByIndex(t, st, 0), Kind: store.ItemKindNew},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	recordReviewInMode(t, st, mustWordIDByIndex(t, st, 1), store.AnswerModeChoice, time.Now().UTC())
+
+	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
+		Mode:          store.ModeReview,
+		ReplaceActive: true,
+		Plan:          session.PlanOptions{QuestionCount: 3, ReviewRatio: 0.2},
+	}, nil)()
+	_ = mustReviewFallbackPromptMsg(t, msg)
+
+	record, err := st.LoadSession(ctx, activeRecord.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if record.Status != store.SessionStatusActive {
+		t.Fatalf("record status = %q, want %q", record.Status, store.SessionStatusActive)
+	}
+}
+
+func TestSessionCmdDoesNotResumeAbandonedInfiniteReviewSession(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	wordID := mustWordIDByIndex(t, st, 0)
+	activeRecord, _, err := st.CreateSession(ctx, store.ModeReviewInfinite, store.AnswerModeChoice, []store.SessionItemPlan{
+		{WordID: wordID, Kind: store.ItemKindReview},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+
+	msg := sessionCmd(st, quiz.NewService(st), sessionRequest{
+		Mode: store.ModeLearn,
+		Plan: session.PlanOptions{QuestionCount: 1, ReviewRatio: 0},
+	}, nil)()
+	loaded := mustSessionLoadedMsg(t, msg)
+
+	if loaded.Runtime.Session.ID == activeRecord.ID {
+		t.Fatalf("session id = %q, want stale infinite review to be discarded", loaded.Runtime.Session.ID)
+	}
+
+	record, err := st.LoadSession(ctx, activeRecord.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if record.Status != store.SessionStatusAbandoned {
+		t.Fatalf("record status = %q, want %q", record.Status, store.SessionStatusAbandoned)
+	}
+}
+
 func TestSessionCmdLearnUsesPlanOptions(t *testing.T) {
 	t.Parallel()
 
@@ -620,6 +752,20 @@ func mustErrMsg(t *testing.T, msg any) error {
 		t.Fatalf("unexpected msg type %T", msg)
 	}
 	return nil
+}
+
+func mustReviewFallbackPromptMsg(t *testing.T, msg any) reviewFallbackPromptMsg {
+	t.Helper()
+
+	switch typed := msg.(type) {
+	case reviewFallbackPromptMsg:
+		return typed
+	case errMsg:
+		t.Fatalf("sessionCmd() error = %v", typed.err)
+	default:
+		t.Fatalf("unexpected msg type %T", msg)
+	}
+	return reviewFallbackPromptMsg{}
 }
 
 func mustWordIDByIndex(t *testing.T, st *store.Store, index int) int64 {

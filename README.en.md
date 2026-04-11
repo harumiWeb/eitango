@@ -51,7 +51,10 @@ The embedded vocabulary currently contains about **5200** words, and external di
 - the home settings screen can open a Key Bindings Editor and apply changes immediately
 - on macOS / Windows, `Ctrl+P` plays the current word and `Shift+Tab` toggles session-local autoplay
 - `eitango play [choice|write]` starts a standard learning session
-- `eitango review [choice|write]` starts a due-only review session
+- `eitango review [choice|write]` starts a review session
+  - due cards start the normal due-only review flow
+  - when due is 0, you can confirm a random reviewed-only fallback session
+  - the reviewed-only fallback does not update SRS and uses Enter-only feedback
 - `eitango stats` shows learning statistics
 - `eitango version` shows the current build info and the latest release
 - `eitango doctor` runs read-only diagnostics on the DB and dictionary
@@ -311,7 +314,7 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 | --- | --- |
 | `eitango version` | Show the current build info and the latest release |
 | `eitango play [choice write] [--focus-mode] [--questions N]` | Start a standard learning session |
-| `eitango review [choice write] [--focus-mode] [--questions N] [--restart]` | Start a due-only review session |
+| `eitango review [choice write] [--focus-mode] [--questions N] [--restart]` | Start a review session; when due is 0, you can enter an SRS-free reviewed-only random fallback |
 | `eitango stats` | Show learning statistics |
 | `eitango --license` | Print bundled licenses and notices |
 | `eitango doctor` | Run DB / dictionary diagnostics |

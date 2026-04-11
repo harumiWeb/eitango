@@ -46,6 +46,20 @@
 - [x] review 指摘に合わせて `play/review` が typo 引数を黙って受け付けないようにする
 - [x] locale format string の回帰テストを実際の引数数・出力まで検証する
 
+## 2026-04-10 issue #44: reviewed-only fallback review
+
+- [x] `tasks/feature_spec.md` に due 0 件時の review fallback 仕様を追加する
+- [x] store に review 済み語の random 候補取得を追加する
+- [x] `sessionCmd` に due 0 件時の fallback 確認 message を追加する
+- [x] home / startup review 開始時に fallback 確認 overlay を出せるようにする
+- [x] locale / README / README.en の review 説明を更新する
+- [x] `internal/app` / `internal/store` の回帰テストを追加して通す
+- [x] reviewed-only fallback session を通常 review と別 mode で保持する
+- [x] reviewed-only fallback 回答で SRS progress を更新しない
+- [x] reviewed-only fallback の choice feedback から 4 段階評価を外し Enter-only にする
+- [x] reviewed-only fallback の write feedback でも rating 保存を行わない
+- [x] fallback practice の UI/README と回帰テストを追従させる
+
 ## 2026-04-02 issue #14: Write モード難易度緩和
 
 - [x] `config.toml` に `write_mode_difficulty` (`basic` / `hard`) を追加する
