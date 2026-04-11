@@ -14,12 +14,26 @@ import (
 	"github.com/harumiWeb/eitango/internal/store"
 )
 
+type loadingTickMsg struct{}
+
+func loadingTickCmd() tea.Cmd {
+	return tea.Tick(100*time.Millisecond, func(time.Time) tea.Msg {
+		return loadingTickMsg{}
+	})
+}
+
 func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		return m, nil
+	case loadingTickMsg:
+		if !m.settingsLoading {
+			return m, nil
+		}
+		m.loadingFrame = (m.loadingFrame + 1) % len(loadingSpinnerFrames)
+		return m, loadingTickCmd()
 	case homeLoadedMsg:
 		m.home = msg.Home
 		m.homeConfirm = nil
@@ -72,6 +86,9 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = i18n.T(i18n.StatusSettingsSaved)
 		}
+		return m, nil
+	case settingsOverlayLoadedMsg:
+		m = m.applySettingsOverlayLoad(msg.voices, msg.voicesLoaded, msg.audioVoice, msg.audioAvailable)
 		return m, nil
 	case keymapSavedMsg:
 		updated, err := m.applySettings(msg.Settings)
@@ -251,7 +268,8 @@ func (m RootModel) updateHome(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.status = i18n.T(i18n.StatusLoadingStats)
 		return m, loadStatsCmd(m.store)
 	case m.keymap.Match(keymap.ContextHome, keymap.ActionSettings, msg):
-		return m.openSettingsOverlay(), nil
+		m = m.startSettingsOverlayLoad()
+		return m, tea.Batch(m.loadSettingsOverlayCmd(), loadingTickCmd())
 	case m.keymap.Match(keymap.ContextHome, keymap.ActionReview, msg):
 		if m.home.ActiveSession != nil {
 			return m.openHomeConfirm(m.sessionRequest(store.ModeReview, true), i18n.StatusStartingReview), nil

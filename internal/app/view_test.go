@@ -1052,6 +1052,36 @@ func TestRenderStatusLineUsesErrorPrefix(t *testing.T) {
 	}
 }
 
+func TestRenderStatusLineShowsSpinnerWhileSettingsLoading(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = true
+	model.settingsOpen = true
+	model.settingsLoading = true
+	model.loadingFrame = 1
+	model.status = i18n.T(i18n.StatusLoading)
+
+	got := ansi.Strip(model.renderStatusLine())
+	want := loadingSpinnerFrames[1] + " status: " + i18n.T(i18n.StatusLoading)
+	if !strings.Contains(got, want) {
+		t.Fatalf("renderStatusLine() = %q, want spinner prefix %q", got, want)
+	}
+}
+
+func TestRenderLoadingFooterHidesDuringSettingsLoading(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = true
+	model.settingsOpen = true
+	model.settingsLoading = true
+
+	if got := model.renderLoadingFooter(); got != "" {
+		t.Fatalf("renderLoadingFooter() = %q, want empty string while settings spinner is visible", got)
+	}
+}
+
 func TestViewShowsNarrowWidthFallbackByScreen(t *testing.T) {
 	t.Parallel()
 

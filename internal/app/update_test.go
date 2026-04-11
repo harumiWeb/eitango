@@ -64,16 +64,65 @@ func TestUpdateHomeSettingsOpensOverlay(t *testing.T) {
 	model := NewModel(nil, Options{})
 	model.loading = false
 
-	next, _ := model.Update(tea.KeyPressMsg{Text: "c"})
+	next, cmd := model.Update(tea.KeyPressMsg{Text: "c"})
 	updated, ok := next.(RootModel)
 	if !ok {
 		t.Fatalf("Update(c) returned %T, want RootModel", next)
 	}
+	if !updated.loading {
+		t.Fatal("loading = false, want true while settings load")
+	}
 	if !updated.settingsOpen {
 		t.Fatal("settingsOpen = false, want true")
 	}
-	if updated.status != i18n.T(i18n.StatusConfiguringSettings) {
-		t.Fatalf("status = %q, want configuring settings status", updated.status)
+	if !updated.settingsLoading {
+		t.Fatal("settingsLoading = false, want true")
+	}
+	if updated.status != i18n.T(i18n.StatusLoading) {
+		t.Fatalf("status = %q, want loading status", updated.status)
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want settings load command")
+	}
+
+	batch, ok := cmd().(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("cmd() returned %T, want tea.BatchMsg", cmd())
+	}
+	if len(batch) != 2 {
+		t.Fatalf("len(batch) = %d, want 2", len(batch))
+	}
+
+	loaded, nextCmd := updated.Update(batch[0]())
+	final := loaded.(RootModel)
+	if nextCmd != nil {
+		t.Fatalf("Update(settingsOverlayLoadedMsg) cmd = %v, want nil", nextCmd)
+	}
+	if final.loading {
+		t.Fatal("loading = true, want false after settings load")
+	}
+	if final.settingsLoading {
+		t.Fatal("settingsLoading = true, want false after settings load")
+	}
+	if final.status != i18n.T(i18n.StatusConfiguringSettings) {
+		t.Fatalf("status = %q, want configuring settings status", final.status)
+	}
+}
+
+func TestUpdateLoadingTickAdvancesSettingsSpinner(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model = model.startSettingsOverlayLoad()
+
+	next, cmd := model.Update(loadingTickMsg{})
+	updated := next.(RootModel)
+	if updated.loadingFrame != 1 {
+		t.Fatalf("loadingFrame = %d, want 1", updated.loadingFrame)
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want next loading tick")
 	}
 }
 
