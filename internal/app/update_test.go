@@ -85,15 +85,39 @@ func TestUpdateHomeSettingsOpensOverlay(t *testing.T) {
 		t.Fatal("cmd = nil, want settings load command")
 	}
 
-	batch, ok := cmd().(tea.BatchMsg)
+	cmdMsg := cmd()
+	batch, ok := cmdMsg.(tea.BatchMsg)
 	if !ok {
-		t.Fatalf("cmd() returned %T, want tea.BatchMsg", cmd())
+		t.Fatalf("cmd() returned %T, want tea.BatchMsg", cmdMsg)
 	}
 	if len(batch) != 2 {
 		t.Fatalf("len(batch) = %d, want 2", len(batch))
 	}
 
-	loaded, nextCmd := updated.Update(batch[0]())
+	var (
+		loadedMsg settingsOverlayLoadedMsg
+		foundLoad bool
+		foundTick bool
+	)
+	for _, batchCmd := range batch {
+		switch msg := batchCmd().(type) {
+		case settingsOverlayLoadedMsg:
+			loadedMsg = msg
+			foundLoad = true
+		case loadingTickMsg:
+			foundTick = true
+		default:
+			t.Fatalf("batch command returned %T, want settingsOverlayLoadedMsg or loadingTickMsg", msg)
+		}
+	}
+	if !foundLoad {
+		t.Fatal("batch missing settingsOverlayLoadedMsg")
+	}
+	if !foundTick {
+		t.Fatal("batch missing loadingTickMsg")
+	}
+
+	loaded, nextCmd := updated.Update(loadedMsg)
 	final := loaded.(RootModel)
 	if nextCmd != nil {
 		t.Fatalf("Update(settingsOverlayLoadedMsg) cmd = %v, want nil", nextCmd)
