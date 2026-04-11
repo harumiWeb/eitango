@@ -48,3 +48,5 @@
 - runtime probe の失敗を成功 cache と同一視しない。voice catalog のような外部依存の列挙結果は成功時だけ cache し、catalog 未取得時でも保存済み設定値を空文字へ正規化して消さない。
 - core 語彙の代表訳は subject/object の意味の向きを崩さない。`envious` と `enviable` のような対になる語では「うらやむ側」と「うらやまれる側」を取り違えず、俗義や限定義より中心義を優先する。
 - core 語彙の `distractor_group` は語種よりも出題時の誤答品質で決める。人物語は `people-noun`、楽器・動植物・素材・日用品は原則 `daily-noun` に寄せ、`business` / `technology` / `learning` へ安易に広げない。
+- core 語彙を一括追加した後は、新規 `verb` 行の `meaning_ja` が名詞形のまま残っていないかを必ず点検する。write mode では代表訳がそのまま prompt になるので、`分類` / `中止` のような名詞形を承認すると出題品質をまとめて壊す。
+- 同じく新規追加帯では、人を指す `noun` が `people-noun` から外れていないか、食べ物・動物が `travel-noun` に紛れていないかをまとめて監査する。レビュー TSV の候補値がもっともらしく見えても、誤答候補の質はこの分類で大きく崩れる。
