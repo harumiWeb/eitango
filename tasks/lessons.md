@@ -46,3 +46,5 @@
 - terminal 高さ制約の回帰テストは「view が収まる」だけで終わらせない。keymap editor のような可変リスト画面では `height + 1` で可視行がちょうど 1 行増えることまで固定し、underfill を見逃さない。
 - PowerShell の `ConvertTo-Json` は要素数 1 のとき単一 object を返すことがある。Windows voice catalog のように JSON 経由で列挙結果を読む実装では配列 shape を決め打ちせず、object / array の両方を受ける parser と回帰テストを用意する。
 - runtime probe の失敗を成功 cache と同一視しない。voice catalog のような外部依存の列挙結果は成功時だけ cache し、catalog 未取得時でも保存済み設定値を空文字へ正規化して消さない。
+- core 語彙の代表訳は subject/object の意味の向きを崩さない。`envious` と `enviable` のような対になる語では「うらやむ側」と「うらやまれる側」を取り違えず、俗義や限定義より中心義を優先する。
+- core 語彙の `distractor_group` は語種よりも出題時の誤答品質で決める。人物語は `people-noun`、楽器・動植物・素材・日用品は原則 `daily-noun` に寄せ、`business` / `technology` / `learning` へ安易に広げない。

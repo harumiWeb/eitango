@@ -1,14 +1,14 @@
-# 2026-04-11 語彙追加 19000 seed batch
+# 2026-04-11 語彙追加 22000 seed batch
 
 ## Goal
 
-- `18000seed` まで進んだ bundled core 語彙拡張を継続し、既存の Leipzig + Japanese WordNet ベースの review workflow に沿って次の batch を追加する。
+- `21000seed` まで進んだ bundled core 語彙拡張を継続し、既存の Leipzig + Japanese WordNet ベースの review workflow に沿って次の batch を追加する。
 - `tmp/generated_vocab` の生成物と `assets/words_core.jsonl` を矛盾なく更新する。
 
 ## Scope
 
 - `tmp/generated_vocab/meaning_candidates.jsonl` / `review_candidates.tsv` の再生成
-- `18001-19000` の parallel review slice 作成と承認結果の反映
+- `21001-22000` の parallel review slice 作成と承認結果の反映
 - `approved_review_candidates.tsv` / `approved_seed.csv` / `assets/words_core.jsonl` の更新
 
 ## Non-Goals
@@ -20,16 +20,16 @@
 ## Required Behavior
 
 - 既存の `scripts/vocab/*.py` workflow を使い、手作業で TSV を再構成しない。
-- `18001-19000` の候補だけを今回の review 対象とし、既承認語は重複反映しない。
+- `21001-22000` の候補だけを今回の review 対象とし、既承認語は重複反映しない。
 - `approved_slice_*.tsv` へ入れる行は `status=approved` を守り、`meaning_ja_candidate` と `distractor_group_candidate` を目視確認する。
 - `merge_parallel_reviews.py` で承認済み TSV を統合し、`apply_review_batch.py` で bundled core へ反映する。
 - `go run ./cmd/eitango validate --embedded-core` と `go run ./cmd/eitango doctor` で語彙データの整合性を確認する。
 
 ## Acceptance
 
-- `review_candidates.tsv` が `18000` より後ろの rank を含む状態へ更新される。
-- `tmp/generated_vocab/parallel_review_19000/approved_slice_*.tsv` が揃う。
-- `approved_review_candidates.tsv` / `approved_seed.csv` に `18001-19000` の承認語が追加される。
+- `review_candidates.tsv` が `21000` より後ろの rank を含む状態へ更新される。
+- `tmp/generated_vocab/parallel_review_22000/approved_slice_*.tsv` が揃う。
+- `approved_review_candidates.tsv` / `approved_seed.csv` に `21001-22000` の承認語が追加される。
 - `assets/words_core.jsonl` の行数が増え、追加語が bundled core に含まれる。
 
 ---
