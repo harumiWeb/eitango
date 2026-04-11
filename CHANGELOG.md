@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- release パイプラインが Homebrew tap `harumiWeb/homebrew-eitango` へ formula を publish できるようになり、macOS / Linux で `brew` install 導線を提供できるようにしました。
+
 ## [0.7.0] - 2026-04-11
 
 ### Added

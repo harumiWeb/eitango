@@ -66,6 +66,32 @@ archives:
       - goos: linux
         formats: [none]
 
+brews:
+  - name: eitango
+    ids:
+      - unix-archives
+    directory: Formula
+    homepage: https://github.com/harumiWeb/eitango
+    description: Interactive English vocabulary learning CLI built with Go.
+    license: Apache-2.0
+    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+    repository:
+      owner: harumiWeb
+      name: homebrew-eitango
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
+    install: |
+      bin.install "eitango"
+      doc.install "README.md", "README.en.md"
+      pkgshare.install "LICENSE", "THIRD_PARTY_NOTICES.md"
+      (pkgshare/"third_party").install "third_party/licenses"
+    test: |
+      system "#{bin}/eitango", "--help"
+    skip_upload: "{{ if .Prerelease }}true{{ else }}false{{ end }}"
+
 winget:
   - name: eitango
     publisher: HarumiWeb

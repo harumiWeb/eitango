@@ -82,7 +82,22 @@ winget を使わない場合は後述の GitHub Releases の zip からも利用
 > [!NOTE]
 > winget は 都合上、他の配布手段よりリリースからの反映が遅れる可能性があります。最新 release をすぐに使いたい場合は、次のいずれかを選択してください。
 
-### 2. macOS / Linux は `curl | sh` を使う
+### 2. macOS / Linux は Homebrew を使う
+
+macOS / Linux では Homebrew tap からも install できます。formula は GitHub Releases に公開した darwin / linux の `tar.gz` を参照します。
+
+```bash
+brew tap harumiWeb/eitango
+brew install eitango
+```
+
+更新は次です。
+
+```bash
+brew upgrade eitango
+```
+
+### 3. macOS / Linux は `curl | sh` を使う
 
 `install.sh` は `--version` を省略した場合に GitHub Releases API (`/releases/latest`) へアクセスして最新 version を解決し、そのうえで対応する archive と `checksums.txt` を取得します。SHA256 検証が通ったときだけ `~/.eitango/` へ展開し、shell rc は自動変更しません。
 
@@ -129,13 +144,13 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 
 必要ツールは `sh`, `curl`, `tar`, `mktemp` と、`sha256sum` / `shasum` / `openssl` のいずれか 1 つです。Windows は今回の installer 対象外なので、winget か release zip を使ってください。
 
-### 3. GitHub Releases から使う
+### 4. GitHub Releases から使う
 
 公開アーカイブにはバイナリに加えて `LICENSE`、`THIRD_PARTY_NOTICES.md`、`third_party/licenses/` が同梱されます。自分のOS向けの成果物を展開して `eitango` を実行してください。
 
 ※ `PATH`への追加は手動で行う必要があります。
 
-### 4. Go からインストールする
+### 5. Go からインストールする
 
 Go 1.26 以降を前提にしています。
 

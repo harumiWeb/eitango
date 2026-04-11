@@ -11,10 +11,12 @@
 ## Decision
 
 - 正規の配布チャネルは GitHub Releases とし、GoReleaser で darwin / linux / windows 向け archive を生成する。
+- macOS / linux 向けには Homebrew tap `harumiWeb/homebrew-eitango` も配布導線として提供するが、formula の参照先 artifact は GitHub Releases に置いた darwin / linux `tar.gz` のみとし、release の正本は引き続き GitHub Releases に固定する。
 - Windows 向けには winget community repository も配布導線として提供するが、参照先 artifact は GitHub Releases に置いた Windows zip のみとし、release の正本は引き続き GitHub Releases に固定する。
 - release artifact には実行バイナリに加えて `LICENSE`, `README.md`, `README.en.md`, `THIRD_PARTY_NOTICES.md`, `third_party/licenses/**` を同梱する。
 - macOS / linux では `install.sh` を bootstrap 導線として許可するが、installer 自体は GitHub Releases の archive と `checksums.txt` を取得する薄い wrapper に留める。
 - `install.sh` は `checksums.txt` で SHA256 を必須検証し、法務ファイルを `~/.eitango/share/` へ保持する。
+- Homebrew formula は GoReleaser で release 時に生成し、`harumiWeb/homebrew-eitango` へ push する。push 用 token は release 用 `GITHUB_TOKEN` と分離した `HOMEBREW_TAP_GITHUB_TOKEN` を使い、prerelease tag は tap へ publish しない。
 - winget manifest は GoReleaser で release 時に生成し、`harumiWeb/winget-pkgs` fork へ push する。`microsoft/winget-pkgs` への PR は手動で作成し、fork への push 用 token は release 用 `GITHUB_TOKEN` と分離した `WINGET_GITHUB_TOKEN` を使う。
 - 更新は自動適用しない。新しい版の取得は release archive の再取得か `go install ...@latest` の再実行で行う。
 - update check は GitHub Releases の latest を参照する補助機能とし、学習フローを止めない best-effort 動作に限定する。
@@ -27,14 +29,15 @@
 ## Consequences
 
 - release artifact の再配布条件と notice の同梱要件を、ビルド設定と文書で一貫して維持できる。
+- macOS / Linux 利用者には `brew tap harumiWeb/eitango && brew install eitango` の導線を追加できるが、artifact hosting と checksum の正本は増やさずに済む。
 - Windows 利用者には `winget install HarumiWeb.Eitango` の導線を追加できるが、artifact hosting と checksum の正本は増やさずに済む。
 - `curl | sh` の最短導線を追加しても、配布物の単一ソースは GitHub Releases のまま保てる。
 - SHA256 検証で download 途中の破損や取り違えは防ぎやすくなるが、署名付き provenance ではないため `install.sh` 本体の信頼境界は依然として HTTPS / GitHub 側にある。
 - 自動更新を持たないため、更新失敗が学習データを壊す経路を増やさずに済む。
 - update check は起動ごとに 1 回の best-effort request を行うが、最新 release 反映の遅延は大きく減り、更新作業は引き続き手動のまま保てる。
 - 保存済み state があるため、GitHub API が失敗しても直前の latest 情報を fallback として使える。
-- fork 側 PAT の期限切れや権限不足があると winget manifest push が失敗しうるため、release 失敗時は token 権限と fork 状態を先に確認する運用が必要になる。upstream PR は手動運用なので、release 後に compare URL から提出する手順を別途維持する必要がある。
-- GitHub Releases が update metadata と Windows zip の単一ソースになるため、別チャネルを増やす場合は新しい判断が必要になる。
+- tap / fork 側 PAT の期限切れや権限不足があると Homebrew formula push や winget manifest push が失敗しうるため、release 失敗時は token 権限と publish 先 repository 状態を先に確認する運用が必要になる。upstream PR は手動運用なので、release 後に compare URL から提出する手順を別途維持する必要がある。
+- GitHub Releases が update metadata と Homebrew / winget の参照先 artifact の単一ソースになるため、さらに別チャネルを増やす場合は新しい判断が必要になる。
 
 ## Rationale
 
@@ -48,6 +51,8 @@
   - `.goreleaser.yaml`
   - `.github/workflows/release.yml`
   - `install.sh`
+  - `README.md`
+  - `README.en.md`
 - Related specs:
   - なし。コード、README、CHANGELOG、tests を正本とする。
 
