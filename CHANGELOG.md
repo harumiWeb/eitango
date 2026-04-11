@@ -8,6 +8,7 @@
 ### Added
 
 - ホーム設定 overlay と `config.toml` に `audio_voice` を追加し、macOS / Windows の local voice を選択して次回起動後も使い続けられるようにしました。
+- コア語彙を8038語まで拡張しました。
 
 ### Changed
 
