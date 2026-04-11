@@ -16,8 +16,10 @@ import (
 
 type loadingTickMsg struct{}
 
+const loadingSpinnerTickInterval = 100 * time.Millisecond
+
 func loadingTickCmd() tea.Cmd {
-	return tea.Tick(100*time.Millisecond, func(time.Time) tea.Msg {
+	return tea.Tick(loadingSpinnerTickInterval, func(time.Time) tea.Msg {
 		return loadingTickMsg{}
 	})
 }

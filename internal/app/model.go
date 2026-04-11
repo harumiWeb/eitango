@@ -317,7 +317,7 @@ func (m RootModel) prepareSettingsOverlay() RootModel {
 	m.settingsAudioEnabled = m.settings.AudioEnabled
 	m.settingsAudioVoices = nil
 	m.settingsAudioVoicesLoaded = false
-	m.settingsAudioVoice = normalizeAudioVoiceSetting(m.settings.AudioVoice, nil)
+	m.settingsAudioVoice = config.NormalizeAudioVoice(m.settings.AudioVoice)
 	m.settingsAudioAutoplay = m.settings.AudioAutoplay
 	m.settingsAudioAvailableCached = false
 	m.settingsLanguage = m.settings.Language
