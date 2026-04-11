@@ -211,10 +211,9 @@ func (s *Store) ListReviewedWordsRandom(ctx context.Context, limit int) ([]Word,
 	}
 
 	idRows, err := s.db.QueryContext(ctx, `
-SELECT r.word_id
+SELECT DISTINCT r.word_id
 FROM reviews r
 WHERE r.word_id IS NOT NULL
-GROUP BY r.word_id
 ORDER BY RANDOM()
 LIMIT ?
 `, limit)
@@ -965,9 +964,6 @@ func maxSessionOrdinalTx(ctx context.Context, tx *sql.Tx, sessionID string) (int
 func loadSessionModeTx(ctx context.Context, tx *sql.Tx, sessionID string) (string, error) {
 	var mode string
 	if err := tx.QueryRowContext(ctx, `SELECT mode FROM sessions WHERE id = ?`, sessionID).Scan(&mode); err != nil {
-		if err == sql.ErrNoRows {
-			return "", fmt.Errorf("load session mode %s: %w", sessionID, err)
-		}
 		return "", fmt.Errorf("load session mode %s: %w", sessionID, err)
 	}
 	return mode, nil
