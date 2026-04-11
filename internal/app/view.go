@@ -27,6 +27,10 @@ const (
 
 var loadingSpinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
+func loadingSpinnerFrameCount() int {
+	return len(loadingSpinnerFrames)
+}
+
 type layoutVariant int
 
 const (
@@ -816,7 +820,7 @@ func (m RootModel) renderStatusLine() string {
 	}
 	prefix := ""
 	if m.settingsLoading {
-		prefix = loadingSpinnerFrames[m.loadingFrame%len(loadingSpinnerFrames)] + " "
+		prefix = loadingSpinnerFrames[m.loadingFrame%loadingSpinnerFrameCount()] + " "
 	}
 	if m.err != nil {
 		return m.styles.Error.Render(m.wrapToWindow(prefix + "error: " + msg))

@@ -34,7 +34,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.settingsLoading {
 			return m, nil
 		}
-		m.loadingFrame = (m.loadingFrame + 1) % len(loadingSpinnerFrames)
+		m.loadingFrame = (m.loadingFrame + 1) % loadingSpinnerFrameCount()
 		return m, loadingTickCmd()
 	case homeLoadedMsg:
 		m.home = msg.Home

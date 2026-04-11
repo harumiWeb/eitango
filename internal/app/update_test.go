@@ -156,7 +156,7 @@ func TestUpdateLoadingTickWrapsSettingsSpinner(t *testing.T) {
 	model := NewModel(nil, Options{})
 	model.loading = false
 	model = model.startSettingsOverlayLoad()
-	model.loadingFrame = len(loadingSpinnerFrames) - 1
+	model.loadingFrame = loadingSpinnerFrameCount() - 1
 
 	next, cmd := model.Update(loadingTickMsg{})
 	updated := next.(RootModel)

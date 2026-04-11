@@ -293,9 +293,8 @@ func (m RootModel) sessionRequest(mode string, replaceActive bool) sessionReques
 
 func (m RootModel) openSettingsOverlay() RootModel {
 	m = m.prepareSettingsOverlay()
-	voices, loaded := m.loadAudioVoices()
-	audioVoice := normalizeAudioVoiceInList(m.settings.AudioVoice, voices, loaded)
-	return m.applySettingsOverlayLoad(voices, loaded, audioVoice, m.probeSettingsAudioAvailableFor(audioVoice))
+	voices, loaded, audioVoice, audioAvailable := m.loadSettingsOverlayData()
+	return m.applySettingsOverlayLoad(voices, loaded, audioVoice, audioAvailable)
 }
 
 func (m RootModel) startSettingsOverlayLoad() RootModel {
@@ -625,15 +624,20 @@ func (m RootModel) loadAudioVoices() ([]audio.Voice, bool) {
 
 func (m RootModel) loadSettingsOverlayCmd() tea.Cmd {
 	return func() tea.Msg {
-		voices, loaded := m.loadAudioVoices()
-		audioVoice := normalizeAudioVoiceInList(m.settings.AudioVoice, voices, loaded)
+		voices, loaded, audioVoice, audioAvailable := m.loadSettingsOverlayData()
 		return settingsOverlayLoadedMsg{
 			voices:         voices,
 			voicesLoaded:   loaded,
 			audioVoice:     audioVoice,
-			audioAvailable: m.probeSettingsAudioAvailableFor(audioVoice),
+			audioAvailable: audioAvailable,
 		}
 	}
+}
+
+func (m RootModel) loadSettingsOverlayData() ([]audio.Voice, bool, string, bool) {
+	voices, loaded := m.loadAudioVoices()
+	audioVoice := normalizeAudioVoiceInList(m.settings.AudioVoice, voices, loaded)
+	return voices, loaded, audioVoice, m.probeSettingsAudioAvailableFor(audioVoice)
 }
 
 func (m RootModel) settingsAudioVoiceChoices() []string {
