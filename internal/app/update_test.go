@@ -64,16 +64,164 @@ func TestUpdateHomeSettingsOpensOverlay(t *testing.T) {
 	model := NewModel(nil, Options{})
 	model.loading = false
 
-	next, _ := model.Update(tea.KeyPressMsg{Text: "c"})
+	next, cmd := model.Update(tea.KeyPressMsg{Text: "c"})
 	updated, ok := next.(RootModel)
 	if !ok {
 		t.Fatalf("Update(c) returned %T, want RootModel", next)
 	}
+	if !updated.loading {
+		t.Fatal("loading = false, want true while settings load")
+	}
 	if !updated.settingsOpen {
 		t.Fatal("settingsOpen = false, want true")
 	}
-	if updated.status != i18n.T(i18n.StatusConfiguringSettings) {
-		t.Fatalf("status = %q, want configuring settings status", updated.status)
+	if !updated.settingsLoading {
+		t.Fatal("settingsLoading = false, want true")
+	}
+	if updated.status != i18n.T(i18n.StatusLoading) {
+		t.Fatalf("status = %q, want loading status", updated.status)
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want settings load command")
+	}
+
+	cmdMsg := cmd()
+	batch, ok := cmdMsg.(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("cmd() returned %T, want tea.BatchMsg", cmdMsg)
+	}
+	if len(batch) != 2 {
+		t.Fatalf("len(batch) = %d, want 2", len(batch))
+	}
+
+	var (
+		loadedMsg settingsOverlayLoadedMsg
+		foundLoad bool
+		foundTick bool
+	)
+	for _, batchCmd := range batch {
+		switch msg := batchCmd().(type) {
+		case settingsOverlayLoadedMsg:
+			loadedMsg = msg
+			foundLoad = true
+		case loadingTickMsg:
+			foundTick = true
+		default:
+			t.Fatalf("batch command returned %T, want settingsOverlayLoadedMsg or loadingTickMsg", msg)
+		}
+	}
+	if !foundLoad {
+		t.Fatal("batch missing settingsOverlayLoadedMsg")
+	}
+	if !foundTick {
+		t.Fatal("batch missing loadingTickMsg")
+	}
+
+	loaded, nextCmd := updated.Update(loadedMsg)
+	final := loaded.(RootModel)
+	if nextCmd != nil {
+		t.Fatalf("Update(settingsOverlayLoadedMsg) cmd = %v, want nil", nextCmd)
+	}
+	if final.loading {
+		t.Fatal("loading = true, want false after settings load")
+	}
+	if final.settingsLoading {
+		t.Fatal("settingsLoading = true, want false after settings load")
+	}
+	if final.status != i18n.T(i18n.StatusConfiguringSettings) {
+		t.Fatalf("status = %q, want configuring settings status", final.status)
+	}
+}
+
+func TestUpdateSettingsOverlayLoadedWhileHelpOpenPreservesBackgroundStatus(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(false),
+		VoiceCatalog:   newStubVoiceCatalog(nil, false),
+	})
+	model.loading = false
+	model = model.startSettingsOverlayLoad()
+
+	next, cmd := model.Update(tea.KeyPressMsg{Text: "?"})
+	helpModel := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("Update(?) cmd = %v, want nil", cmd)
+	}
+	if helpModel.screen != ScreenHelp {
+		t.Fatalf("screen = %v, want %v", helpModel.screen, ScreenHelp)
+	}
+	if helpModel.helpStatus != i18n.T(i18n.StatusLoading) {
+		t.Fatalf("helpStatus = %q, want %q", helpModel.helpStatus, i18n.T(i18n.StatusLoading))
+	}
+
+	loaded, nextCmd := helpModel.Update(settingsOverlayLoadedMsg{})
+	updated := loaded.(RootModel)
+	if nextCmd != nil {
+		t.Fatalf("Update(settingsOverlayLoadedMsg) cmd = %v, want nil", nextCmd)
+	}
+	if updated.screen != ScreenHelp {
+		t.Fatalf("screen after settings load = %v, want %v", updated.screen, ScreenHelp)
+	}
+	if updated.status != i18n.T(i18n.StatusHelp) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusHelp))
+	}
+	if updated.helpStatus != i18n.T(i18n.StatusConfiguringSettings) {
+		t.Fatalf("helpStatus = %q, want %q", updated.helpStatus, i18n.T(i18n.StatusConfiguringSettings))
+	}
+	if updated.loading {
+		t.Fatal("loading = true, want false after settings load")
+	}
+	if updated.settingsLoading {
+		t.Fatal("settingsLoading = true, want false after settings load")
+	}
+
+	closed, closeCmd := updated.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	final := closed.(RootModel)
+	if closeCmd != nil {
+		t.Fatalf("Update(Esc) cmd = %v, want nil", closeCmd)
+	}
+	if final.screen != ScreenHome {
+		t.Fatalf("screen after closing help = %v, want %v", final.screen, ScreenHome)
+	}
+	if final.status != i18n.T(i18n.StatusConfiguringSettings) {
+		t.Fatalf("status after closing help = %q, want %q", final.status, i18n.T(i18n.StatusConfiguringSettings))
+	}
+}
+
+func TestUpdateLoadingTickAdvancesSettingsSpinner(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model = model.startSettingsOverlayLoad()
+
+	next, cmd := model.Update(loadingTickMsg{})
+	updated := next.(RootModel)
+	if updated.loadingFrame != 1 {
+		t.Fatalf("loadingFrame = %d, want 1", updated.loadingFrame)
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want next loading tick")
+	}
+}
+
+func TestUpdateLoadingTickWrapsSettingsSpinner(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model = model.startSettingsOverlayLoad()
+	model.loadingFrame = loadingSpinnerFrameCount() - 1
+
+	next, cmd := model.Update(loadingTickMsg{})
+	updated := next.(RootModel)
+	if updated.loadingFrame != 0 {
+		t.Fatalf("loadingFrame = %d, want 0", updated.loadingFrame)
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want next loading tick")
 	}
 }
 

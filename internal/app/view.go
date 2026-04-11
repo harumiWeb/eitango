@@ -25,6 +25,12 @@ const (
 	homeLabelWidth       = 14
 )
 
+var loadingSpinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+func loadingSpinnerFrameCount() int {
+	return len(loadingSpinnerFrames)
+}
+
 type layoutVariant int
 
 const (
@@ -812,13 +818,20 @@ func (m RootModel) renderStatusLine() string {
 	if msg == "" {
 		msg = i18n.T(i18n.StatusReady)
 	}
-	if m.err != nil {
-		return m.styles.Error.Render(m.wrapToWindow("error: " + msg))
+	prefix := ""
+	if m.settingsLoading {
+		prefix = loadingSpinnerFrames[m.loadingFrame%loadingSpinnerFrameCount()] + " "
 	}
-	return m.styles.Status.Render(m.wrapToWindow("status: " + msg))
+	if m.err != nil {
+		return m.styles.Error.Render(m.wrapToWindow(prefix + "error: " + msg))
+	}
+	return m.styles.Status.Render(m.wrapToWindow(prefix + "status: " + msg))
 }
 
 func (m RootModel) renderLoadingFooter() string {
+	if m.settingsLoading {
+		return ""
+	}
 	if !m.loading {
 		return ""
 	}

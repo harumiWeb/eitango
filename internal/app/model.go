@@ -80,6 +80,13 @@ type settingsSavedMsg struct {
 	FocusModeDisabled bool
 }
 
+type settingsOverlayLoadedMsg struct {
+	voices         []audio.Voice
+	voicesLoaded   bool
+	audioVoice     string
+	audioAvailable bool
+}
+
 type updateCheckedMsg struct {
 	Result updatecheck.Result
 }
@@ -174,7 +181,9 @@ type RootModel struct {
 	status                       string
 	err                          error
 	loading                      bool
+	loadingFrame                 int
 	settingsOpen                 bool
+	settingsLoading              bool
 	homeConfirm                  *homeConfirmState
 	settingsCursor               int
 	settingsInput                string
@@ -282,7 +291,25 @@ func (m RootModel) sessionRequest(mode string, replaceActive bool) sessionReques
 	}
 }
 
+// openSettingsOverlay synchronously prepares the settings overlay for tests and
+// direct in-memory transitions. Interactive UI flows should use
+// startSettingsOverlayLoad so the expensive audio checks run asynchronously.
 func (m RootModel) openSettingsOverlay() RootModel {
+	m = m.prepareSettingsOverlay()
+	voices, loaded, audioVoice, audioAvailable := m.loadSettingsOverlayData()
+	return m.applySettingsOverlayLoad(voices, loaded, audioVoice, audioAvailable)
+}
+
+func (m RootModel) startSettingsOverlayLoad() RootModel {
+	m = m.prepareSettingsOverlay()
+	m.loading = true
+	m.loadingFrame = 0
+	m.settingsLoading = true
+	m.status = i18n.T(i18n.StatusLoading)
+	return m
+}
+
+func (m RootModel) prepareSettingsOverlay() RootModel {
 	m.settingsOpen = true
 	m.homeConfirm = nil
 	m.settingsCursor = settingsRowQuestionCount
@@ -290,13 +317,11 @@ func (m RootModel) openSettingsOverlay() RootModel {
 	m.settingsEditing = false
 	m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(m.settings.WriteModeDifficulty)
 	m.settingsAudioEnabled = m.settings.AudioEnabled
-	m.settingsAudioVoices, m.settingsAudioVoicesLoaded = m.loadAudioVoices()
-	m.settingsAudioVoice = normalizeAudioVoiceInList(m.settings.AudioVoice, m.settingsAudioVoices, m.settingsAudioVoicesLoaded)
+	m.settingsAudioVoices = nil
+	m.settingsAudioVoicesLoaded = false
+	m.settingsAudioVoice = config.NormalizeAudioVoice(m.settings.AudioVoice)
 	m.settingsAudioAutoplay = m.settings.AudioAutoplay
-	m.settingsAudioAvailableCached = m.probeSettingsAudioAvailableFor(m.settingsAudioVoice)
-	if !m.settingsAudioAvailable() {
-		m.settingsAudioAutoplay = false
-	}
+	m.settingsAudioAvailableCached = false
 	m.settingsLanguage = m.settings.Language
 	m.settingsThemeMode = config.NormalizeThemeMode(m.settings.ThemeMode)
 	m.err = nil
@@ -304,7 +329,28 @@ func (m RootModel) openSettingsOverlay() RootModel {
 	return m
 }
 
+func (m RootModel) applySettingsOverlayLoad(voices []audio.Voice, loaded bool, audioVoice string, audioAvailable bool) RootModel {
+	m.settingsAudioVoices = voices
+	m.settingsAudioVoicesLoaded = loaded
+	m.settingsAudioVoice = normalizeAudioVoiceInList(audioVoice, voices, loaded)
+	m.settingsAudioAvailableCached = audioAvailable
+	if !m.settingsAudioAvailable() {
+		m.settingsAudioAutoplay = false
+	}
+	m.loading = false
+	m.settingsLoading = false
+	if m.screen == ScreenHelp {
+		m.helpStatus = i18n.T(i18n.StatusConfiguringSettings)
+		m.status = i18n.T(i18n.StatusHelp)
+		return m
+	}
+	m.status = i18n.T(i18n.StatusConfiguringSettings)
+	return m
+}
+
 func (m RootModel) closeSettingsOverlay() RootModel {
+	m.loading = false
+	m.settingsLoading = false
 	m.settingsOpen = false
 	m.settingsEditing = false
 	m.status = m.homeStatus()
@@ -454,6 +500,7 @@ func (m RootModel) applySettings(settings config.Settings) (RootModel, error) {
 	settings.Keymap = keyState.ToConfig()
 
 	m.loading = false
+	m.settingsLoading = false
 	m.err = nil
 	m.settings = settings
 	m.keymap = keyState
@@ -581,6 +628,24 @@ func (m RootModel) loadAudioVoices() ([]audio.Voice, bool) {
 	cloned := make([]audio.Voice, len(voices))
 	copy(cloned, voices)
 	return cloned, loaded
+}
+
+func (m RootModel) loadSettingsOverlayCmd() tea.Cmd {
+	return func() tea.Msg {
+		voices, loaded, audioVoice, audioAvailable := m.loadSettingsOverlayData()
+		return settingsOverlayLoadedMsg{
+			voices:         voices,
+			voicesLoaded:   loaded,
+			audioVoice:     audioVoice,
+			audioAvailable: audioAvailable,
+		}
+	}
+}
+
+func (m RootModel) loadSettingsOverlayData() ([]audio.Voice, bool, string, bool) {
+	voices, loaded := m.loadAudioVoices()
+	audioVoice := normalizeAudioVoiceInList(m.settings.AudioVoice, voices, loaded)
+	return voices, loaded, audioVoice, m.probeSettingsAudioAvailableFor(audioVoice)
 }
 
 func (m RootModel) settingsAudioVoiceChoices() []string {

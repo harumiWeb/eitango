@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- 音声設定の読み込みで設定 overlay の初期表示が遅い間も、ステータスバー左側にスピナーを出してフリーズに見えないようにしました。
 - 保存済み voice が利用不可になった場合は `auto` / 既定英語 voice へ安全に fallback し、設定画面の選択肢確認と音声再生を継続できるようにしました。
 - Windows で installed voice が 1 件だけの環境でも voice catalog を正しく読み取り、local voice 選択と音声再生が無効化されないようにしました。
 - reviewed-only fallback セッションは通常 review と別ラベルで表示されるようになり、ホーム画面や確認オーバーレイで区別が失われないようにしました。
