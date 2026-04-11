@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"time"
 
 	projectassets "github.com/harumiWeb/eitango/assets"
 	"github.com/harumiWeb/eitango/internal/dict"
@@ -87,20 +88,22 @@ func (s *Store) SeedWords(ctx context.Context, entries []dict.Entry, version str
 		return fmt.Errorf("begin seed words: %w", err)
 	}
 
+	var upsertErr error
 	if coreWordCount > 0 && currentVersion != version {
-		if err := resetLearningTablesTx(ctx, tx, nil); err != nil {
+		if err := abandonActiveSessionsTx(ctx, tx, time.Now().UTC()); err != nil {
 			_ = tx.Rollback()
-			return fmt.Errorf("reset before seed: %w", err)
+			return fmt.Errorf("abandon active sessions before core sync: %w", err)
 		}
-		if _, err := deleteWordsBySourceTx(ctx, tx, WordSourceCore); err != nil {
+		if _, err := syncCoreWordsTx(ctx, tx, entries); err != nil {
 			_ = tx.Rollback()
-			return fmt.Errorf("replace core words before seed: %w", err)
+			return fmt.Errorf("sync core words before seed: %w", err)
 		}
+	} else {
+		_, upsertErr = upsertWordsTx(ctx, tx, WordSourceCore, entries)
 	}
-
-	if _, err := upsertWordsTx(ctx, tx, WordSourceCore, entries); err != nil {
+	if upsertErr != nil {
 		_ = tx.Rollback()
-		return err
+		return upsertErr
 	}
 
 	if err := s.setMetaTx(ctx, tx, "dict_version", version); err != nil {

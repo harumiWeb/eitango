@@ -16,8 +16,21 @@ func TestRunDiagnosticsHealthyStore(t *testing.T) {
 
 	ctx := context.Background()
 	st := newTestStore(t)
-	if err := st.SeedWords(ctx, doctorTestEntries(), dict.CoreWordsVersion); err != nil {
-		t.Fatalf("SeedWords() error = %v", err)
+	if _, err := st.db.ExecContext(ctx, `
+INSERT INTO words (id, lemma, pos, meaning_ja, level, frequency_rank, distractor_group, source)
+VALUES
+	(1, 'adopt', 'verb', '採用する', 'core-1', 100, 'basic-verb-action', ?),
+	(2, 'apply', 'verb', '応募する', 'core-1', 120, 'basic-verb-action', ?),
+	(3, 'cancel', 'verb', '取り消す', 'core-1', 140, 'basic-verb-action', ?),
+	(4, 'deliver', 'verb', '届ける', 'core-1', 160, 'basic-verb-action', ?)
+`, WordSourceCore, WordSourceCore, WordSourceCore, WordSourceCore); err != nil {
+		t.Fatalf("insert legacy words: %v", err)
+	}
+	if _, err := st.db.ExecContext(ctx, `
+INSERT INTO app_meta (key, value)
+VALUES ('dict_version', ?)
+`, dict.CoreWordsVersion); err != nil {
+		t.Fatalf("insert legacy dict_version: %v", err)
 	}
 
 	report := st.RunDiagnostics(ctx)
@@ -57,13 +70,100 @@ func TestRunDiagnosticsDetectsDictionaryVersionMismatch(t *testing.T) {
 	}
 }
 
+func TestRunDiagnosticsIgnoresRetiredCoreWordsForMetadataAndQuizability(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+	if err := st.SeedWords(ctx, doctorTestEntries(), "test-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	rows, err := st.db.QueryContext(ctx, `
+SELECT id, lemma
+FROM words
+WHERE source = ?
+ORDER BY frequency_rank ASC, id ASC
+`, WordSourceCore)
+	if err != nil {
+		t.Fatalf("query core words: %v", err)
+	}
+
+	var retiredWordID int64
+	for rows.Next() {
+		var (
+			id    int64
+			lemma string
+		)
+		if err := rows.Scan(&id, &lemma); err != nil {
+			t.Fatalf("scan core word: %v", err)
+		}
+		if lemma == "cancel" {
+			retiredWordID = id
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate core words: %v", err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatalf("close core words rows: %v", err)
+	}
+	if retiredWordID == 0 {
+		t.Fatal("cancel word id not found")
+	}
+
+	nextEntries := []dict.Entry{
+		doctorTestEntries()[0],
+		doctorTestEntries()[1],
+		doctorTestEntries()[3],
+		{
+			Lemma:           "coach",
+			Pos:             "verb",
+			MeaningJA:       "指導する",
+			Level:           "core-1",
+			FrequencyRank:   180,
+			DistractorGroup: "basic-verb-action",
+		},
+	}
+	if err := st.SeedWords(ctx, nextEntries, dict.CoreWordsVersion); err != nil {
+		t.Fatalf("SeedWords() version bump error = %v", err)
+	}
+
+	if _, err := st.db.ExecContext(ctx, `
+UPDATE words
+SET pos = '', level = '', frequency_rank = 0, distractor_group = ''
+WHERE id = ?
+`, retiredWordID); err != nil {
+		t.Fatalf("corrupt retired word metadata: %v", err)
+	}
+
+	report := st.RunDiagnostics(ctx)
+	if report.HasIssues() {
+		t.Fatalf("RunDiagnostics() reported issues with only retired-word corruption: %+v", report.Checks)
+	}
+}
+
 func TestRunDiagnosticsDetectsOrphanRows(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
 	st := newTestStore(t)
-	if err := st.SeedWords(ctx, doctorTestEntries(), dict.CoreWordsVersion); err != nil {
-		t.Fatalf("SeedWords() error = %v", err)
+	if _, err := st.db.ExecContext(ctx, `
+INSERT INTO words (id, lemma, pos, meaning_ja, level, frequency_rank, distractor_group, source)
+VALUES
+	(1, 'adopt', 'verb', '採用する', 'core-1', 100, 'basic-verb-action', ?),
+	(2, 'apply', 'verb', '応募する', 'core-1', 120, 'basic-verb-action', ?),
+	(3, 'cancel', 'verb', '取り消す', 'core-1', 140, 'basic-verb-action', ?),
+	(4, 'deliver', 'verb', '届ける', 'core-1', 160, 'basic-verb-action', ?)
+`, WordSourceCore, WordSourceCore, WordSourceCore, WordSourceCore); err != nil {
+		t.Fatalf("insert legacy words: %v", err)
+	}
+	if _, err := st.db.ExecContext(ctx, `
+INSERT INTO app_meta (key, value)
+VALUES ('dict_version', ?)
+`, dict.CoreWordsVersion); err != nil {
+		t.Fatalf("insert legacy dict_version: %v", err)
 	}
 
 	if _, err := st.db.ExecContext(ctx, `PRAGMA foreign_keys = OFF;`); err != nil {
@@ -440,16 +540,32 @@ applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 		}
 	}
 
-	if err := st.SeedWords(ctx, doctorTestEntries(), dict.CoreWordsVersion); err != nil {
-		t.Fatalf("SeedWords() error = %v", err)
+	if _, err := st.db.ExecContext(ctx, `
+INSERT INTO words (id, lemma, pos, meaning_ja, level, frequency_rank, distractor_group, source)
+VALUES
+	(1, 'adopt', 'verb', '採用する', 'core-1', 100, 'basic-verb-action', ?),
+	(2, 'apply', 'verb', '応募する', 'core-1', 120, 'basic-verb-action', ?),
+	(3, 'cancel', 'verb', '取り消す', 'core-1', 140, 'basic-verb-action', ?),
+	(4, 'deliver', 'verb', '届ける', 'core-1', 160, 'basic-verb-action', ?)
+`, WordSourceCore, WordSourceCore, WordSourceCore, WordSourceCore); err != nil {
+		t.Fatalf("insert legacy words: %v", err)
+	}
+	if _, err := st.db.ExecContext(ctx, `
+INSERT INTO app_meta (key, value)
+VALUES ('dict_version', ?)
+`, dict.CoreWordsVersion); err != nil {
+		t.Fatalf("insert legacy dict_version: %v", err)
 	}
 
-	words, err := st.ListWordsByPOS(ctx, "verb", 1, nil)
-	if err != nil {
-		t.Fatalf("ListWordsByPOS() error = %v", err)
-	}
-	if len(words) == 0 {
-		t.Fatal("ListWordsByPOS() returned no words")
+	var wordID int64
+	if err := st.db.QueryRowContext(ctx, `
+SELECT id
+FROM words
+WHERE pos = 'verb'
+ORDER BY frequency_rank ASC, id ASC
+LIMIT 1
+`).Scan(&wordID); err != nil {
+		t.Fatalf("load legacy word id: %v", err)
 	}
 
 	if _, err := st.db.ExecContext(ctx, `
@@ -461,7 +577,7 @@ VALUES (?, CURRENT_TIMESTAMP, ?, 1, 0, ?)
 	if _, err := st.db.ExecContext(ctx, `
 INSERT INTO session_items (session_id, ordinal, word_id, kind, status)
 VALUES (?, 1, ?, ?, ?)
-`, "legacy-active", words[0].ID, ItemKindNew, ItemStatusPending); err != nil {
+`, "legacy-active", wordID, ItemKindNew, ItemStatusPending); err != nil {
 		t.Fatalf("insert legacy session item: %v", err)
 	}
 

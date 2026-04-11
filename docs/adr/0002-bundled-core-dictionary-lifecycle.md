@@ -13,16 +13,19 @@
 - `assets/words_core.jsonl` を bundled core の正規 runtime asset とし、起動時は embed された内容を読み込んで利用する。
 - bundled core は `dict.LoadCoreWords()` で parse と validation を通したうえで seed する。core では `lemma`, `meaning_ja`, `pos`, `level`, `frequency_rank`, `distractor_group` を必須とし、`(lemma, pos)` と `frequency_rank` の重複を許さず、各 `distractor_group` は最低 4 語を要求する。
 - bundled core の版は `dict.CoreWordsVersion` で管理し、DB 内では `app_meta.dict_version` と `source = "core"` を使って現在の seed 状態を追跡する。
-- 初回 seed で core 語彙を投入し、`dict_version` が変わった場合と `reset --reseed` 実行時は core source の語彙を置き換え、学習履歴テーブルもリセットする。
+- 初回 seed で core 語彙を投入し、`dict_version` が変わった場合は `source = "core"` の既存 row を `normalized(lemma, pos)` 単位で差分同期する。matched row は同じ `word_id` を維持したまま metadata を更新し、新語だけを追加し、消えた旧 core row は inactive として退役させる。
+- `reset --reseed` は bundled core の明示的な破壊的再投入導線として残し、core source を全置換したうえで学習履歴テーブルもリセットする。
 - import 語彙は `import:*` source として core から分離し、`core` は予約済み source として扱う。
 - raw の Leipzig / Japanese WordNet 入力は配布物へ含めず、再生成条件は `scripts/vocab/source_manifest.json` と repository tooling に固定する。
 
 ## Consequences
 
 - 学習時に参照する core 辞書の品質と整合性を、アプリ起動時 validation と DB metadata の両方で担保できる。
-- core 更新時に `dict_version` と reseed 導線が揃うため、古い core と新しい進捗が半端に混ざる状態を避けられる。
+- core 更新時も matched row の `word_id` と SRS 履歴を保持できるため、bundled core の語彙追加や軽微な metadata 更新を学習進捗の全消去なしで配布できる。
+- 退役した core 語彙を inactive row として残すため、過去 session・review・export の参照整合性を壊さずに新規計画対象からだけ除外できる。
 - core と import を source で分けるため、標準辞書の更新とユーザー追加データの保守方針を分離できる。
-- core の版更新は学習履歴のリセットを伴うため、辞書差し替えは軽微な見た目変更として扱わず、意図的に実施する必要がある。
+- core の版更新は `normalized(lemma, pos)` を軸にした互換性契約を伴うため、同一 key の語は同じ学習対象として扱える範囲の更新に留める必要がある。
+- 破壊的な全リセットは `reset --reseed` に限定されるため、CLI とテストの両方でこの導線を明示的に維持し続ける必要がある。
 - データ由来と再配布条件を repository 内で維持し続ける責務が残る。
 
 ## Rationale

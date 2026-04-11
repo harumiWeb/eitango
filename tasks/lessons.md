@@ -39,6 +39,7 @@
 - panel の外側余白を追加・変更するときは、見た目だけでなく terminal 幅内に収まることも同じテストで確認する。margin は「増やしたら終わり」にせず、幅計算との整合まで見る。
 - panel の左右余白は「外側 margin」と「枠内 padding」を分けて扱う。ユーザーが求める余白がどちらかを確認せずに片方だけ増やさない。
 - fallback や practice 用の派生 session を追加するときは、通常 session と同じ mode 名に寄せて曖昧化しない。resume 後も挙動を再現できるよう、SRS 反映有無や feedback 契約を mode か同等の永続 state に持たせる。
+- 辞書や metadata の non-destructive sync で `word_id` を維持しても、active session が live な `words` row や distractor 候補を再読込する設計なら設問整合性は維持されない。question snapshot を持たない session は version bump 時に `abandoned` へ倒すか、再開に必要な prompt/choices を session 側へ固定する。
 - UI の余白調整では、外側 margin は既定で 0 を維持し、見た目の余白要求はまず枠内 padding で満たす。外側 margin を触るのはレイアウト意図が明示されている場合だけにする。
 - adaptive TUI の描画契約は `docs/specs/tui-layout.md` を正本にし、`tasks/lessons.md` へ width tier・省略対象・legacy fallback 画面一覧のような仕様本文を複製しない。
 - adaptive TUI を触るときは、主情報の wrap、`width == 0` の legacy fallback、`results` / `stats` / `keymap editor` を含む回帰比較を `docs/specs/tui-layout.md` に沿って確認する。

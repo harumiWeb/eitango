@@ -155,6 +155,11 @@ func (s *Store) checkDictionary(ctx context.Context) DiagnosticCheck {
 		return diagnosticCheckError("dictionary", "dict_version could not be read", err.Error())
 	}
 
+	hasIsActive, err := s.tableHasColumn(ctx, "words", "is_active")
+	if err != nil {
+		return diagnosticCheckError("dictionary", "word schema could not be inspected", err.Error())
+	}
+
 	wordCount, err := s.wordCount(ctx)
 	if err != nil {
 		return diagnosticCheckError("dictionary", "word count could not be read", err.Error())
@@ -164,16 +169,38 @@ func (s *Store) checkDictionary(ctx context.Context) DiagnosticCheck {
 		return diagnosticCheckError("dictionary", "core word count could not be read", err.Error())
 	}
 	importWordCount := wordCount - coreWordCount
+	activeCoreWordCount := coreWordCount
+	retiredCoreWordCount := 0
+	if hasIsActive {
+		activeCoreWordCount, err = s.countWordsBySourceActive(ctx, WordSourceCore, true)
+		if err != nil {
+			return diagnosticCheckError("dictionary", "active core word count could not be read", err.Error())
+		}
+		retiredCoreWordCount = coreWordCount - activeCoreWordCount
+	}
 
 	switch {
-	case version == "" && coreWordCount == 0:
+	case version == "" && activeCoreWordCount == 0:
 		return diagnosticCheckError("dictionary", "core words are not seeded", fmt.Sprintf("expected dict_version %q", dict.CoreWordsVersion))
 	case version == "":
-		return diagnosticCheckError("dictionary", "dict_version is missing", fmt.Sprintf("core words: %d", coreWordCount), fmt.Sprintf("imported words: %d", importWordCount))
-	case coreWordCount == 0:
-		return diagnosticCheckError("dictionary", "dict_version exists but core words are missing", fmt.Sprintf("dict_version: %s", version), fmt.Sprintf("imported words: %d", importWordCount))
+		details := []string{fmt.Sprintf("active core words: %d", activeCoreWordCount)}
+		if hasIsActive && retiredCoreWordCount > 0 {
+			details = append(details, fmt.Sprintf("retired core words: %d", retiredCoreWordCount))
+		}
+		details = append(details, fmt.Sprintf("imported words: %d", importWordCount))
+		return diagnosticCheckError("dictionary", "dict_version is missing", details...)
+	case activeCoreWordCount == 0:
+		details := []string{fmt.Sprintf("dict_version: %s", version)}
+		if hasIsActive && retiredCoreWordCount > 0 {
+			details = append(details, fmt.Sprintf("retired core words: %d", retiredCoreWordCount))
+		}
+		details = append(details, fmt.Sprintf("imported words: %d", importWordCount))
+		return diagnosticCheckError("dictionary", "dict_version exists but active core words are missing", details...)
 	case version != dict.CoreWordsVersion:
-		details := []string{fmt.Sprintf("core words: %d", coreWordCount)}
+		details := []string{fmt.Sprintf("active core words: %d", activeCoreWordCount)}
+		if hasIsActive && retiredCoreWordCount > 0 {
+			details = append(details, fmt.Sprintf("retired core words: %d", retiredCoreWordCount))
+		}
 		if importWordCount > 0 {
 			details = append(details, fmt.Sprintf("imported words: %d", importWordCount))
 		}
@@ -183,7 +210,10 @@ func (s *Store) checkDictionary(ctx context.Context) DiagnosticCheck {
 			details...,
 		)
 	default:
-		summary := fmt.Sprintf("%d core words seeded at %s", coreWordCount, version)
+		summary := fmt.Sprintf("%d active core words seeded at %s", activeCoreWordCount, version)
+		if hasIsActive && retiredCoreWordCount > 0 {
+			summary += fmt.Sprintf(" (+%d retired core)", retiredCoreWordCount)
+		}
 		if importWordCount > 0 {
 			summary += fmt.Sprintf(" (+%d imported)", importWordCount)
 		}
@@ -338,6 +368,11 @@ LIMIT ?
 }
 
 func (s *Store) checkWordMetadata(ctx context.Context) DiagnosticCheck {
+	hasIsActive, err := s.tableHasColumn(ctx, "words", "is_active")
+	if err != nil {
+		return diagnosticCheckError("word metadata", "word schema could not be inspected", err.Error())
+	}
+
 	type metadataIssue struct {
 		label string
 		count int
@@ -347,35 +382,35 @@ func (s *Store) checkWordMetadata(ctx context.Context) DiagnosticCheck {
 	issues := []metadataIssue{
 		{
 			label: "missing pos",
-			query: `
+			query: fmt.Sprintf(`
 SELECT COUNT(*)
 FROM words
-WHERE TRIM(COALESCE(pos, '')) = ''
-`,
+WHERE %s
+`, doctorWordCondition("TRIM(COALESCE(pos, '')) = ''", hasIsActive)),
 		},
 		{
 			label: "missing level",
-			query: `
+			query: fmt.Sprintf(`
 SELECT COUNT(*)
 FROM words
-WHERE TRIM(COALESCE(level, '')) = ''
-`,
+WHERE %s
+`, doctorWordCondition("TRIM(COALESCE(level, '')) = ''", hasIsActive)),
 		},
 		{
 			label: "missing frequency rank",
-			query: `
+			query: fmt.Sprintf(`
 SELECT COUNT(*)
 FROM words
-WHERE COALESCE(frequency_rank, 0) <= 0
-`,
+WHERE %s
+`, doctorWordCondition("COALESCE(frequency_rank, 0) <= 0", hasIsActive)),
 		},
 		{
 			label: "missing distractor group",
-			query: `
+			query: fmt.Sprintf(`
 SELECT COUNT(*)
 FROM words
-WHERE TRIM(COALESCE(distractor_group, '')) = ''
-`,
+WHERE %s
+`, doctorWordCondition("TRIM(COALESCE(distractor_group, '')) = ''", hasIsActive)),
 		},
 	}
 
@@ -399,41 +434,41 @@ FROM words
 WHERE %s
 ORDER BY id ASC
 LIMIT ?
-`, metadataConditionForLabel(issues[i].label)), doctorSampleLimit)
+`, doctorWordCondition(metadataConditionForLabel(issues[i].label), hasIsActive)), doctorSampleLimit)
 		if err != nil {
 			return diagnosticCheckError("word metadata", fmt.Sprintf("%s samples could not be loaded", issues[i].label), err.Error())
 		}
 		details = append(details, formatStringSamples(issues[i].label, count, samples))
 	}
 
-	duplicateRankCount, err := s.countRows(ctx, `
+	duplicateRankCount, err := s.countRows(ctx, fmt.Sprintf(`
 SELECT COUNT(*)
 FROM (
   SELECT source, frequency_rank
   FROM words
-  WHERE frequency_rank IS NOT NULL
+  WHERE %s
   GROUP BY source, frequency_rank
   HAVING COUNT(*) > 1
 )
-`)
+`, doctorWordCondition("frequency_rank IS NOT NULL", hasIsActive)))
 	if err != nil {
 		return diagnosticCheckError("word metadata", "duplicate frequency ranks could not be counted", err.Error())
 	}
 	if duplicateRankCount > 0 {
 		totalIssueCount += duplicateRankCount
-		rows, err := s.db.QueryContext(ctx, `
+		rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
 SELECT source, frequency_rank, GROUP_CONCAT(lemma, ', ')
 FROM (
   SELECT source, frequency_rank, lemma
   FROM words
-  WHERE frequency_rank IS NOT NULL
+  WHERE %s
   ORDER BY source ASC, frequency_rank ASC, lemma ASC
 )
 GROUP BY source, frequency_rank
 HAVING COUNT(*) > 1
 ORDER BY source ASC, frequency_rank ASC
 LIMIT ?
-`, doctorSampleLimit)
+`, doctorWordCondition("frequency_rank IS NOT NULL", hasIsActive)), doctorSampleLimit)
 		if err != nil {
 			return diagnosticCheckError("word metadata", "duplicate frequency rank samples could not be loaded", err.Error())
 		}
@@ -779,6 +814,8 @@ func doctorTableInfoQuery(tableName string) (string, error) {
 	switch tableName {
 	case "sessions":
 		return "PRAGMA table_info(sessions)", nil
+	case "words":
+		return "PRAGMA table_info(words)", nil
 	default:
 		return "", fmt.Errorf("unsupported table %q", tableName)
 	}
@@ -821,7 +858,16 @@ func (s *Store) tableHasColumn(ctx context.Context, tableName, columnName string
 }
 
 func (s *Store) checkQuizability(ctx context.Context) DiagnosticCheck {
-	wordCount, err := s.wordCount(ctx)
+	hasIsActive, err := s.tableHasColumn(ctx, "words", "is_active")
+	if err != nil {
+		return diagnosticCheckError("quizability", "word schema could not be inspected", err.Error())
+	}
+
+	wordCountQuery := `SELECT COUNT(*) FROM words`
+	if hasIsActive {
+		wordCountQuery += ` WHERE is_active = 1`
+	}
+	wordCount, err := s.countRows(ctx, wordCountQuery)
 	if err != nil {
 		return diagnosticCheckError("quizability", "words could not be loaded", err.Error())
 	}
@@ -835,29 +881,35 @@ func (s *Store) checkQuizability(ctx context.Context) DiagnosticCheck {
 	// least four distinct meanings. That keeps doctor fast on CI-sized datasets,
 	// but it can miss edge cases from the runtime distractor filters
 	// (distractor_group, level, frequency proximity, excluded IDs).
+	activeCondition := ""
+	if hasIsActive {
+		activeCondition = "WHERE is_active = 1"
+	}
 	const quizabilityCountsCTE = `
 WITH pos_meaning_counts AS (
   SELECT IFNULL(pos, '') AS pos_key, COUNT(DISTINCT meaning_ja) AS distinct_meaning_count
   FROM words
+  %s
   GROUP BY IFNULL(pos, '')
 )
 `
 
-	failureCount, err := s.countRows(ctx, quizabilityCountsCTE+`
+	quizabilityCountsQuery := fmt.Sprintf(quizabilityCountsCTE, activeCondition)
+
+	failureCount, err := s.countRows(ctx, quizabilityCountsQuery+`
 SELECT COUNT(*)
 FROM words w
 LEFT JOIN pos_meaning_counts pmc ON IFNULL(w.pos, '') = pmc.pos_key
-WHERE COALESCE(pmc.distinct_meaning_count, 0) < ?
-`, doctorQuizChoiceSize)
+WHERE `+doctorWordAliasCondition("w", "COALESCE(pmc.distinct_meaning_count, 0) < ?", hasIsActive), doctorQuizChoiceSize)
 	if err != nil {
 		return diagnosticCheckError("quizability", "same-pos distractor meanings could not be counted", err.Error())
 	}
 	if failureCount > 0 {
-		rows, err := s.db.QueryContext(ctx, quizabilityCountsCTE+`
+		rows, err := s.db.QueryContext(ctx, quizabilityCountsQuery+`
 SELECT w.lemma, w.pos
 FROM words w
 LEFT JOIN pos_meaning_counts pmc ON IFNULL(w.pos, '') = pmc.pos_key
-WHERE COALESCE(pmc.distinct_meaning_count, 0) < ?
+WHERE `+doctorWordAliasCondition("w", "COALESCE(pmc.distinct_meaning_count, 0) < ?", hasIsActive)+`
 ORDER BY COALESCE(w.frequency_rank, 999999) ASC, w.id ASC
 LIMIT ?
 `, doctorQuizChoiceSize, doctorSampleLimit)
@@ -984,4 +1036,18 @@ func formatSampleList(label string, total int, values []string) string {
 		return fmt.Sprintf("%s: %s (+%d more)", label, summary, total-len(values))
 	}
 	return fmt.Sprintf("%s: %s", label, summary)
+}
+
+func doctorWordCondition(condition string, activeOnly bool) string {
+	if !activeOnly {
+		return condition
+	}
+	return "is_active = 1 AND " + condition
+}
+
+func doctorWordAliasCondition(alias, condition string, activeOnly bool) string {
+	if !activeOnly {
+		return condition
+	}
+	return alias + ".is_active = 1 AND " + condition
 }

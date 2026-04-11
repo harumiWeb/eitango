@@ -7,6 +7,18 @@
 - [x] 新規追加帯の `verb` 代表訳と `distractor_group` ドリフトを監査して必要な補正を入れる
 - [x] `validate --embedded-core` と `doctor` で整合性を検証する
 
+# 2026-04-11 issue #49: bundled core 更新時の SRS 維持
+
+- [x] `tasks/feature_spec.md` に core sync の non-destructive 仕様と検証条件を追記する
+- [x] `words.is_active` 用 migration を追加し、core sync 用の store helper を実装する
+- [x] `SeedWords()` を version bump 時の destructive reseed から diff sync に置き換える
+- [x] future planning 用 query と件数集計を active words 限定へ更新する
+- [x] `doctor` を retired core / pre-006 schema fallback に対応させる
+- [x] `reset --reseed` の destructive 契約を維持する回帰テストを残しつつ、version bump 時の SRS 保持テストへ差し替える
+- [x] ADR-0002 を新しい core dictionary lifecycle に更新する
+- [x] `go test ./internal/store ./internal/quiz ./cmd/eitango` と `go test ./...` を通す
+- [x] review follow-up として、version bump 時の active session を `abandoned` に倒す回帰と実装へ合わせて issue #49 の仕様メモを更新する
+
 # 5k 初回リリース TODO
 
 このファイルは、初回 OSS リリースに向けた active backlog だけを管理する。

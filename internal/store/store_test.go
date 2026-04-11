@@ -595,7 +595,7 @@ func TestLoadStatsSnapshotCountsConsecutiveReviewDays(t *testing.T) {
 	}
 }
 
-func TestSeedWordsVersionChangeResetsUserData(t *testing.T) {
+func TestSeedWordsVersionChangePreservesMatchedCoreProgress(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -642,16 +642,31 @@ func TestSeedWordsVersionChangeResetsUserData(t *testing.T) {
 		t.Fatalf("progress before reseed = %d, want 1", got)
 	}
 
-	nextEntries := append(testEntries(), dict.Entry{
-		Lemma:           "coach",
-		Pos:             "verb",
-		MeaningJA:       "指導する",
-		Level:           "core-1",
-		FrequencyRank:   400,
-		DistractorGroup: "basic-verb-action",
-		ExampleEN:       "They coach the team every weekend.",
-		ExampleJA:       "彼らは毎週末チームを指導する。",
-	})
+	trackedWordID := words[0].ID
+	nextEntries := []dict.Entry{
+		{
+			Lemma:           words[0].Lemma,
+			Pos:             words[0].Pos,
+			MeaningJA:       "採用する(更新)",
+			Level:           "core-1",
+			FrequencyRank:   100,
+			DistractorGroup: "basic-verb-action",
+			ExampleEN:       "They adopt the updated plan.",
+			ExampleJA:       "彼らは更新後の計画を採用する。",
+		},
+		testEntries()[1],
+		testEntries()[2],
+		{
+			Lemma:           "coach",
+			Pos:             "verb",
+			MeaningJA:       "指導する",
+			Level:           "core-1",
+			FrequencyRank:   400,
+			DistractorGroup: "basic-verb-action",
+			ExampleEN:       "They coach the team every weekend.",
+			ExampleJA:       "彼らは毎週末チームを指導する。",
+		},
+	}
 	if err := st.SeedWords(ctx, nextEntries, "test-v2"); err != nil {
 		t.Fatalf("SeedWords() version bump error = %v", err)
 	}
@@ -659,17 +674,17 @@ func TestSeedWordsVersionChangeResetsUserData(t *testing.T) {
 	if got := mustCountRows(t, st, "words"); got != len(nextEntries) {
 		t.Fatalf("words after version bump = %d, want %d", got, len(nextEntries))
 	}
-	if got := mustCountRows(t, st, "sessions"); got != 0 {
-		t.Fatalf("sessions after version bump = %d, want 0", got)
+	if got := mustCountRows(t, st, "sessions"); got != 1 {
+		t.Fatalf("sessions after version bump = %d, want 1", got)
 	}
-	if got := mustCountRows(t, st, "session_items"); got != 0 {
-		t.Fatalf("session_items after version bump = %d, want 0", got)
+	if got := mustCountRows(t, st, "session_items"); got != 1 {
+		t.Fatalf("session_items after version bump = %d, want 1", got)
 	}
-	if got := mustCountRows(t, st, "reviews"); got != 0 {
-		t.Fatalf("reviews after version bump = %d, want 0", got)
+	if got := mustCountRows(t, st, "reviews"); got != 1 {
+		t.Fatalf("reviews after version bump = %d, want 1", got)
 	}
-	if got := mustCountRows(t, st, "progress"); got != 0 {
-		t.Fatalf("progress after version bump = %d, want 0", got)
+	if got := mustCountRows(t, st, "progress"); got != 1 {
+		t.Fatalf("progress after version bump = %d, want 1", got)
 	}
 
 	version, err := st.metaValue(ctx, "dict_version")
@@ -680,15 +695,233 @@ func TestSeedWordsVersionChangeResetsUserData(t *testing.T) {
 		t.Fatalf("dict_version = %q, want test-v2", version)
 	}
 
+	trackedWord := mustLoadWordByID(t, st, trackedWordID)
+	if trackedWord.Lemma != words[0].Lemma {
+		t.Fatalf("tracked word lemma = %q, want %q", trackedWord.Lemma, words[0].Lemma)
+	}
+	if trackedWord.MeaningJA != "採用する(更新)" {
+		t.Fatalf("tracked word meaning = %q, want updated meaning", trackedWord.MeaningJA)
+	}
+	if !mustWordIsActive(t, st, trackedWordID) {
+		t.Fatalf("tracked word should remain active after version bump")
+	}
+
+	progress := mustLoadProgress(t, st, trackedWordID)
+	if progress.State != "review" {
+		t.Fatalf("progress state after version bump = %q, want review", progress.State)
+	}
+	if progress.TotalCorrect != 1 || progress.TotalWrong != 0 {
+		t.Fatalf("progress totals after version bump = %+v, want one correct answer preserved", progress)
+	}
+
 	snapshot, err := st.LoadHomeSnapshot(ctx)
 	if err != nil {
 		t.Fatalf("LoadHomeSnapshot() error = %v", err)
 	}
-	if snapshot.NewCount != len(nextEntries) {
-		t.Fatalf("NewCount after version bump = %d, want %d", snapshot.NewCount, len(nextEntries))
+	if snapshot.NewCount != len(nextEntries)-1 {
+		t.Fatalf("NewCount after version bump = %d, want %d", snapshot.NewCount, len(nextEntries)-1)
 	}
 	if snapshot.ActiveSession != nil {
 		t.Fatalf("ActiveSession after version bump = %+v, want nil", snapshot.ActiveSession)
+	}
+}
+
+func TestSeedWordsVersionChangeAbandonsActiveSession(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+
+	if err := st.SeedWords(ctx, testEntries(), "test-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+	if len(words) == 0 {
+		t.Fatal("ListNewWords() returned no words")
+	}
+
+	record, items, err := st.CreateSession(ctx, ModeLearn, AnswerModeChoice, []SessionItemPlan{
+		{WordID: words[0].ID, Kind: ItemKindNew},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if len(items) != 1 || items[0].Status != ItemStatusPending {
+		t.Fatalf("created items = %+v, want one pending item", items)
+	}
+
+	nextEntries := []dict.Entry{
+		{
+			Lemma:           words[0].Lemma,
+			Pos:             words[0].Pos,
+			MeaningJA:       "採用する(更新)",
+			Level:           "core-1",
+			FrequencyRank:   100,
+			DistractorGroup: "basic-verb-action",
+			ExampleEN:       "They adopt the updated plan.",
+			ExampleJA:       "彼らは更新後の計画を採用する。",
+		},
+		testEntries()[1],
+		testEntries()[2],
+	}
+	if err := st.SeedWords(ctx, nextEntries, "test-v2"); err != nil {
+		t.Fatalf("SeedWords() version bump error = %v", err)
+	}
+
+	loaded, err := st.LoadSession(ctx, record.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if loaded.Status != SessionStatusAbandoned {
+		t.Fatalf("session status after version bump = %q, want %q", loaded.Status, SessionStatusAbandoned)
+	}
+	if loaded.FinishedAt == nil {
+		t.Fatal("abandoned session finished_at is nil")
+	}
+
+	activeRecord, activeItems, err := st.LoadActiveRuntime(ctx)
+	if err != nil {
+		t.Fatalf("LoadActiveRuntime() error = %v", err)
+	}
+	if activeRecord != nil || activeItems != nil {
+		t.Fatalf("active runtime after version bump = %+v / %+v, want nil", activeRecord, activeItems)
+	}
+
+	snapshot, err := st.LoadHomeSnapshot(ctx)
+	if err != nil {
+		t.Fatalf("LoadHomeSnapshot() error = %v", err)
+	}
+	if snapshot.ActiveSession != nil {
+		t.Fatalf("ActiveSession after abandoning version-bumped session = %+v, want nil", snapshot.ActiveSession)
+	}
+}
+
+func TestSeedWordsVersionChangeRetiresRemovedCoreWordsFromPlanning(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	st := newTestStore(t)
+
+	if err := st.SeedWords(ctx, testEntries(), "test-v1"); err != nil {
+		t.Fatalf("SeedWords() error = %v", err)
+	}
+
+	words, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error = %v", err)
+	}
+	if len(words) < 2 {
+		t.Fatalf("ListNewWords() returned %d words, want at least 2", len(words))
+	}
+
+	keptWordID := words[0].ID
+	retiredWordID := words[1].ID
+	recordReviewInMode(t, st, keptWordID, AnswerModeChoice, time.Now().UTC().Add(-2*time.Hour))
+	recordReviewInMode(t, st, retiredWordID, AnswerModeChoice, time.Now().UTC().Add(-90*time.Minute))
+	if _, err := st.db.ExecContext(ctx, `
+UPDATE progress
+SET due_at = ?
+WHERE word_id = ?
+`, formatTime(time.Now().UTC().Add(-time.Hour)), retiredWordID); err != nil {
+		t.Fatalf("update retired word due_at: %v", err)
+	}
+
+	retiredWordBefore := mustLoadWordByID(t, st, retiredWordID)
+	nextEntries := []dict.Entry{
+		{
+			Lemma:           words[0].Lemma,
+			Pos:             words[0].Pos,
+			MeaningJA:       words[0].MeaningJA,
+			Level:           words[0].Level,
+			FrequencyRank:   words[0].FrequencyRank,
+			DistractorGroup: words[0].DistractorGroup,
+			ExampleEN:       "They adopt the plan.",
+			ExampleJA:       "彼らはその計画を採用する。",
+		},
+		testEntries()[2],
+		{
+			Lemma:           "coach",
+			Pos:             "verb",
+			MeaningJA:       "指導する",
+			Level:           "core-1",
+			FrequencyRank:   400,
+			DistractorGroup: "basic-verb-action",
+			ExampleEN:       "They coach the team every weekend.",
+			ExampleJA:       "彼らは毎週末チームを指導する。",
+		},
+	}
+	if err := st.SeedWords(ctx, nextEntries, "test-v2"); err != nil {
+		t.Fatalf("SeedWords() version bump error = %v", err)
+	}
+
+	if mustWordIsActive(t, st, retiredWordID) {
+		t.Fatalf("retired word %d should be inactive after version bump", retiredWordID)
+	}
+	if keptWord := mustLoadWordByID(t, st, keptWordID); keptWord.ID != keptWordID {
+		t.Fatalf("kept word id changed: got %d want %d", keptWord.ID, keptWordID)
+	}
+	if retiredWord := mustLoadWordByID(t, st, retiredWordID); retiredWord.Lemma != retiredWordBefore.Lemma {
+		t.Fatalf("retired word history read failed: got %q want %q", retiredWord.Lemma, retiredWordBefore.Lemma)
+	}
+
+	if dueWords, err := st.ListDueWords(ctx, 10); err != nil {
+		t.Fatalf("ListDueWords() error = %v", err)
+	} else if len(dueWords) != 0 {
+		t.Fatalf("ListDueWords() returned retired due words: %+v", dueWords)
+	}
+
+	newWords, err := st.ListNewWords(ctx, 10, nil)
+	if err != nil {
+		t.Fatalf("ListNewWords() error after version bump = %v", err)
+	}
+	for _, word := range newWords {
+		if word.ID == retiredWordID {
+			t.Fatalf("retired word appeared in ListNewWords(): %+v", word)
+		}
+	}
+
+	reviewedWords, err := st.ListReviewedWordsRandom(ctx, 10)
+	if err != nil {
+		t.Fatalf("ListReviewedWordsRandom() error = %v", err)
+	}
+	if len(reviewedWords) != 1 || reviewedWords[0].ID != keptWordID {
+		t.Fatalf("ListReviewedWordsRandom() = %+v, want kept reviewed word only", reviewedWords)
+	}
+
+	verbWords, err := st.ListWordsByPOS(ctx, "verb", 10, nil)
+	if err != nil {
+		t.Fatalf("ListWordsByPOS() error = %v", err)
+	}
+	for _, word := range verbWords {
+		if word.ID == retiredWordID {
+			t.Fatalf("retired word appeared in ListWordsByPOS(): %+v", word)
+		}
+	}
+
+	correct := mustLoadWordByID(t, st, keptWordID)
+	distractors, err := st.ListDistractorCandidates(ctx, correct, 10, []int64{correct.ID})
+	if err != nil {
+		t.Fatalf("ListDistractorCandidates() error = %v", err)
+	}
+	for _, word := range distractors {
+		if word.ID == retiredWordID {
+			t.Fatalf("retired word appeared in ListDistractorCandidates(): %+v", word)
+		}
+	}
+
+	snapshot, err := st.LoadHomeSnapshot(ctx)
+	if err != nil {
+		t.Fatalf("LoadHomeSnapshot() error = %v", err)
+	}
+	if snapshot.DueCount != 0 {
+		t.Fatalf("DueCount after retirement = %d, want 0", snapshot.DueCount)
+	}
+	if snapshot.NewCount != 2 {
+		t.Fatalf("NewCount after retirement = %d, want 2", snapshot.NewCount)
 	}
 }
 
@@ -946,6 +1179,26 @@ func mustLoadProgress(t *testing.T, st *Store, wordID int64) Progress {
 		t.Fatalf("loadProgressTx() error = %v", err)
 	}
 	return progress
+}
+
+func mustLoadWordByID(t *testing.T, st *Store, wordID int64) Word {
+	t.Helper()
+
+	word, err := st.GetWord(context.Background(), wordID)
+	if err != nil {
+		t.Fatalf("GetWord(%d) error = %v", wordID, err)
+	}
+	return word
+}
+
+func mustWordIsActive(t *testing.T, st *Store, wordID int64) bool {
+	t.Helper()
+
+	var isActive int
+	if err := st.db.QueryRowContext(context.Background(), `SELECT is_active FROM words WHERE id = ?`, wordID).Scan(&isActive); err != nil {
+		t.Fatalf("query words.is_active for %d: %v", wordID, err)
+	}
+	return isActive != 0
 }
 
 func stableUTCNoon() time.Time {
