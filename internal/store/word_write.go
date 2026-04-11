@@ -278,8 +278,8 @@ WHERE id = ?
 		if !existing.isActive {
 			continue
 		}
-		// nosemgrep
 		// False positive: the SQL is static and the id stays parameterized.
+		// nosemgrep
 		if _, err := tx.ExecContext(ctx, `UPDATE words SET is_active = 0 WHERE id = ?`, existing.id); err != nil {
 			return syncCoreWordCounts{}, fmt.Errorf("retire core word %d: %w", existing.id, err)
 		}
