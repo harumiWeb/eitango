@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -239,33 +240,16 @@ LIMIT ?
 		return []Word{}, nil
 	}
 
-	rows, err := s.db.QueryContext(ctx, `
-SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
-       distractor_group, example_en, example_ja, source, created_at
-FROM words
-WHERE id IN (`+placeholders(len(ids))+`)
-`, int64Args(ids)...)
-	if err != nil {
-		return nil, fmt.Errorf("query reviewed words: %w", err)
-	}
-	defer func() {
-		_ = rows.Close()
-	}()
-
-	words, err := scanWords(rows)
-	if err != nil {
-		return nil, err
-	}
-
-	byID := make(map[int64]Word, len(words))
-	for _, word := range words {
-		byID[word.ID] = word
-	}
-
 	ordered := make([]Word, 0, len(ids))
 	for _, id := range ids {
-		word, ok := byID[id]
-		if !ok {
+		word, err := s.GetWord(ctx, id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			return nil, fmt.Errorf("load reviewed word %d: %w", id, err)
+		}
+		if word.ID == 0 {
 			continue
 		}
 		ordered = append(ordered, word)
@@ -987,14 +971,6 @@ func loadSessionModeTx(ctx context.Context, tx *sql.Tx, sessionID string) (strin
 		return "", fmt.Errorf("load session mode %s: %w", sessionID, err)
 	}
 	return mode, nil
-}
-
-func int64Args(values []int64) []any {
-	args := make([]any, 0, len(values))
-	for _, value := range values {
-		args = append(args, value)
-	}
-	return args
 }
 
 func scanWords(rows *sql.Rows) ([]Word, error) {
