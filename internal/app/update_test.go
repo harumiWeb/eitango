@@ -133,6 +133,63 @@ func TestUpdateHomeSettingsOpensOverlay(t *testing.T) {
 	}
 }
 
+func TestUpdateSettingsOverlayLoadedWhileHelpOpenPreservesBackgroundStatus(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(false),
+		VoiceCatalog:   newStubVoiceCatalog(nil, false),
+	})
+	model.loading = false
+	model = model.startSettingsOverlayLoad()
+
+	next, cmd := model.Update(tea.KeyPressMsg{Text: "?"})
+	helpModel := next.(RootModel)
+	if cmd != nil {
+		t.Fatalf("Update(?) cmd = %v, want nil", cmd)
+	}
+	if helpModel.screen != ScreenHelp {
+		t.Fatalf("screen = %v, want %v", helpModel.screen, ScreenHelp)
+	}
+	if helpModel.helpStatus != i18n.T(i18n.StatusLoading) {
+		t.Fatalf("helpStatus = %q, want %q", helpModel.helpStatus, i18n.T(i18n.StatusLoading))
+	}
+
+	loaded, nextCmd := helpModel.Update(settingsOverlayLoadedMsg{})
+	updated := loaded.(RootModel)
+	if nextCmd != nil {
+		t.Fatalf("Update(settingsOverlayLoadedMsg) cmd = %v, want nil", nextCmd)
+	}
+	if updated.screen != ScreenHelp {
+		t.Fatalf("screen after settings load = %v, want %v", updated.screen, ScreenHelp)
+	}
+	if updated.status != i18n.T(i18n.StatusHelp) {
+		t.Fatalf("status = %q, want %q", updated.status, i18n.T(i18n.StatusHelp))
+	}
+	if updated.helpStatus != i18n.T(i18n.StatusConfiguringSettings) {
+		t.Fatalf("helpStatus = %q, want %q", updated.helpStatus, i18n.T(i18n.StatusConfiguringSettings))
+	}
+	if updated.loading {
+		t.Fatal("loading = true, want false after settings load")
+	}
+	if updated.settingsLoading {
+		t.Fatal("settingsLoading = true, want false after settings load")
+	}
+
+	closed, closeCmd := updated.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	final := closed.(RootModel)
+	if closeCmd != nil {
+		t.Fatalf("Update(Esc) cmd = %v, want nil", closeCmd)
+	}
+	if final.screen != ScreenHome {
+		t.Fatalf("screen after closing help = %v, want %v", final.screen, ScreenHome)
+	}
+	if final.status != i18n.T(i18n.StatusConfiguringSettings) {
+		t.Fatalf("status after closing help = %q, want %q", final.status, i18n.T(i18n.StatusConfiguringSettings))
+	}
+}
+
 func TestUpdateLoadingTickAdvancesSettingsSpinner(t *testing.T) {
 	t.Parallel()
 

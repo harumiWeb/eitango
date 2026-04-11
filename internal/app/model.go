@@ -339,6 +339,11 @@ func (m RootModel) applySettingsOverlayLoad(voices []audio.Voice, loaded bool, a
 	}
 	m.loading = false
 	m.settingsLoading = false
+	if m.screen == ScreenHelp {
+		m.helpStatus = i18n.T(i18n.StatusConfiguringSettings)
+		m.status = i18n.T(i18n.StatusHelp)
+		return m
+	}
 	m.status = i18n.T(i18n.StatusConfiguringSettings)
 	return m
 }
