@@ -114,21 +114,23 @@ func windowsListVoicesScript() string {
 }
 
 func defaultWindowsListVoices(command string) ([]byte, error) {
-	command, ok := normalizeWindowsPowerShellCommand(command)
-	if !ok {
+	if _, ok := normalizeWindowsPowerShellCommand(command); !ok {
 		return nil, errors.New("unsupported powershell command")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	return exec.CommandContext(ctx, command, windowsListVoicesArgs()...).Output()
+	return windowsSystemPowerShellCommand(ctx, windowsListVoicesArgs()...).Output()
 }
 
 func runWindowsPowerShell(ctx context.Context, name string, args ...string) error {
-	command, ok := normalizeWindowsPowerShellCommand(name)
-	if !ok {
+	if _, ok := normalizeWindowsPowerShellCommand(name); !ok {
 		return errors.New("unsupported powershell command")
 	}
-	return exec.CommandContext(ctx, command, args...).Run()
+	return windowsSystemPowerShellCommand(ctx, args...).Run()
+}
+
+func windowsSystemPowerShellCommand(ctx context.Context, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, args...)
 }
 
 func windowsVoices(command string) ([]Voice, error) {
