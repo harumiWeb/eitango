@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- ホーム設定 overlay と `config.toml` に `audio_voice` を追加し、macOS / Windows の local voice を選択して次回起動後も使い続けられるようにしました。
+
 ### Changed
 
 - `eitango review [choice|write]` は due が 0 件のとき、確認後に過去に出題済み語だけを使う reviewed-only ランダム復習へ入れるようになりました。
@@ -12,6 +16,8 @@
 
 ### Fixed
 
+- 保存済み voice が利用不可になった場合は `auto` / 既定英語 voice へ安全に fallback し、設定画面の選択肢確認と音声再生を継続できるようにしました。
+- Windows で installed voice が 1 件だけの環境でも voice catalog を正しく読み取り、local voice 選択と音声再生が無効化されないようにしました。
 - reviewed-only fallback セッションは通常 review と別ラベルで表示されるようになり、ホーム画面や確認オーバーレイで区別が失われないようにしました。
 - reviewed-only fallback の choice feedback で、ヘルプ文言と狭幅レイアウト判定を Enter-only フローに合わせて修正しました。
 - 中断された reviewed-only fallback セッションは再開せず破棄するようにし、通常の SRS review として誤って復元されないようにしました。

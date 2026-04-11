@@ -25,17 +25,17 @@ var darwinPreferredVoiceNames = []string{
 	"Moira",
 }
 
-func newPlatformSpeaker() Speaker {
-	command, err := darwinLookPath("say")
+func newPlatformSpeaker(config Config) Speaker {
+	command, err := darwinCommand()
 	if err != nil {
 		return NoopSpeaker{}
 	}
-	command, ok := normalizeDarwinSayCommand(command)
-	if !ok {
-		return NoopSpeaker{}
-	}
 
-	voice := darwinPreferredVoice(command)
+	voices, _ := InstalledVoices()
+	voice := selectVoiceID(config.Voice, voices)
+	if voice == "" {
+		voice = darwinPreferredVoiceFromVoices(voices)
+	}
 	return commandSpeaker{
 		command: command,
 		buildArgs: func(text string) []string {
@@ -46,6 +46,14 @@ func newPlatformSpeaker() Speaker {
 		},
 		runCommand: runDarwinSay,
 	}
+}
+
+func listPlatformVoices() ([]Voice, error) {
+	command, err := darwinCommand()
+	if err != nil {
+		return nil, err
+	}
+	return darwinVoices(command)
 }
 
 func runDarwinSay(ctx context.Context, name string, args ...string) error {
@@ -65,40 +73,62 @@ func defaultDarwinListVoices(name string) ([]byte, error) {
 }
 
 func darwinPreferredVoice(command string) string {
-	output, err := darwinListVoices(command)
+	voices, err := darwinVoices(command)
 	if err != nil {
 		return ""
 	}
+	return darwinPreferredVoiceFromVoices(voices)
+}
 
-	type voiceInfo struct {
-		name   string
-		locale string
+func darwinVoices(command string) ([]Voice, error) {
+	output, err := darwinListVoices(command)
+	if err != nil {
+		return nil, err
 	}
 
-	var voices []voiceInfo
+	voices := make([]Voice, 0)
 	for _, line := range strings.Split(string(output), "\n") {
-		voice, locale, ok := parseDarwinVoiceLine(line)
+		name, locale, ok := parseDarwinVoiceLine(line)
 		if !ok {
 			continue
 		}
-		voices = append(voices, voiceInfo{name: voice, locale: locale})
+		voices = append(voices, Voice{
+			ID:     name,
+			Label:  name,
+			Locale: locale,
+		})
 	}
+	return voices, nil
+}
 
+func darwinPreferredVoiceFromVoices(voices []Voice) string {
 	for _, preferred := range darwinPreferredVoiceNames {
 		for _, voice := range voices {
-			if voice.name == preferred && isDarwinEnglishLocale(voice.locale) {
-				return voice.name
+			if voice.ID == preferred && isDarwinEnglishLocale(voice.Locale) {
+				return voice.ID
 			}
 		}
 	}
 
 	for _, voice := range voices {
-		if isDarwinEnglishLocale(voice.locale) && !isDarwinNoveltyVoice(voice.name) {
-			return voice.name
+		if isDarwinEnglishLocale(voice.Locale) && !isDarwinNoveltyVoice(voice.ID) {
+			return voice.ID
 		}
 	}
 
 	return ""
+}
+
+func darwinCommand() (string, error) {
+	command, err := darwinLookPath("say")
+	if err != nil {
+		return "", err
+	}
+	command, ok := normalizeDarwinSayCommand(command)
+	if !ok {
+		return "", errors.New("unsupported say command")
+	}
+	return command, nil
 }
 
 func parseDarwinVoiceLine(line string) (voice string, locale string, ok bool) {

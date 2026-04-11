@@ -236,7 +236,13 @@ Set the defaults in `config.toml`:
 ```toml
 audio_enabled = true
 audio_autoplay = false
+audio_voice = "Samantha"
 ```
+
+- leave `audio_voice` empty or omit it to use the default English voice automatically
+- use the `Local voice` row in the home settings overlay to switch between available local voices
+- you can still browse and save voice choices when `audio_enabled = false`
+- if the saved voice disappears, playback safely falls back to automatic voice selection
 
 ## Key Bindings
 

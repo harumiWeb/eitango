@@ -32,6 +32,7 @@ focus_mode_default = true
 write_mode_difficulty = "hard"
 audio_enabled = false
 audio_autoplay = true
+audio_voice = " Samantha "
 `), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -57,6 +58,9 @@ audio_autoplay = true
 	}
 	if !settings.AudioAutoplay {
 		t.Fatal("AudioAutoplay = false, want true")
+	}
+	if settings.AudioVoice != "Samantha" {
+		t.Fatalf("AudioVoice = %q, want %q", settings.AudioVoice, "Samantha")
 	}
 	if settings.ThemeMode != ThemeModeDefault {
 		t.Fatalf("ThemeMode = %q, want %q", settings.ThemeMode, ThemeModeDefault)
@@ -133,6 +137,7 @@ func TestSaveRoundTripsSettings(t *testing.T) {
 		WriteModeDifficulty: WriteModeDifficultyHard,
 		AudioEnabled:        false,
 		AudioAutoplay:       true,
+		AudioVoice:          "Samantha",
 		Language:            "en",
 		ThemeMode:           ThemeModeDefault,
 	}
@@ -335,8 +340,36 @@ func TestLoadMissingAudioSettingsDefaults(t *testing.T) {
 	if settings.AudioAutoplay {
 		t.Fatal("AudioAutoplay = true, want false")
 	}
+	if settings.AudioVoice != "" {
+		t.Fatalf("AudioVoice = %q, want empty string", settings.AudioVoice)
+	}
 	if settings.ThemeMode != ThemeModeDefault {
 		t.Fatalf("ThemeMode = %q, want %q", settings.ThemeMode, ThemeModeDefault)
+	}
+}
+
+func TestSaveNormalizesAudioVoiceWhitespace(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := Save(path, Settings{
+		SessionSize:         10,
+		ReviewRatio:         0.4,
+		WriteModeDifficulty: WriteModeDifficultyBasic,
+		AudioEnabled:        true,
+		AudioAutoplay:       false,
+		AudioVoice:          "  Samantha  ",
+		Language:            "ja",
+	}); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	settings, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if settings.AudioVoice != "Samantha" {
+		t.Fatalf("AudioVoice = %q, want %q", settings.AudioVoice, "Samantha")
 	}
 }
 

@@ -1097,6 +1097,126 @@ func TestUpdateHomeSettingsAudioRowsSwitchWithArrowKeys(t *testing.T) {
 	}
 }
 
+func TestUpdateHomeSettingsVoiceRowCyclesWithArrowKeys(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
+		VoiceCatalog: newStubVoiceCatalog([]audio.Voice{
+			{ID: "Haruka", Label: "Haruka", Locale: "ja-JP"},
+			{ID: "Samantha", Label: "Samantha", Locale: "en-US"},
+		}, true),
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsCursor = settingsRowAudioVoice
+
+	next, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	updated := next.(RootModel)
+	if updated.settingsAudioVoice != "Haruka" {
+		t.Fatalf("settingsAudioVoice after first right = %q, want %q", updated.settingsAudioVoice, "Haruka")
+	}
+
+	next, _ = updated.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	updated = next.(RootModel)
+	if updated.settingsAudioVoice != "Samantha" {
+		t.Fatalf("settingsAudioVoice after second right = %q, want %q", updated.settingsAudioVoice, "Samantha")
+	}
+
+	next, _ = updated.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	updated = next.(RootModel)
+	if updated.settingsAudioVoice != "Haruka" {
+		t.Fatalf("settingsAudioVoice after left = %q, want %q", updated.settingsAudioVoice, "Haruka")
+	}
+}
+
+func TestUpdateHomeSettingsVoiceRowChangesEvenWhenAudioDisabled(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings:       newAudioDisabledSettings(),
+		SpeakerFactory: newStubSpeakerFactory(true),
+		VoiceCatalog: newStubVoiceCatalog([]audio.Voice{
+			{ID: "Samantha", Label: "Samantha", Locale: "en-US"},
+		}, true),
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsCursor = settingsRowAudioVoice
+
+	next, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	updated := next.(RootModel)
+	if updated.settingsAudioVoice != "Samantha" {
+		t.Fatalf("settingsAudioVoice after right = %q, want %q", updated.settingsAudioVoice, "Samantha")
+	}
+	if updated.settingsAudioAutoplay {
+		t.Fatal("settingsAudioAutoplay = true, want false while audio is disabled")
+	}
+}
+
+func TestUpdateHomeSettingsSavePersistsAudioVoice(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	model := NewModel(nil, Options{
+		Settings:       newAudioEnabledSettings(),
+		ConfigPath:     path,
+		SpeakerFactory: newStubSpeakerFactory(true),
+		VoiceCatalog: newStubVoiceCatalog([]audio.Voice{
+			{ID: "Samantha", Label: "Samantha", Locale: "en-US"},
+		}, true),
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsCursor = settingsRowAudioVoice
+	model.settingsAudioVoice = "Samantha"
+
+	next, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated := next.(RootModel)
+	if cmd == nil {
+		t.Fatal("cmd = nil, want save settings command")
+	}
+
+	saved, _ := updated.Update(cmd())
+	final := saved.(RootModel)
+	if final.settings.AudioVoice != "Samantha" {
+		t.Fatalf("settings.AudioVoice = %q, want %q", final.settings.AudioVoice, "Samantha")
+	}
+
+	savedSettings, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load(saved config) error = %v", err)
+	}
+	if savedSettings.AudioVoice != "Samantha" {
+		t.Fatalf("saved AudioVoice = %q, want %q", savedSettings.AudioVoice, "Samantha")
+	}
+}
+
+func TestNewModelNormalizesMissingAudioVoiceToAuto(t *testing.T) {
+	t.Parallel()
+
+	settings := newAudioEnabledSettings()
+	settings.AudioVoice = "Missing"
+
+	model := NewModel(nil, Options{
+		Settings: settings,
+		SpeakerFactory: func(cfg audio.Config) audio.Speaker {
+			return &stubSpeaker{enabled: cfg.Enabled && cfg.Voice == ""}
+		},
+		VoiceCatalog: newStubVoiceCatalog([]audio.Voice{
+			{ID: "Samantha", Label: "Samantha", Locale: "en-US"},
+		}, true),
+	})
+
+	if model.settings.AudioVoice != "" {
+		t.Fatalf("settings.AudioVoice = %q, want empty auto fallback", model.settings.AudioVoice)
+	}
+	if !model.speakerAvailable() {
+		t.Fatal("speakerAvailable() = false, want true after auto fallback")
+	}
+}
+
 func TestUpdateHomeSettingsThemeRowSwitchesWithArrowKeys(t *testing.T) {
 	t.Parallel()
 
@@ -2081,6 +2201,16 @@ func newAudioDisabledSettings() config.Settings {
 	settings.AudioEnabled = false
 	settings.AudioAutoplay = false
 	return settings
+}
+
+func newStubVoiceCatalog(voices []audio.Voice, loaded bool) func() ([]audio.Voice, bool) {
+	cloned := make([]audio.Voice, len(voices))
+	copy(cloned, voices)
+	return func() ([]audio.Voice, bool) {
+		out := make([]audio.Voice, len(cloned))
+		copy(out, cloned)
+		return out, loaded
+	}
 }
 
 func newStubSpeakerFactory(enabled bool) func(audio.Config) audio.Speaker {

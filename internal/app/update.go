@@ -327,6 +327,8 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		case settingsRowAudioEnabled:
 			m.settingsAudioEnabled = false
 			m.settingsAudioAutoplay = false
+		case settingsRowAudioVoice:
+			m = m.updateSettingsAudioVoice(m.cycleSettingsAudioVoice(-1))
 		case settingsRowAudioAutoplay:
 			m.settingsAudioAutoplay = false
 		case settingsRowLanguage:
@@ -350,6 +352,8 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			m.settingsWriteDifficulty = config.WriteModeDifficultyHard
 		case settingsRowAudioEnabled:
 			m.settingsAudioEnabled = true
+		case settingsRowAudioVoice:
+			m = m.updateSettingsAudioVoice(m.cycleSettingsAudioVoice(1))
 		case settingsRowAudioAutoplay:
 			if !m.settingsAudioEnabled {
 				m.settingsAudioAutoplay = false
