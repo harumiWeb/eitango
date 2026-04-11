@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-04-11
+
 ### Added
 
 - ホーム設定 overlay と `config.toml` に `audio_voice` を追加し、macOS / Windows の local voice を選択して次回起動後も使い続けられるようにしました。
@@ -14,6 +16,8 @@
 
 - `eitango review [choice|write]` は due が 0 件のとき、確認後に過去に出題済み語だけを使う reviewed-only ランダム復習へ入れるようになりました。
 - reviewed-only fallback 復習では SRS の interval / due を更新せず、choice / write とも feedback は `Enter` で次へ進むだけの練習フローになりました。
+- bundled core 辞書の `dict_version` 更新時は、既存 core 語の SRS 進捗を保持したまま `lemma/pos` ベースで差分同期し、新語だけを追加するようにしました。
+- bundled core から外れた旧語は履歴参照用に保持しつつ新規セッション計画から外すようにし、`reset --reseed` だけを明示的な全リセット経路として維持しました。
 
 ### Fixed
 
@@ -23,6 +27,7 @@
 - reviewed-only fallback セッションは通常 review と別ラベルで表示されるようになり、ホーム画面や確認オーバーレイで区別が失われないようにしました。
 - reviewed-only fallback の choice feedback で、ヘルプ文言と狭幅レイアウト判定を Enter-only フローに合わせて修正しました。
 - 中断された reviewed-only fallback セッションは再開せず破棄するようにし、通常の SRS review として誤って復元されないようにしました。
+- bundled core の version bump 直前に active session が残っていた場合はその session を `abandoned` にし、辞書同期後に設問文面や choice 候補が drift した状態で再開されないようにしました。
 
 ## [0.6.1] - 2026-04-09
 
@@ -183,7 +188,8 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/harumiWeb/eitango/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/harumiWeb/eitango/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/harumiWeb/eitango/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/harumiWeb/eitango/compare/v0.5.1...v0.5.2

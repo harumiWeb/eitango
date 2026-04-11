@@ -114,7 +114,8 @@ SELECT w.id, w.lemma, w.pos, w.meaning_ja, w.level, w.frequency_rank,
        w.distractor_group, w.example_en, w.example_ja, w.source, w.created_at
 FROM words w
 JOIN progress p ON p.word_id = w.id
-WHERE p.due_at IS NOT NULL AND p.due_at <= ?
+WHERE w.is_active = 1
+  AND p.due_at IS NOT NULL AND p.due_at <= ?
 ORDER BY p.due_at ASC, COALESCE(w.frequency_rank, 999999) ASC, w.id ASC
 LIMIT ?
 `, formatTime(time.Now().UTC()), limit)
@@ -134,7 +135,8 @@ SELECT w.id, w.lemma, w.pos, w.meaning_ja, w.level, w.frequency_rank,
        w.distractor_group, w.example_en, w.example_ja, w.source, w.created_at
 FROM words w
 LEFT JOIN progress p ON p.word_id = w.id
-WHERE (p.word_id IS NULL OR p.state = 'new')
+WHERE w.is_active = 1
+  AND (p.word_id IS NULL OR p.state = 'new')
 `
 	args := make([]any, 0, len(excludeIDs)+1)
 	if len(excludeIDs) > 0 {
@@ -170,7 +172,8 @@ FROM (
 	           WHERE r.word_id = w.id AND r.answer_mode = ?
 	       ) THEN 1 ELSE 0 END AS write_seen
 	FROM words w
-	WHERE EXISTS (
+	WHERE w.is_active = 1
+	AND EXISTS (
 		SELECT 1
 		FROM reviews r
 		WHERE r.word_id = w.id AND r.answer_mode = ?
@@ -213,7 +216,8 @@ func (s *Store) ListReviewedWordsRandom(ctx context.Context, limit int) ([]Word,
 	idRows, err := s.db.QueryContext(ctx, `
 SELECT DISTINCT r.word_id
 FROM reviews r
-WHERE r.word_id IS NOT NULL
+JOIN words w ON w.id = r.word_id
+WHERE r.word_id IS NOT NULL AND w.is_active = 1
 ORDER BY RANDOM()
 LIMIT ?
 `, limit)
@@ -276,7 +280,7 @@ func (s *Store) ListWordsByPOS(ctx context.Context, pos string, limit int, exclu
 SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
        distractor_group, example_en, example_ja, source, created_at
 FROM words
-WHERE pos = ?
+WHERE is_active = 1 AND pos = ?
 `
 	args := make([]any, 0, len(excludeIDs)+2)
 	args = append(args, pos)
@@ -305,7 +309,7 @@ func (s *Store) ListDistractorCandidates(ctx context.Context, correct Word, limi
 SELECT id, lemma, pos, meaning_ja, level, frequency_rank,
        distractor_group, example_en, example_ja, source, created_at
 FROM words
-WHERE pos = ?
+WHERE is_active = 1 AND pos = ?
   AND meaning_ja != ?
 `
 	args := make([]any, 0, len(excludeIDs)+8)
@@ -353,13 +357,16 @@ LIMIT ?
 }
 
 func (s *Store) AbandonActiveSession(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, `
-UPDATE sessions
-SET status = ?, finished_at = ?
-WHERE status = ?
-`, SessionStatusAbandoned, formatTime(time.Now().UTC()), SessionStatusActive)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
+		return fmt.Errorf("begin abandon active session: %w", err)
+	}
+	if err := abandonActiveSessionsTx(ctx, tx, time.Now().UTC()); err != nil {
+		_ = tx.Rollback()
 		return fmt.Errorf("abandon active session: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit abandon active session: %w", err)
 	}
 	return nil
 }
@@ -372,6 +379,17 @@ WHERE status = ? AND mode = ?
 `, SessionStatusAbandoned, formatTime(time.Now().UTC()), SessionStatusActive, ModeReviewInfinite)
 	if err != nil {
 		return fmt.Errorf("abandon infinite review sessions: %w", err)
+	}
+	return nil
+}
+
+func abandonActiveSessionsTx(ctx context.Context, tx *sql.Tx, finishedAt time.Time) error {
+	if _, err := tx.ExecContext(ctx, `
+UPDATE sessions
+SET status = ?, finished_at = ?
+WHERE status = ?
+`, SessionStatusAbandoned, formatTime(finishedAt), SessionStatusActive); err != nil {
+		return fmt.Errorf("update active sessions to abandoned: %w", err)
 	}
 	return nil
 }
@@ -757,8 +775,10 @@ func (s *Store) countDueWords(ctx context.Context) (int, error) {
 	var count int
 	if err := s.db.QueryRowContext(ctx, `
 SELECT COUNT(*)
-FROM progress
-WHERE due_at IS NOT NULL AND due_at <= ?
+FROM progress p
+JOIN words w ON w.id = p.word_id
+WHERE w.is_active = 1
+  AND p.due_at IS NOT NULL AND p.due_at <= ?
 `, formatTime(time.Now().UTC())).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count due words: %w", err)
 	}
@@ -771,7 +791,8 @@ func (s *Store) countNewWords(ctx context.Context) (int, error) {
 SELECT COUNT(*)
 FROM words w
 LEFT JOIN progress p ON p.word_id = w.id
-WHERE p.word_id IS NULL OR p.state = 'new'
+WHERE w.is_active = 1
+  AND (p.word_id IS NULL OR p.state = 'new')
 `).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count new words: %w", err)
 	}

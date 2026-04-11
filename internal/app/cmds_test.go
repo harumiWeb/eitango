@@ -541,6 +541,7 @@ func TestSessionStartErrMsgReloadsHomeEvenWhenStatsReloadFails(t *testing.T) {
 			example_en TEXT,
 			example_ja TEXT,
 			source TEXT NOT NULL,
+			is_active INTEGER NOT NULL DEFAULT 1,
 			created_at TEXT NOT NULL
 		)`,
 		`CREATE TABLE progress (

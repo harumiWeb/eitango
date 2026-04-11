@@ -620,6 +620,37 @@
 - 画面ごとの簡易レイアウト
 - data-dependent な長文 overflow の包括対処
 
+---
+
+## 2026-04-11 issue #49: bundled core 更新時の SRS 維持
+
+### Goal
+
+- `dict_version` 更新で bundled core 語彙が差し替わっても、既存 core 語の `word_id` と SRS 進捗を保持したまま新語だけを追加する。
+- `reset --reseed` だけを明示的な破壊的リセットとして残し、通常起動時の core sync は non-destructive にする。
+
+### Required Behavior
+
+- core 語の同一性は store の現行実装に合わせて `strings.ToLower(strings.TrimSpace(lemma) + "\x00" + strings.TrimSpace(pos))` で判定する。
+- `words` に `is_active` を持たせ、version bump 時の core sync では一致 row を同じ `id` のまま更新し、新語だけを insert し、消えた旧 core は `is_active = 0` にする。
+- metadata 更新時は `meaning_ja` / `level` / `frequency_rank` / `distractor_group` / `example_*` に加えて `lemma` / `pos` も embedded core 側の canonical 値へ揃える。
+- `SeedWords()` は core 未投入時の初回 seed と、同一 version の no-op を維持しつつ、version bump 時だけ destructive reset ではなく core diff sync を行う。
+- version bump 時に active session が存在する場合、question payload を snapshot していない現行設計では再開時に設問文面や distractor が drift するため、その session は sync transaction 内で `abandoned` にする。
+- `reset --reseed` は従来どおり learning tables を全削除し、`source='core'` を active/inactive を問わず全削除して bundled core を再投入する。
+- future planning に使う query は active core だけを対象にする。対象は `ListDueWords` / `ListNewWords` / `ListWriteBasicCandidates` / `ListReviewedWordsRandom` / `ListWordsByPOS` / `ListDistractorCandidates` / `countDueWords` / `countNewWords`。
+- `GetWord()`、export、session summary、履歴参照は inactive core を読めるままにして、過去 session や retired word の review 履歴を壊さない。
+- `doctor` は retired core を辞書破損として扱わず、active core と retired core を分けて報告する。pre-006 schema の read-only DB では schema introspection で fallback し、migration drift だけを報告できるようにする。
+- DB-level unique 制約は今回追加しない。same-source duplicate は sync 時 validation と `doctor` の duplicate check で検出する。
+
+### Acceptance
+
+- version bump 後も、同一 normalized `lemma/pos` の core 語は `word_id` を保持し、`progress` / `reviews` と completed/abandoned session 履歴が失われない。
+- version bump 時点で active だった session は `abandoned` になり、resume 対象から外れる。
+- 新規追加された core 語だけが `new` 候補として増え、退役した core 語は新規セッション計画に出なくなる。
+- retired core を参照する既存 session item / review history / export が壊れない。
+- `reset --reseed` は引き続き learning tables を全削除し、bundled core を完全再投入する。
+- `go test ./internal/store ./internal/quiz ./cmd/eitango` と `go test ./...` が通る。
+
 ### Required Behavior
 
 - `RootModel.width` が既知で、現在 screen/overlay に対応する最小幅を下回るときは通常 UI を描かず narrow message に切り替える。

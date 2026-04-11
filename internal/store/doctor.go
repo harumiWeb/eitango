@@ -155,6 +155,11 @@ func (s *Store) checkDictionary(ctx context.Context) DiagnosticCheck {
 		return diagnosticCheckError("dictionary", "dict_version could not be read", err.Error())
 	}
 
+	hasIsActive, err := s.tableHasColumn(ctx, "words", "is_active")
+	if err != nil {
+		return diagnosticCheckError("dictionary", "word schema could not be inspected", err.Error())
+	}
+
 	wordCount, err := s.wordCount(ctx)
 	if err != nil {
 		return diagnosticCheckError("dictionary", "word count could not be read", err.Error())
@@ -164,16 +169,38 @@ func (s *Store) checkDictionary(ctx context.Context) DiagnosticCheck {
 		return diagnosticCheckError("dictionary", "core word count could not be read", err.Error())
 	}
 	importWordCount := wordCount - coreWordCount
+	activeCoreWordCount := coreWordCount
+	retiredCoreWordCount := 0
+	if hasIsActive {
+		activeCoreWordCount, err = s.countWordsBySourceActive(ctx, WordSourceCore, true)
+		if err != nil {
+			return diagnosticCheckError("dictionary", "active core word count could not be read", err.Error())
+		}
+		retiredCoreWordCount = coreWordCount - activeCoreWordCount
+	}
 
 	switch {
-	case version == "" && coreWordCount == 0:
+	case version == "" && activeCoreWordCount == 0:
 		return diagnosticCheckError("dictionary", "core words are not seeded", fmt.Sprintf("expected dict_version %q", dict.CoreWordsVersion))
 	case version == "":
-		return diagnosticCheckError("dictionary", "dict_version is missing", fmt.Sprintf("core words: %d", coreWordCount), fmt.Sprintf("imported words: %d", importWordCount))
-	case coreWordCount == 0:
-		return diagnosticCheckError("dictionary", "dict_version exists but core words are missing", fmt.Sprintf("dict_version: %s", version), fmt.Sprintf("imported words: %d", importWordCount))
+		details := []string{fmt.Sprintf("active core words: %d", activeCoreWordCount)}
+		if hasIsActive && retiredCoreWordCount > 0 {
+			details = append(details, fmt.Sprintf("retired core words: %d", retiredCoreWordCount))
+		}
+		details = append(details, fmt.Sprintf("imported words: %d", importWordCount))
+		return diagnosticCheckError("dictionary", "dict_version is missing", details...)
+	case activeCoreWordCount == 0:
+		details := []string{fmt.Sprintf("dict_version: %s", version)}
+		if hasIsActive && retiredCoreWordCount > 0 {
+			details = append(details, fmt.Sprintf("retired core words: %d", retiredCoreWordCount))
+		}
+		details = append(details, fmt.Sprintf("imported words: %d", importWordCount))
+		return diagnosticCheckError("dictionary", "dict_version exists but active core words are missing", details...)
 	case version != dict.CoreWordsVersion:
-		details := []string{fmt.Sprintf("core words: %d", coreWordCount)}
+		details := []string{fmt.Sprintf("active core words: %d", activeCoreWordCount)}
+		if hasIsActive && retiredCoreWordCount > 0 {
+			details = append(details, fmt.Sprintf("retired core words: %d", retiredCoreWordCount))
+		}
 		if importWordCount > 0 {
 			details = append(details, fmt.Sprintf("imported words: %d", importWordCount))
 		}
@@ -183,7 +210,10 @@ func (s *Store) checkDictionary(ctx context.Context) DiagnosticCheck {
 			details...,
 		)
 	default:
-		summary := fmt.Sprintf("%d core words seeded at %s", coreWordCount, version)
+		summary := fmt.Sprintf("%d active core words seeded at %s", activeCoreWordCount, version)
+		if hasIsActive && retiredCoreWordCount > 0 {
+			summary += fmt.Sprintf(" (+%d retired core)", retiredCoreWordCount)
+		}
 		if importWordCount > 0 {
 			summary += fmt.Sprintf(" (+%d imported)", importWordCount)
 		}
@@ -338,43 +368,127 @@ LIMIT ?
 }
 
 func (s *Store) checkWordMetadata(ctx context.Context) DiagnosticCheck {
+	hasIsActive, err := s.tableHasColumn(ctx, "words", "is_active")
+	if err != nil {
+		return diagnosticCheckError("word metadata", "word schema could not be inspected", err.Error())
+	}
+
 	type metadataIssue struct {
-		label string
-		count int
-		query string
+		label             string
+		count             int
+		countQuery        string
+		activeCountQuery  string
+		sampleQuery       string
+		activeSampleQuery string
 	}
 
 	issues := []metadataIssue{
 		{
 			label: "missing pos",
-			query: `
+			countQuery: `
 SELECT COUNT(*)
 FROM words
 WHERE TRIM(COALESCE(pos, '')) = ''
 `,
+			activeCountQuery: `
+SELECT COUNT(*)
+FROM words
+WHERE is_active = 1 AND TRIM(COALESCE(pos, '')) = ''
+`,
+			sampleQuery: `
+SELECT lemma
+FROM words
+WHERE TRIM(COALESCE(pos, '')) = ''
+ORDER BY id ASC
+LIMIT ?
+`,
+			activeSampleQuery: `
+SELECT lemma
+FROM words
+WHERE is_active = 1 AND TRIM(COALESCE(pos, '')) = ''
+ORDER BY id ASC
+LIMIT ?
+`,
 		},
 		{
 			label: "missing level",
-			query: `
+			countQuery: `
 SELECT COUNT(*)
 FROM words
 WHERE TRIM(COALESCE(level, '')) = ''
 `,
+			activeCountQuery: `
+SELECT COUNT(*)
+FROM words
+WHERE is_active = 1 AND TRIM(COALESCE(level, '')) = ''
+`,
+			sampleQuery: `
+SELECT lemma
+FROM words
+WHERE TRIM(COALESCE(level, '')) = ''
+ORDER BY id ASC
+LIMIT ?
+`,
+			activeSampleQuery: `
+SELECT lemma
+FROM words
+WHERE is_active = 1 AND TRIM(COALESCE(level, '')) = ''
+ORDER BY id ASC
+LIMIT ?
+`,
 		},
 		{
 			label: "missing frequency rank",
-			query: `
+			countQuery: `
 SELECT COUNT(*)
 FROM words
 WHERE COALESCE(frequency_rank, 0) <= 0
 `,
+			activeCountQuery: `
+SELECT COUNT(*)
+FROM words
+WHERE is_active = 1 AND COALESCE(frequency_rank, 0) <= 0
+`,
+			sampleQuery: `
+SELECT lemma
+FROM words
+WHERE COALESCE(frequency_rank, 0) <= 0
+ORDER BY id ASC
+LIMIT ?
+`,
+			activeSampleQuery: `
+SELECT lemma
+FROM words
+WHERE is_active = 1 AND COALESCE(frequency_rank, 0) <= 0
+ORDER BY id ASC
+LIMIT ?
+`,
 		},
 		{
 			label: "missing distractor group",
-			query: `
+			countQuery: `
 SELECT COUNT(*)
 FROM words
 WHERE TRIM(COALESCE(distractor_group, '')) = ''
+`,
+			activeCountQuery: `
+SELECT COUNT(*)
+FROM words
+WHERE is_active = 1 AND TRIM(COALESCE(distractor_group, '')) = ''
+`,
+			sampleQuery: `
+SELECT lemma
+FROM words
+WHERE TRIM(COALESCE(distractor_group, '')) = ''
+ORDER BY id ASC
+LIMIT ?
+`,
+			activeSampleQuery: `
+SELECT lemma
+FROM words
+WHERE is_active = 1 AND TRIM(COALESCE(distractor_group, '')) = ''
+ORDER BY id ASC
+LIMIT ?
 `,
 		},
 	}
@@ -383,7 +497,14 @@ WHERE TRIM(COALESCE(distractor_group, '')) = ''
 	totalIssueCount := 0
 
 	for i := range issues {
-		count, err := s.countRows(ctx, issues[i].query)
+		countQuery := issues[i].countQuery
+		sampleQuery := issues[i].sampleQuery
+		if hasIsActive {
+			countQuery = issues[i].activeCountQuery
+			sampleQuery = issues[i].activeSampleQuery
+		}
+
+		count, err := s.countRows(ctx, countQuery)
 		if err != nil {
 			return diagnosticCheckError("word metadata", fmt.Sprintf("%s could not be counted", issues[i].label), err.Error())
 		}
@@ -393,20 +514,14 @@ WHERE TRIM(COALESCE(distractor_group, '')) = ''
 		}
 		totalIssueCount += count
 
-		samples, err := s.sampleStringRows(ctx, fmt.Sprintf(`
-SELECT lemma
-FROM words
-WHERE %s
-ORDER BY id ASC
-LIMIT ?
-`, metadataConditionForLabel(issues[i].label)), doctorSampleLimit)
+		samples, err := s.sampleStringRows(ctx, sampleQuery, doctorSampleLimit)
 		if err != nil {
 			return diagnosticCheckError("word metadata", fmt.Sprintf("%s samples could not be loaded", issues[i].label), err.Error())
 		}
 		details = append(details, formatStringSamples(issues[i].label, count, samples))
 	}
 
-	duplicateRankCount, err := s.countRows(ctx, `
+	duplicateRankCountQuery := `
 SELECT COUNT(*)
 FROM (
   SELECT source, frequency_rank
@@ -415,13 +530,8 @@ FROM (
   GROUP BY source, frequency_rank
   HAVING COUNT(*) > 1
 )
-`)
-	if err != nil {
-		return diagnosticCheckError("word metadata", "duplicate frequency ranks could not be counted", err.Error())
-	}
-	if duplicateRankCount > 0 {
-		totalIssueCount += duplicateRankCount
-		rows, err := s.db.QueryContext(ctx, `
+`
+	duplicateRankSampleQuery := `
 SELECT source, frequency_rank, GROUP_CONCAT(lemma, ', ')
 FROM (
   SELECT source, frequency_rank, lemma
@@ -433,7 +543,40 @@ GROUP BY source, frequency_rank
 HAVING COUNT(*) > 1
 ORDER BY source ASC, frequency_rank ASC
 LIMIT ?
-`, doctorSampleLimit)
+`
+	if hasIsActive {
+		duplicateRankCountQuery = `
+SELECT COUNT(*)
+FROM (
+  SELECT source, frequency_rank
+  FROM words
+  WHERE is_active = 1 AND frequency_rank IS NOT NULL
+  GROUP BY source, frequency_rank
+  HAVING COUNT(*) > 1
+)
+`
+		duplicateRankSampleQuery = `
+SELECT source, frequency_rank, GROUP_CONCAT(lemma, ', ')
+FROM (
+  SELECT source, frequency_rank, lemma
+  FROM words
+  WHERE is_active = 1 AND frequency_rank IS NOT NULL
+  ORDER BY source ASC, frequency_rank ASC, lemma ASC
+)
+GROUP BY source, frequency_rank
+HAVING COUNT(*) > 1
+ORDER BY source ASC, frequency_rank ASC
+LIMIT ?
+`
+	}
+
+	duplicateRankCount, err := s.countRows(ctx, duplicateRankCountQuery)
+	if err != nil {
+		return diagnosticCheckError("word metadata", "duplicate frequency ranks could not be counted", err.Error())
+	}
+	if duplicateRankCount > 0 {
+		totalIssueCount += duplicateRankCount
+		rows, err := s.db.QueryContext(ctx, duplicateRankSampleQuery, doctorSampleLimit)
 		if err != nil {
 			return diagnosticCheckError("word metadata", "duplicate frequency rank samples could not be loaded", err.Error())
 		}
@@ -462,21 +605,6 @@ LIMIT ?
 		return diagnosticCheckWarning("word metadata", fmt.Sprintf("%d metadata issue(s) affect ranking or distractors", totalIssueCount), details...)
 	}
 	return diagnosticCheckOK("word metadata", "all words have metadata needed for ranking and distractors")
-}
-
-func metadataConditionForLabel(label string) string {
-	switch label {
-	case "missing pos":
-		return "TRIM(COALESCE(pos, '')) = ''"
-	case "missing level":
-		return "TRIM(COALESCE(level, '')) = ''"
-	case "missing frequency rank":
-		return "COALESCE(frequency_rank, 0) <= 0"
-	case "missing distractor group":
-		return "TRIM(COALESCE(distractor_group, '')) = ''"
-	default:
-		panic("unsupported metadata label: " + label)
-	}
 }
 
 func (s *Store) checkOrphanProgress(ctx context.Context) DiagnosticCheck {
@@ -779,6 +907,8 @@ func doctorTableInfoQuery(tableName string) (string, error) {
 	switch tableName {
 	case "sessions":
 		return "PRAGMA table_info(sessions)", nil
+	case "words":
+		return "PRAGMA table_info(words)", nil
 	default:
 		return "", fmt.Errorf("unsupported table %q", tableName)
 	}
@@ -821,7 +951,16 @@ func (s *Store) tableHasColumn(ctx context.Context, tableName, columnName string
 }
 
 func (s *Store) checkQuizability(ctx context.Context) DiagnosticCheck {
-	wordCount, err := s.wordCount(ctx)
+	hasIsActive, err := s.tableHasColumn(ctx, "words", "is_active")
+	if err != nil {
+		return diagnosticCheckError("quizability", "word schema could not be inspected", err.Error())
+	}
+
+	wordCountQuery := `SELECT COUNT(*) FROM words`
+	if hasIsActive {
+		wordCountQuery = `SELECT COUNT(*) FROM words WHERE is_active = 1`
+	}
+	wordCount, err := s.countRows(ctx, wordCountQuery)
 	if err != nil {
 		return diagnosticCheckError("quizability", "words could not be loaded", err.Error())
 	}
@@ -835,32 +974,65 @@ func (s *Store) checkQuizability(ctx context.Context) DiagnosticCheck {
 	// least four distinct meanings. That keeps doctor fast on CI-sized datasets,
 	// but it can miss edge cases from the runtime distractor filters
 	// (distractor_group, level, frequency proximity, excluded IDs).
-	const quizabilityCountsCTE = `
+	failureCountQuery := `
 WITH pos_meaning_counts AS (
   SELECT IFNULL(pos, '') AS pos_key, COUNT(DISTINCT meaning_ja) AS distinct_meaning_count
   FROM words
   GROUP BY IFNULL(pos, '')
 )
-`
-
-	failureCount, err := s.countRows(ctx, quizabilityCountsCTE+`
 SELECT COUNT(*)
 FROM words w
 LEFT JOIN pos_meaning_counts pmc ON IFNULL(w.pos, '') = pmc.pos_key
 WHERE COALESCE(pmc.distinct_meaning_count, 0) < ?
-`, doctorQuizChoiceSize)
-	if err != nil {
-		return diagnosticCheckError("quizability", "same-pos distractor meanings could not be counted", err.Error())
-	}
-	if failureCount > 0 {
-		rows, err := s.db.QueryContext(ctx, quizabilityCountsCTE+`
+`
+	failureSampleQuery := `
+WITH pos_meaning_counts AS (
+  SELECT IFNULL(pos, '') AS pos_key, COUNT(DISTINCT meaning_ja) AS distinct_meaning_count
+  FROM words
+  GROUP BY IFNULL(pos, '')
+)
 SELECT w.lemma, w.pos
 FROM words w
 LEFT JOIN pos_meaning_counts pmc ON IFNULL(w.pos, '') = pmc.pos_key
 WHERE COALESCE(pmc.distinct_meaning_count, 0) < ?
 ORDER BY COALESCE(w.frequency_rank, 999999) ASC, w.id ASC
 LIMIT ?
-`, doctorQuizChoiceSize, doctorSampleLimit)
+`
+	if hasIsActive {
+		failureCountQuery = `
+WITH pos_meaning_counts AS (
+  SELECT IFNULL(pos, '') AS pos_key, COUNT(DISTINCT meaning_ja) AS distinct_meaning_count
+  FROM words
+  WHERE is_active = 1
+  GROUP BY IFNULL(pos, '')
+)
+SELECT COUNT(*)
+FROM words w
+LEFT JOIN pos_meaning_counts pmc ON IFNULL(w.pos, '') = pmc.pos_key
+WHERE w.is_active = 1 AND COALESCE(pmc.distinct_meaning_count, 0) < ?
+`
+		failureSampleQuery = `
+WITH pos_meaning_counts AS (
+  SELECT IFNULL(pos, '') AS pos_key, COUNT(DISTINCT meaning_ja) AS distinct_meaning_count
+  FROM words
+  WHERE is_active = 1
+  GROUP BY IFNULL(pos, '')
+)
+SELECT w.lemma, w.pos
+FROM words w
+LEFT JOIN pos_meaning_counts pmc ON IFNULL(w.pos, '') = pmc.pos_key
+WHERE w.is_active = 1 AND COALESCE(pmc.distinct_meaning_count, 0) < ?
+ORDER BY COALESCE(w.frequency_rank, 999999) ASC, w.id ASC
+LIMIT ?
+`
+	}
+
+	failureCount, err := s.countRows(ctx, failureCountQuery, doctorQuizChoiceSize)
+	if err != nil {
+		return diagnosticCheckError("quizability", "same-pos distractor meanings could not be counted", err.Error())
+	}
+	if failureCount > 0 {
+		rows, err := s.db.QueryContext(ctx, failureSampleQuery, doctorQuizChoiceSize, doctorSampleLimit)
 		if err != nil {
 			return diagnosticCheckError("quizability", "unquizzable word samples could not be loaded", err.Error())
 		}
