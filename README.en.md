@@ -309,7 +309,7 @@ Regular study sessions are local-first and use the local SQLite database. Networ
 
 - update checks are optional helper behavior, not a requirement for starting or continuing a study session
 - the request is only used to fetch lightweight release metadata such as the latest version and release URL
-- the home-screen notice revalidates the latest release asynchronously on every launch
+- the home-screen notice revalidates the latest release asynchronously on every launch by default, and you can toggle it via the settings screen or `startup_update_check` in `config.toml`
 - the first successful check seeds the cache without showing a notice
 - `update-check.json` stores the most recent successful result and is used as a fallback when the request times out or fails
 - later launches show a lightweight home-screen notice when a newer version is available

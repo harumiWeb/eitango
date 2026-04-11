@@ -616,7 +616,7 @@ func TestUpdateCheckCmdUsesCheckNowAndReturnsResultEvenWhenServiceErrors(t *test
 		checkNowErr: errors.New("timeout"),
 	}
 
-	msg := updateCheckCmd(service, "v1.1.0")()
+	msg := updateCheckCmd(service, "v1.1.0", true)()
 	checked, ok := msg.(updateCheckedMsg)
 	if !ok {
 		t.Fatalf("updateCheckCmd() returned %T, want updateCheckedMsg", msg)
@@ -629,6 +629,18 @@ func TestUpdateCheckCmdUsesCheckNowAndReturnsResultEvenWhenServiceErrors(t *test
 	}
 	if !checked.Result.ShouldNotify {
 		t.Fatal("ShouldNotify = false, want true")
+	}
+}
+
+func TestUpdateCheckCmdReturnsNilWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	service := &stubUpdateService{}
+	if cmd := updateCheckCmd(service, "v1.1.0", false); cmd != nil {
+		t.Fatalf("updateCheckCmd() = %v, want nil", cmd)
+	}
+	if service.checkCalls != 0 || service.checkNowCalls != 0 {
+		t.Fatalf("service calls = check:%d checkNow:%d, want 0/0", service.checkCalls, service.checkNowCalls)
 	}
 }
 

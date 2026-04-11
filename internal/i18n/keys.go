@@ -34,6 +34,7 @@ const (
 	SettingsWriteDifficulty       = "settings.write_difficulty"
 	SettingsWriteDifficultyBasic  = "settings.write_difficulty_basic"
 	SettingsWriteDifficultyHard   = "settings.write_difficulty_hard"
+	SettingsUpdateCheck           = "settings.update_check"
 	SettingsAudioEnabled          = "settings.audio_enabled"
 	SettingsAudioVoice            = "settings.audio_voice"
 	SettingsAudioVoiceAuto        = "settings.audio_voice_auto"

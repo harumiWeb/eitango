@@ -344,6 +344,8 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			m.settingsInput = strconv.Itoa(count)
 		case settingsRowWriteDifficulty:
 			m.settingsWriteDifficulty = config.WriteModeDifficultyBasic
+		case settingsRowUpdateCheck:
+			m.settingsUpdateCheckEnabled = false
 		case settingsRowAudioEnabled:
 			m.settingsAudioEnabled = false
 			m.settingsAudioAutoplay = false
@@ -370,6 +372,8 @@ func (m RootModel) updateSettingsOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			m.settingsInput = strconv.Itoa(count)
 		case settingsRowWriteDifficulty:
 			m.settingsWriteDifficulty = config.WriteModeDifficultyHard
+		case settingsRowUpdateCheck:
+			m.settingsUpdateCheckEnabled = true
 		case settingsRowAudioEnabled:
 			m.settingsAudioEnabled = true
 		case settingsRowAudioVoice:
