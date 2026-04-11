@@ -33,6 +33,7 @@ const (
 const (
 	settingsRowQuestionCount = iota
 	settingsRowWriteDifficulty
+	settingsRowUpdateCheck
 	settingsRowAudioEnabled
 	settingsRowAudioVoice
 	settingsRowAudioAutoplay
@@ -189,6 +190,7 @@ type RootModel struct {
 	settingsInput                string
 	settingsEditing              bool
 	settingsWriteDifficulty      string
+	settingsUpdateCheckEnabled   bool
 	settingsAudioEnabled         bool
 	settingsAudioVoice           string
 	settingsAudioAutoplay        bool
@@ -260,7 +262,7 @@ func NewModel(store *store.Store, options Options) RootModel {
 
 func (m RootModel) Init() tea.Cmd {
 	cmds := make([]tea.Cmd, 0, 2)
-	if cmd := updateCheckCmd(m.updateService, m.currentVersion); cmd != nil {
+	if cmd := updateCheckCmd(m.updateService, m.currentVersion, m.settings.UpdateCheckEnabled); cmd != nil {
 		cmds = append(cmds, cmd)
 	}
 	if m.startup != nil {
@@ -316,6 +318,7 @@ func (m RootModel) prepareSettingsOverlay() RootModel {
 	m.settingsInput = strconv.Itoa(m.settings.SessionSize)
 	m.settingsEditing = false
 	m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(m.settings.WriteModeDifficulty)
+	m.settingsUpdateCheckEnabled = m.settings.UpdateCheckEnabled
 	m.settingsAudioEnabled = m.settings.AudioEnabled
 	m.settingsAudioVoices = nil
 	m.settingsAudioVoicesLoaded = false
@@ -464,6 +467,7 @@ func (m RootModel) settingsDraft() (config.Settings, bool, bool) {
 	draft := m.settings
 	draft.SessionSize = count
 	draft.WriteModeDifficulty = config.NormalizeWriteModeDifficulty(m.settingsWriteDifficulty)
+	draft.UpdateCheckEnabled = m.settingsUpdateCheckEnabled
 	draft.AudioEnabled = m.settingsAudioEnabled
 	draft.AudioVoice = m.settingsAudioVoice
 	draft.AudioAutoplay = m.settingsAudioAutoplay && m.settingsAudioAvailable()
@@ -509,6 +513,7 @@ func (m RootModel) applySettings(settings config.Settings) (RootModel, error) {
 	m.settingsEditing = false
 	m.settingsInput = strconv.Itoa(settings.SessionSize)
 	m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(settings.WriteModeDifficulty)
+	m.settingsUpdateCheckEnabled = settings.UpdateCheckEnabled
 	m.settingsAudioEnabled = settings.AudioEnabled
 	m.settingsAudioVoices, m.settingsAudioVoicesLoaded = m.loadAudioVoices()
 	m.settingsAudioVoice = normalizeAudioVoiceInList(settings.AudioVoice, m.settingsAudioVoices, m.settingsAudioVoicesLoaded)

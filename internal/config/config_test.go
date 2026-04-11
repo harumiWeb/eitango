@@ -30,6 +30,7 @@ session_size = 12
 review_ratio = 0.4
 focus_mode_default = true
 write_mode_difficulty = "hard"
+startup_update_check = false
 audio_enabled = false
 audio_autoplay = true
 audio_voice = " Samantha "
@@ -52,6 +53,9 @@ audio_voice = " Samantha "
 	}
 	if settings.WriteModeDifficulty != WriteModeDifficultyHard {
 		t.Fatalf("WriteModeDifficulty = %q, want %q", settings.WriteModeDifficulty, WriteModeDifficultyHard)
+	}
+	if settings.UpdateCheckEnabled {
+		t.Fatal("UpdateCheckEnabled = true, want false")
 	}
 	if settings.AudioEnabled {
 		t.Fatal("AudioEnabled = true, want false")
@@ -135,6 +139,7 @@ func TestSaveRoundTripsSettings(t *testing.T) {
 		ReviewRatio:         0.6,
 		FocusModeDefault:    true,
 		WriteModeDifficulty: WriteModeDifficultyHard,
+		UpdateCheckEnabled:  false,
 		AudioEnabled:        false,
 		AudioAutoplay:       true,
 		AudioVoice:          "Samantha",

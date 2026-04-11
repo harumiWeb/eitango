@@ -312,7 +312,7 @@ write_quit = ["esc"]
 
 - 更新チェックは補助機能であり、学習開始や回答処理の必須要件ではありません
 - 取得するのは主に最新 release の version / URL などの更新案内に必要な情報です
-- ホーム画面の通知は起動ごとに非同期で latest release を再確認します
+- ホーム画面の通知は既定では起動ごとに非同期で latest release を再確認し、ホーム設定または `config.toml` の `startup_update_check` で ON/OFF できます
 - 初回の成功確認では通知せず、次回以降の起動で差分があればホーム画面に軽く表示します
 - `update-check.json` には直前の successful check 結果を保存し、タイムアウトやオフライン時の fallback に使います
 - `eitango version` は現在の build info に加えて latest release URL も表示します

@@ -42,6 +42,7 @@ type Settings struct {
 	ReviewRatio         float64
 	FocusModeDefault    bool
 	WriteModeDifficulty string
+	UpdateCheckEnabled  bool
 	AudioEnabled        bool
 	AudioAutoplay       bool
 	AudioVoice          string
@@ -64,6 +65,7 @@ type fileSettings struct {
 	ReviewRatio         *float64         `toml:"review_ratio"`
 	FocusModeDefault    *bool            `toml:"focus_mode_default"`
 	WriteModeDifficulty *string          `toml:"write_mode_difficulty"`
+	UpdateCheckEnabled  *bool            `toml:"startup_update_check"`
 	AudioEnabled        *bool            `toml:"audio_enabled"`
 	AudioAutoplay       *bool            `toml:"audio_autoplay"`
 	AudioVoice          *string          `toml:"audio_voice"`
@@ -86,6 +88,7 @@ func DefaultSettings() Settings {
 		SessionSize:         session.DefaultQuestionCount,
 		ReviewRatio:         session.DefaultReviewRatio,
 		WriteModeDifficulty: WriteModeDifficultyBasic,
+		UpdateCheckEnabled:  true,
 		AudioEnabled:        true,
 		AudioAutoplay:       false,
 		Language:            i18n.DefaultLang,
@@ -98,6 +101,7 @@ func (s Settings) IsZero() bool {
 		s.ReviewRatio == 0 &&
 		!s.FocusModeDefault &&
 		s.WriteModeDifficulty == "" &&
+		!s.UpdateCheckEnabled &&
 		!s.AudioEnabled &&
 		!s.AudioAutoplay &&
 		s.AudioVoice == "" &&
@@ -142,6 +146,9 @@ func Load(path string) (Settings, error) {
 			return Settings{}, err
 		}
 		settings.WriteModeDifficulty = writeModeDifficulty
+	}
+	if raw.UpdateCheckEnabled != nil {
+		settings.UpdateCheckEnabled = *raw.UpdateCheckEnabled
 	}
 	if raw.AudioEnabled != nil {
 		settings.AudioEnabled = *raw.AudioEnabled
@@ -216,6 +223,7 @@ func Save(path string, settings Settings) error {
 		ReviewRatio         float64           `toml:"review_ratio"`
 		FocusModeDefault    bool              `toml:"focus_mode_default"`
 		WriteModeDifficulty string            `toml:"write_mode_difficulty"`
+		UpdateCheckEnabled  bool              `toml:"startup_update_check"`
 		AudioEnabled        bool              `toml:"audio_enabled"`
 		AudioAutoplay       bool              `toml:"audio_autoplay"`
 		AudioVoice          string            `toml:"audio_voice"`
@@ -228,6 +236,7 @@ func Save(path string, settings Settings) error {
 		ReviewRatio:         settings.ReviewRatio,
 		FocusModeDefault:    settings.FocusModeDefault,
 		WriteModeDifficulty: settings.WriteModeDifficulty,
+		UpdateCheckEnabled:  settings.UpdateCheckEnabled,
 		AudioEnabled:        settings.AudioEnabled,
 		AudioAutoplay:       settings.AudioAutoplay,
 		AudioVoice:          settings.AudioVoice,

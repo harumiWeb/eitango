@@ -950,6 +950,79 @@ func TestUpdateHomeSettingsDifficultySwitchesWithArrowKeys(t *testing.T) {
 	}
 }
 
+func TestUpdateHomeSettingsUpdateCheckSwitchesWithArrowKeys(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings: config.Settings{
+			SessionSize:         10,
+			ReviewRatio:         0.4,
+			WriteModeDifficulty: config.WriteModeDifficultyBasic,
+			UpdateCheckEnabled:  true,
+			AudioEnabled:        true,
+			Language:            i18n.LangJA,
+			ThemeMode:           config.ThemeModeDefault,
+		},
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsCursor = settingsRowUpdateCheck
+
+	next, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	updated := next.(RootModel)
+	if updated.settingsUpdateCheckEnabled {
+		t.Fatal("settingsUpdateCheckEnabled after left = true, want false")
+	}
+
+	next, _ = updated.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	updated = next.(RootModel)
+	if !updated.settingsUpdateCheckEnabled {
+		t.Fatal("settingsUpdateCheckEnabled after right = false, want true")
+	}
+}
+
+func TestUpdateHomeSettingsSavePersistsUpdateCheckToggle(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	model := NewModel(nil, Options{
+		Settings: config.Settings{
+			SessionSize:         10,
+			ReviewRatio:         0.4,
+			WriteModeDifficulty: config.WriteModeDifficultyBasic,
+			UpdateCheckEnabled:  true,
+			AudioEnabled:        true,
+			Language:            i18n.LangJA,
+			ThemeMode:           config.ThemeModeDefault,
+		},
+		ConfigPath: path,
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsCursor = settingsRowUpdateCheck
+	model.settingsUpdateCheckEnabled = false
+
+	next, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated := next.(RootModel)
+	if cmd == nil {
+		t.Fatal("cmd = nil, want save settings command")
+	}
+
+	saved, _ := updated.Update(cmd())
+	final := saved.(RootModel)
+	if final.settings.UpdateCheckEnabled {
+		t.Fatal("settings.UpdateCheckEnabled = true, want false")
+	}
+
+	savedSettings, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load(saved config) error = %v", err)
+	}
+	if savedSettings.UpdateCheckEnabled {
+		t.Fatal("saved UpdateCheckEnabled = true, want false")
+	}
+}
+
 func TestUpdateKeymapEditorSavesOverrideAndAppliesImmediately(t *testing.T) {
 	t.Parallel()
 

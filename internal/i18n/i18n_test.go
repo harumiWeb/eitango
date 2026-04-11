@@ -98,6 +98,7 @@ func TestAllJAKeysExistInEN(t *testing.T) {
 		i18n.HomeUpdateDetail, i18n.HomeUpdateHint, i18n.HomeKeys,
 		i18n.SettingsTitle, i18n.SettingsQuestions, i18n.SettingsWriteDifficulty,
 		i18n.SettingsWriteDifficultyBasic, i18n.SettingsWriteDifficultyHard,
+		i18n.SettingsUpdateCheck,
 		i18n.SettingsAudioEnabled, i18n.SettingsAudioVoice, i18n.SettingsAudioVoiceAuto, i18n.SettingsAudioVoiceUnavailable, i18n.SettingsAudioAutoplay,
 		i18n.SettingsLanguage, i18n.SettingsLanguageJA, i18n.SettingsLanguageEN,
 		i18n.SettingsTheme, i18n.SettingsThemeDefault, i18n.SettingsThemeNoColor,

@@ -791,6 +791,7 @@ func TestRenderHomeWithSettingsOverlayUsesScreenSwitch(t *testing.T) {
 	model.settingsOpen = true
 	model.settingsInput = "10"
 	model.settingsWriteDifficulty = config.WriteModeDifficultyHard
+	model.settingsUpdateCheckEnabled = true
 	model.settingsAudioEnabled = true
 	model.settingsAudioAutoplay = true
 	model.settingsLanguage = i18n.LangJA
@@ -803,6 +804,7 @@ func TestRenderHomeWithSettingsOverlayUsesScreenSwitch(t *testing.T) {
 	for _, want := range []string{
 		i18n.T(i18n.SettingsWriteDifficulty),
 		i18n.T(i18n.SettingsWriteDifficultyHard),
+		i18n.T(i18n.SettingsUpdateCheck),
 		i18n.T(i18n.SettingsAudioEnabled),
 		i18n.T(i18n.SettingsAudioAutoplay),
 		i18n.T(i18n.SettingsTheme),

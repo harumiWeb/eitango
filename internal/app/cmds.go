@@ -54,8 +54,8 @@ func loadStatsCmd(st *store.Store) tea.Cmd {
 	}
 }
 
-func updateCheckCmd(service updatecheck.Service, currentVersion string) tea.Cmd {
-	if service == nil {
+func updateCheckCmd(service updatecheck.Service, currentVersion string, enabled bool) tea.Cmd {
+	if service == nil || !enabled {
 		return nil
 	}
 	return func() tea.Msg {

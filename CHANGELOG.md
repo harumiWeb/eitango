@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-04-11
+
+### Changed
+
+- ホーム設定 overlay と `config.toml` に `startup_update_check` を追加し、起動時の update check をユーザー設定で ON/OFF できるようにしました。`eitango version` による手動確認は従来どおり使えます。
+
 ## [0.7.1] - 2026-04-11
 
 ### Added
@@ -194,7 +200,9 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/harumiWeb/eitango/compare/v0.7.1...v0.7.2
+[0.7.1]: https://github.com/harumiWeb/eitango/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/harumiWeb/eitango/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/harumiWeb/eitango/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/harumiWeb/eitango/compare/v0.5.2...v0.6.0
