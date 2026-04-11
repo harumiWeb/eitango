@@ -2,6 +2,7 @@
 
 package audio
 
+// resetVoiceCatalogCache clears the process-global test cache between platform-specific cases.
 func resetVoiceCatalogCache() {
 	voiceCatalogMu.Lock()
 	defer voiceCatalogMu.Unlock()

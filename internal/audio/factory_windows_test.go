@@ -4,26 +4,32 @@ package audio
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
+)
+
+const (
+	windowsTestPowerShellPath    = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+	windowsTestEnglishVoiceJSON  = `{"Name":"Microsoft David Desktop","Locale":"en-US"}`
+	windowsTestJapaneseVoiceJSON = `{"Name":"Haruka","Locale":"ja-JP"}`
 )
 
 func TestNewSpeakerOnWindowsUsesPowerShellWhenAvailable(t *testing.T) {
 	previous := windowsLookPath
 	previousVoices := windowsListVoices
-	const path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 	resetVoiceCatalogCache()
 	windowsLookPath = func(file string) (string, error) {
 		if file != "powershell.exe" {
 			t.Fatalf("lookPath file = %q, want powershell.exe", file)
 		}
-		return path, nil
+		return windowsTestPowerShellPath, nil
 	}
 	windowsListVoices = func(command string) ([]byte, error) {
 		if command != "powershell.exe" {
 			t.Fatalf("listVoices command = %q, want %q", command, "powershell.exe")
 		}
-		return []byte(`{"Name":"Microsoft David Desktop","Locale":"en-US"}`), nil
+		return []byte(windowsTestEnglishVoiceJSON), nil
 	}
 	t.Cleanup(func() {
 		windowsLookPath = previous
@@ -47,13 +53,12 @@ func TestNewSpeakerOnWindowsUsesPowerShellWhenAvailable(t *testing.T) {
 func TestNewSpeakerOnWindowsReturnsNoopWhenEnglishVoiceUnavailable(t *testing.T) {
 	previous := windowsLookPath
 	previousVoices := windowsListVoices
-	const path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 	resetVoiceCatalogCache()
 	windowsLookPath = func(string) (string, error) {
-		return path, nil
+		return windowsTestPowerShellPath, nil
 	}
 	windowsListVoices = func(string) ([]byte, error) {
-		return []byte(`{"Name":"Haruka","Locale":"ja-JP"}`), nil
+		return []byte(windowsTestJapaneseVoiceJSON), nil
 	}
 	t.Cleanup(func() {
 		windowsLookPath = previous
@@ -70,13 +75,12 @@ func TestNewSpeakerOnWindowsReturnsNoopWhenEnglishVoiceUnavailable(t *testing.T)
 func TestNewSpeakerOnWindowsUsesConfiguredVoiceEvenWithoutEnglishFallback(t *testing.T) {
 	previous := windowsLookPath
 	previousVoices := windowsListVoices
-	const path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 	resetVoiceCatalogCache()
 	windowsLookPath = func(string) (string, error) {
-		return path, nil
+		return windowsTestPowerShellPath, nil
 	}
 	windowsListVoices = func(string) ([]byte, error) {
-		return []byte(`{"Name":"Haruka","Locale":"ja-JP"}`), nil
+		return []byte(windowsTestJapaneseVoiceJSON), nil
 	}
 	t.Cleanup(func() {
 		windowsLookPath = previous
@@ -93,18 +97,17 @@ func TestNewSpeakerOnWindowsUsesConfiguredVoiceEvenWithoutEnglishFallback(t *tes
 		t.Fatalf("speaker type = %T, want commandSpeaker", speaker)
 	}
 	args := command.buildArgs("begin")
-	if !strings.Contains(args[3], "$synth.SelectVoice('Haruka')") {
-		t.Fatalf("script = %q, want configured Haruka voice", args[3])
+	if want := windowsSpeechArgs("begin", "Haruka"); !reflect.DeepEqual(args, want) {
+		t.Fatalf("args = %v, want %v", args, want)
 	}
 }
 
 func TestNewSpeakerOnWindowsFallsBackToAutoSelectionWhenCatalogUnavailable(t *testing.T) {
 	previous := windowsLookPath
 	previousVoices := windowsListVoices
-	const path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 	resetVoiceCatalogCache()
 	windowsLookPath = func(string) (string, error) {
-		return path, nil
+		return windowsTestPowerShellPath, nil
 	}
 	windowsListVoices = func(string) ([]byte, error) {
 		return nil, errors.New("temporary voice listing failure")
@@ -124,18 +127,17 @@ func TestNewSpeakerOnWindowsFallsBackToAutoSelectionWhenCatalogUnavailable(t *te
 		t.Fatalf("speaker type = %T, want commandSpeaker", speaker)
 	}
 	args := command.buildArgs("begin")
-	if !strings.Contains(args[3], "$_.Culture.Name -eq 'en-US'") {
-		t.Fatalf("script = %q, want auto english voice selection", args[3])
+	if want := windowsSpeechArgs("begin", ""); !reflect.DeepEqual(args, want) {
+		t.Fatalf("args = %v, want %v", args, want)
 	}
 }
 
 func TestInstalledVoicesOnWindowsRetriesAfterTransientFailure(t *testing.T) {
 	previous := windowsLookPath
 	previousVoices := windowsListVoices
-	const path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 	resetVoiceCatalogCache()
 	windowsLookPath = func(string) (string, error) {
-		return path, nil
+		return windowsTestPowerShellPath, nil
 	}
 	calls := 0
 	windowsListVoices = func(string) ([]byte, error) {
@@ -143,7 +145,7 @@ func TestInstalledVoicesOnWindowsRetriesAfterTransientFailure(t *testing.T) {
 		if calls == 1 {
 			return nil, errors.New("temporary voice listing failure")
 		}
-		return []byte(`{"Name":"Microsoft David Desktop","Locale":"en-US"}`), nil
+		return []byte(windowsTestEnglishVoiceJSON), nil
 	}
 	t.Cleanup(func() {
 		windowsLookPath = previous
@@ -214,7 +216,7 @@ func TestWindowsVoicesAcceptSingleObjectJSON(t *testing.T) {
 		if command != "powershell.exe" {
 			t.Fatalf("listVoices command = %q, want %q", command, "powershell.exe")
 		}
-		return []byte(`{"Name":"Microsoft David Desktop","Locale":"en-US"}`), nil
+		return []byte(windowsTestEnglishVoiceJSON), nil
 	}
 	t.Cleanup(func() {
 		windowsListVoices = previous
