@@ -53,3 +53,4 @@
 - 施設・場所を指す `noun` は `dockyard` / `drugstore` / `tearoom` のように `place-noun` へ寄せ、`pleasurable` のような体験評価の形容詞は `quality-adjective` を基準にそろえる。
 - 並列レビューの `approved_slice_*.tsv` は merge 前に `status=approved` を spot check する。行の絞り込みだけで status を `candidate` のまま残すと `merge_parallel_reviews.py` が即失敗し、レビューや監査が完了していても apply に進めない。
 - `merge_parallel_reviews.py` は slice dir 内の `approved_slice*.tsv` を広く拾うので、retry 用 TSV を同じディレクトリへ `approved_slice_XX_retry.tsv` のような名前で置かない。比較用の再レビューを作るなら別ディレクトリへ逃がすか、merge 前に必ず退避する。
+- core 語彙の多義語は `touchy` / `eject` / `decorator` のように扱いやすい派生義へ寄せず、learner dictionary の先頭義を優先する。人物の恒常的 traits は `obedient` / `meek` と同様に `quality-adjective` を基準にし、一時状態扱いへ寄せない。
