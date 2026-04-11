@@ -45,3 +45,4 @@
 - embedded core words のような full dataset を舐める診断では、語ごとの高コスト query を繰り返さない。`doctor` の健全性 check は SQL 集約で十分な不変条件を先に判定し、CI の遅い runner でも timeout しない形にする。
 - terminal 高さ制約の回帰テストは「view が収まる」だけで終わらせない。keymap editor のような可変リスト画面では `height + 1` で可視行がちょうど 1 行増えることまで固定し、underfill を見逃さない。
 - PowerShell の `ConvertTo-Json` は要素数 1 のとき単一 object を返すことがある。Windows voice catalog のように JSON 経由で列挙結果を読む実装では配列 shape を決め打ちせず、object / array の両方を受ける parser と回帰テストを用意する。
+- runtime probe の失敗を成功 cache と同一視しない。voice catalog のような外部依存の列挙結果は成功時だけ cache し、catalog 未取得時でも保存済み設定値を空文字へ正規化して消さない。

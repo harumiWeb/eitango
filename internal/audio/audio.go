@@ -27,7 +27,8 @@ type voiceCatalogState struct {
 	available bool
 }
 
-var voiceCatalogOnce sync.Once
+var voiceCatalogMu sync.Mutex
+var voiceCatalogCached bool
 var voiceCatalog voiceCatalogState
 
 func NewSpeaker(config Config) Speaker {
@@ -50,23 +51,26 @@ func NormalizeVoiceID(value string) string {
 	}
 	voices, available := InstalledVoices()
 	if !available {
-		return ""
+		return value
 	}
 	return selectVoiceID(value, voices)
 }
 
 func cachedVoiceCatalog() voiceCatalogState {
-	voiceCatalogOnce.Do(func() {
+	voiceCatalogMu.Lock()
+	defer voiceCatalogMu.Unlock()
+
+	if !voiceCatalogCached {
 		voices, err := listPlatformVoices()
 		if err != nil {
-			voiceCatalog = voiceCatalogState{}
-			return
+			return voiceCatalogState{}
 		}
 		voiceCatalog = voiceCatalogState{
 			voices:    cloneVoices(voices),
 			available: true,
 		}
-	})
+		voiceCatalogCached = true
+	}
 	return voiceCatalogState{
 		voices:    cloneVoices(voiceCatalog.voices),
 		available: voiceCatalog.available,
@@ -93,9 +97,4 @@ func cloneVoices(voices []Voice) []Voice {
 	cloned := make([]Voice, len(voices))
 	copy(cloned, voices)
 	return cloned
-}
-
-func resetVoiceCatalogCache() {
-	voiceCatalogOnce = sync.Once{}
-	voiceCatalog = voiceCatalogState{}
 }

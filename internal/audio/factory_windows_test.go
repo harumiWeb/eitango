@@ -3,6 +3,7 @@
 package audio
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -94,6 +95,79 @@ func TestNewSpeakerOnWindowsUsesConfiguredVoiceEvenWithoutEnglishFallback(t *tes
 	args := command.buildArgs("begin")
 	if !strings.Contains(args[3], "$synth.SelectVoice('Haruka')") {
 		t.Fatalf("script = %q, want configured Haruka voice", args[3])
+	}
+}
+
+func TestNewSpeakerOnWindowsFallsBackToAutoSelectionWhenCatalogUnavailable(t *testing.T) {
+	previous := windowsLookPath
+	previousVoices := windowsListVoices
+	const path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+	resetVoiceCatalogCache()
+	windowsLookPath = func(string) (string, error) {
+		return path, nil
+	}
+	windowsListVoices = func(string) ([]byte, error) {
+		return nil, errors.New("temporary voice listing failure")
+	}
+	t.Cleanup(func() {
+		windowsLookPath = previous
+		windowsListVoices = previousVoices
+		resetVoiceCatalogCache()
+	})
+
+	speaker := NewSpeaker(Config{Enabled: true})
+	if !speaker.Enabled() {
+		t.Fatal("Enabled() = false, want true")
+	}
+	command, ok := speaker.(commandSpeaker)
+	if !ok {
+		t.Fatalf("speaker type = %T, want commandSpeaker", speaker)
+	}
+	args := command.buildArgs("begin")
+	if !strings.Contains(args[3], "$_.Culture.Name -eq 'en-US'") {
+		t.Fatalf("script = %q, want auto english voice selection", args[3])
+	}
+}
+
+func TestInstalledVoicesOnWindowsRetriesAfterTransientFailure(t *testing.T) {
+	previous := windowsLookPath
+	previousVoices := windowsListVoices
+	const path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+	resetVoiceCatalogCache()
+	windowsLookPath = func(string) (string, error) {
+		return path, nil
+	}
+	calls := 0
+	windowsListVoices = func(string) ([]byte, error) {
+		calls++
+		if calls == 1 {
+			return nil, errors.New("temporary voice listing failure")
+		}
+		return []byte(`{"Name":"Microsoft David Desktop","Locale":"en-US"}`), nil
+	}
+	t.Cleanup(func() {
+		windowsLookPath = previous
+		windowsListVoices = previousVoices
+		resetVoiceCatalogCache()
+	})
+
+	voices, available := InstalledVoices()
+	if available {
+		t.Fatal("available = true, want false after first failure")
+	}
+	if len(voices) != 0 {
+		t.Fatalf("len(voices) = %d, want 0 after first failure", len(voices))
+	}
+
+	voices, available = InstalledVoices()
+	if !available {
+		t.Fatal("available = false, want true after retry")
+	}
+	if len(voices) != 1 || voices[0].ID != "Microsoft David Desktop" {
+		t.Fatalf("voices = %+v, want recovered cached voice list", voices)
+	}
+	if calls != 2 {
+		t.Fatalf("windowsListVoices calls = %d, want 2", calls)
 	}
 }
 

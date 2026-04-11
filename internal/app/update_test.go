@@ -1217,6 +1217,69 @@ func TestNewModelNormalizesMissingAudioVoiceToAuto(t *testing.T) {
 	}
 }
 
+func TestNewModelPreservesConfiguredAudioVoiceWhenCatalogUnavailable(t *testing.T) {
+	t.Parallel()
+
+	settings := newAudioEnabledSettings()
+	settings.AudioVoice = "Haruka"
+
+	model := NewModel(nil, Options{
+		Settings: settings,
+		SpeakerFactory: func(cfg audio.Config) audio.Speaker {
+			return &stubSpeaker{enabled: cfg.Enabled && cfg.Voice == "Haruka"}
+		},
+		VoiceCatalog: newStubVoiceCatalog(nil, false),
+	})
+
+	if model.settings.AudioVoice != "Haruka" {
+		t.Fatalf("settings.AudioVoice = %q, want preserved configured voice", model.settings.AudioVoice)
+	}
+	if !model.speakerAvailable() {
+		t.Fatal("speakerAvailable() = false, want true with preserved configured voice")
+	}
+}
+
+func TestUpdateHomeSettingsSavePreservesAudioVoiceWhenCatalogUnavailable(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	settings := newAudioEnabledSettings()
+	settings.AudioVoice = "Haruka"
+	model := NewModel(nil, Options{
+		Settings:   settings,
+		ConfigPath: path,
+		SpeakerFactory: func(cfg audio.Config) audio.Speaker {
+			return &stubSpeaker{enabled: cfg.Enabled && cfg.Voice == "Haruka"}
+		},
+		VoiceCatalog: newStubVoiceCatalog(nil, false),
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	if model.settingsAudioVoice != "Haruka" {
+		t.Fatalf("settingsAudioVoice = %q, want preserved configured voice", model.settingsAudioVoice)
+	}
+
+	next, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated := next.(RootModel)
+	if cmd == nil {
+		t.Fatal("cmd = nil, want save settings command")
+	}
+
+	saved, _ := updated.Update(cmd())
+	final := saved.(RootModel)
+	if final.settings.AudioVoice != "Haruka" {
+		t.Fatalf("settings.AudioVoice = %q, want preserved configured voice", final.settings.AudioVoice)
+	}
+
+	savedSettings, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load(saved config) error = %v", err)
+	}
+	if savedSettings.AudioVoice != "Haruka" {
+		t.Fatalf("saved AudioVoice = %q, want preserved configured voice", savedSettings.AudioVoice)
+	}
+}
+
 func TestUpdateHomeSettingsThemeRowSwitchesWithArrowKeys(t *testing.T) {
 	t.Parallel()
 

@@ -16,6 +16,18 @@ func TestLoadJA(t *testing.T) {
 	}
 }
 
+func TestLoadJAAudioVoiceLabels(t *testing.T) {
+	if err := i18n.Load("ja"); err != nil {
+		t.Fatalf("Load(ja): %v", err)
+	}
+	if got := i18n.T(i18n.SettingsAudioVoice); got != "ローカル音声" {
+		t.Fatalf("T(%s) = %q; want %q", i18n.SettingsAudioVoice, got, "ローカル音声")
+	}
+	if got := i18n.T(i18n.SettingsAudioVoiceAuto); got != "自動" {
+		t.Fatalf("T(%s) = %q; want %q", i18n.SettingsAudioVoiceAuto, got, "自動")
+	}
+}
+
 func TestLoadEN(t *testing.T) {
 	if err := i18n.Load("en"); err != nil {
 		t.Fatalf("Load(en): %v", err)

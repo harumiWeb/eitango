@@ -28,16 +28,15 @@ func newPlatformSpeaker(config Config) Speaker {
 	}
 
 	voices, available := InstalledVoices()
-	if !available {
-		return NoopSpeaker{}
-	}
-
-	voice := selectVoiceID(config.Voice, voices)
-	if voice == "" {
-		voice = windowsPreferredVoice(voices)
-	}
-	if voice == "" {
-		return NoopSpeaker{}
+	voice := strings.TrimSpace(config.Voice)
+	if available {
+		voice = selectVoiceID(voice, voices)
+		if voice == "" {
+			voice = windowsPreferredVoice(voices)
+		}
+		if voice == "" {
+			return NoopSpeaker{}
+		}
 	}
 	return commandSpeaker{
 		command: command,
