@@ -52,3 +52,4 @@
 - 同じく新規追加帯では、人を指す `noun` が `people-noun` から外れていないか、食べ物・動物が `travel-noun` に紛れていないかをまとめて監査する。レビュー TSV の候補値がもっともらしく見えても、誤答候補の質はこの分類で大きく崩れる。
 - 施設・場所を指す `noun` は `dockyard` / `drugstore` / `tearoom` のように `place-noun` へ寄せ、`pleasurable` のような体験評価の形容詞は `quality-adjective` を基準にそろえる。
 - 並列レビューの `approved_slice_*.tsv` は merge 前に `status=approved` を spot check する。行の絞り込みだけで status を `candidate` のまま残すと `merge_parallel_reviews.py` が即失敗し、レビューや監査が完了していても apply に進めない。
+- `merge_parallel_reviews.py` は slice dir 内の `approved_slice*.tsv` を広く拾うので、retry 用 TSV を同じディレクトリへ `approved_slice_XX_retry.tsv` のような名前で置かない。比較用の再レビューを作るなら別ディレクトリへ逃がすか、merge 前に必ず退避する。
