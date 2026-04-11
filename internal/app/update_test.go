@@ -126,6 +126,24 @@ func TestUpdateLoadingTickAdvancesSettingsSpinner(t *testing.T) {
 	}
 }
 
+func TestUpdateLoadingTickWrapsSettingsSpinner(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{})
+	model.loading = false
+	model = model.startSettingsOverlayLoad()
+	model.loadingFrame = len(loadingSpinnerFrames) - 1
+
+	next, cmd := model.Update(loadingTickMsg{})
+	updated := next.(RootModel)
+	if updated.loadingFrame != 0 {
+		t.Fatalf("loadingFrame = %d, want 0", updated.loadingFrame)
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want next loading tick")
+	}
+}
+
 func TestUpdateHomeTabTogglesAnswerMode(t *testing.T) {
 	t.Parallel()
 

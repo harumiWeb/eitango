@@ -825,7 +825,10 @@ func (m RootModel) renderStatusLine() string {
 }
 
 func (m RootModel) renderLoadingFooter() string {
-	if !m.loading || m.settingsLoading {
+	if m.settingsLoading {
+		return ""
+	}
+	if !m.loading {
 		return ""
 	}
 	return m.styles.Muted.Render(m.wrapToWindow(i18n.T(i18n.StatusLoading)))
