@@ -15,6 +15,7 @@
 
 - macOS は `say -v ?` の結果を voice catalog とする
 - Windows は `System.Speech.Synthesis.SpeechSynthesizer` の installed voices を voice catalog とする
+- Windows の `ConvertTo-Json -Compress` は installed voice が 1 件だけのとき配列ではなく単一 object を返すため、consumer は `{"Name":"Microsoft David Desktop","Locale":"en-US"}` と `[{"Name":"Microsoft David Desktop","Locale":"en-US"}]` の両方を受け入れる
 - settings overlay では `audio_enabled = false` でも catalog を閲覧できる
 - catalog / capability probe は cache し、settings render ごとに subprocess を再実行しない
 

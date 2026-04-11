@@ -1239,6 +1239,28 @@ func TestNewModelPreservesConfiguredAudioVoiceWhenCatalogUnavailable(t *testing.
 	}
 }
 
+func TestNewModelNormalizesAudioVoiceAutoAliasWhenCatalogUnavailable(t *testing.T) {
+	t.Parallel()
+
+	settings := newAudioEnabledSettings()
+	settings.AudioVoice = " Auto "
+
+	model := NewModel(nil, Options{
+		Settings: settings,
+		SpeakerFactory: func(cfg audio.Config) audio.Speaker {
+			return &stubSpeaker{enabled: cfg.Enabled && cfg.Voice == ""}
+		},
+		VoiceCatalog: newStubVoiceCatalog(nil, false),
+	})
+
+	if model.settings.AudioVoice != "" {
+		t.Fatalf("settings.AudioVoice = %q, want empty auto alias", model.settings.AudioVoice)
+	}
+	if !model.speakerAvailable() {
+		t.Fatal("speakerAvailable() = false, want true after auto alias normalization")
+	}
+}
+
 func TestUpdateHomeSettingsSavePreservesAudioVoiceWhenCatalogUnavailable(t *testing.T) {
 	t.Parallel()
 
@@ -1277,6 +1299,35 @@ func TestUpdateHomeSettingsSavePreservesAudioVoiceWhenCatalogUnavailable(t *test
 	}
 	if savedSettings.AudioVoice != "Haruka" {
 		t.Fatalf("saved AudioVoice = %q, want preserved configured voice", savedSettings.AudioVoice)
+	}
+}
+
+func TestUpdateHomeSettingsVoiceRowDoesNotClearConfiguredVoiceWhenCatalogUnavailable(t *testing.T) {
+	t.Parallel()
+
+	settings := newAudioEnabledSettings()
+	settings.AudioVoice = "Haruka"
+	model := NewModel(nil, Options{
+		Settings: settings,
+		SpeakerFactory: func(cfg audio.Config) audio.Speaker {
+			return &stubSpeaker{enabled: cfg.Enabled && cfg.Voice == "Haruka"}
+		},
+		VoiceCatalog: newStubVoiceCatalog(nil, false),
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+	model.settingsCursor = settingsRowAudioVoice
+
+	next, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	updated := next.(RootModel)
+	if updated.settingsAudioVoice != "Haruka" {
+		t.Fatalf("settingsAudioVoice after right = %q, want preserved configured voice", updated.settingsAudioVoice)
+	}
+
+	next, _ = updated.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	updated = next.(RootModel)
+	if updated.settingsAudioVoice != "Haruka" {
+		t.Fatalf("settingsAudioVoice after left = %q, want preserved configured voice", updated.settingsAudioVoice)
 	}
 }
 

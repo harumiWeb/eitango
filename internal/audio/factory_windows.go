@@ -13,6 +13,11 @@ import (
 	"time"
 )
 
+const (
+	windowsPowerShellExecutable = "powershell.exe"
+	windowsPowerShellSystemPath = `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
+)
+
 var windowsLookPath = exec.LookPath
 var windowsListVoices = defaultWindowsListVoices
 
@@ -109,19 +114,21 @@ func windowsListVoicesScript() string {
 }
 
 func defaultWindowsListVoices(command string) ([]byte, error) {
-	if _, ok := normalizeWindowsPowerShellCommand(command); !ok {
+	command, ok := normalizeWindowsPowerShellCommand(command)
+	if !ok {
 		return nil, errors.New("unsupported powershell command")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	return exec.CommandContext(ctx, "powershell.exe", windowsListVoicesArgs()...).Output()
+	return exec.CommandContext(ctx, command, windowsListVoicesArgs()...).Output()
 }
 
 func runWindowsPowerShell(ctx context.Context, name string, args ...string) error {
-	if _, ok := normalizeWindowsPowerShellCommand(name); !ok {
+	command, ok := normalizeWindowsPowerShellCommand(name)
+	if !ok {
 		return errors.New("unsupported powershell command")
 	}
-	return exec.CommandContext(ctx, "powershell.exe", args...).Run()
+	return exec.CommandContext(ctx, command, args...).Run()
 }
 
 func windowsVoices(command string) ([]Voice, error) {
@@ -190,7 +197,7 @@ func isWindowsEnglishLocale(locale string) bool {
 }
 
 func windowsPowerShellCommand() (string, error) {
-	command, err := windowsLookPath("powershell.exe")
+	command, err := windowsLookPath(windowsPowerShellExecutable)
 	if err != nil {
 		return "", err
 	}
@@ -208,10 +215,10 @@ func escapePowerShellSingleQuoted(text string) string {
 func normalizeWindowsPowerShellCommand(name string) (string, bool) {
 	cleaned := strings.ToLower(filepath.Clean(strings.TrimSpace(name)))
 	switch cleaned {
-	case "powershell.exe":
-		return "powershell.exe", true
-	case strings.ToLower(`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`):
-		return "powershell.exe", true
+	case windowsPowerShellExecutable:
+		return windowsPowerShellSystemPath, true
+	case strings.ToLower(windowsPowerShellSystemPath):
+		return windowsPowerShellSystemPath, true
 	default:
 		return "", false
 	}

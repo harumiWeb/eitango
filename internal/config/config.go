@@ -150,7 +150,7 @@ func Load(path string) (Settings, error) {
 		settings.AudioAutoplay = *raw.AudioAutoplay
 	}
 	if raw.AudioVoice != nil {
-		settings.AudioVoice = normalizeAudioVoice(*raw.AudioVoice)
+		settings.AudioVoice = NormalizeAudioVoice(*raw.AudioVoice)
 	}
 	if raw.Language != nil {
 		settings.Language = *raw.Language
@@ -193,7 +193,7 @@ func Save(path string, settings Settings) error {
 		}
 		settings.ThemeMode = themeMode
 	}
-	settings.AudioVoice = normalizeAudioVoice(settings.AudioVoice)
+	settings.AudioVoice = NormalizeAudioVoice(settings.AudioVoice)
 	settings.ThemePalette, err = normalizeThemePalette(settings.ThemePalette)
 	if err != nil {
 		return err
@@ -348,8 +348,12 @@ func NormalizeThemeMode(value string) string {
 	}
 }
 
-func normalizeAudioVoice(value string) string {
-	return strings.TrimSpace(value)
+func NormalizeAudioVoice(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if strings.EqualFold(trimmed, "auto") {
+		return ""
+	}
+	return trimmed
 }
 
 func parseWriteModeDifficulty(value string) (string, error) {

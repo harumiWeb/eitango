@@ -20,14 +20,14 @@ func TestNewSpeakerOnWindowsUsesPowerShellWhenAvailable(t *testing.T) {
 	previousVoices := windowsListVoices
 	resetVoiceCatalogCache()
 	windowsLookPath = func(file string) (string, error) {
-		if file != "powershell.exe" {
-			t.Fatalf("lookPath file = %q, want powershell.exe", file)
+		if file != windowsPowerShellExecutable {
+			t.Fatalf("lookPath file = %q, want %q", file, windowsPowerShellExecutable)
 		}
 		return windowsTestPowerShellPath, nil
 	}
 	windowsListVoices = func(command string) ([]byte, error) {
-		if command != "powershell.exe" {
-			t.Fatalf("listVoices command = %q, want %q", command, "powershell.exe")
+		if command != windowsTestPowerShellPath {
+			t.Fatalf("listVoices command = %q, want %q", command, windowsTestPowerShellPath)
 		}
 		return []byte(windowsTestEnglishVoiceJSON), nil
 	}
@@ -45,8 +45,8 @@ func TestNewSpeakerOnWindowsUsesPowerShellWhenAvailable(t *testing.T) {
 	if !ok {
 		t.Fatalf("speaker type = %T, want commandSpeaker", speaker)
 	}
-	if command.command != "powershell.exe" {
-		t.Fatalf("command = %q, want %q", command.command, "powershell.exe")
+	if command.command != windowsTestPowerShellPath {
+		t.Fatalf("command = %q, want %q", command.command, windowsTestPowerShellPath)
 	}
 }
 
@@ -213,8 +213,8 @@ func TestWindowsVoicesAcceptSingleObjectJSON(t *testing.T) {
 	previous := windowsListVoices
 	resetVoiceCatalogCache()
 	windowsListVoices = func(command string) ([]byte, error) {
-		if command != "powershell.exe" {
-			t.Fatalf("listVoices command = %q, want %q", command, "powershell.exe")
+		if command != windowsTestPowerShellPath {
+			t.Fatalf("listVoices command = %q, want %q", command, windowsTestPowerShellPath)
 		}
 		return []byte(windowsTestEnglishVoiceJSON), nil
 	}
@@ -223,7 +223,7 @@ func TestWindowsVoicesAcceptSingleObjectJSON(t *testing.T) {
 		resetVoiceCatalogCache()
 	})
 
-	voices, err := windowsVoices("powershell.exe")
+	voices, err := windowsVoices(windowsTestPowerShellPath)
 	if err != nil {
 		t.Fatalf("windowsVoices() error = %v", err)
 	}
@@ -232,5 +232,26 @@ func TestWindowsVoicesAcceptSingleObjectJSON(t *testing.T) {
 	}
 	if voices[0].ID != "Microsoft David Desktop" {
 		t.Fatalf("voices[0].ID = %q, want %q", voices[0].ID, "Microsoft David Desktop")
+	}
+}
+
+func TestWindowsPowerShellCommandReturnsValidatedSystemPath(t *testing.T) {
+	previous := windowsLookPath
+	windowsLookPath = func(file string) (string, error) {
+		if file != windowsPowerShellExecutable {
+			t.Fatalf("lookPath file = %q, want %q", file, windowsPowerShellExecutable)
+		}
+		return windowsPowerShellExecutable, nil
+	}
+	t.Cleanup(func() {
+		windowsLookPath = previous
+	})
+
+	command, err := windowsPowerShellCommand()
+	if err != nil {
+		t.Fatalf("windowsPowerShellCommand() error = %v", err)
+	}
+	if command != windowsTestPowerShellPath {
+		t.Fatalf("command = %q, want %q", command, windowsTestPowerShellPath)
 	}
 }

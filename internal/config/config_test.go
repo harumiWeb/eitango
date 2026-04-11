@@ -348,6 +348,28 @@ func TestLoadMissingAudioSettingsDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadNormalizesAudioVoiceAutoAlias(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte(`
+session_size = 10
+review_ratio = 0.4
+language = "ja"
+audio_voice = " Auto "
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	settings, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if settings.AudioVoice != "" {
+		t.Fatalf("AudioVoice = %q, want empty auto alias", settings.AudioVoice)
+	}
+}
+
 func TestSaveNormalizesAudioVoiceWhitespace(t *testing.T) {
 	t.Parallel()
 
@@ -370,6 +392,31 @@ func TestSaveNormalizesAudioVoiceWhitespace(t *testing.T) {
 	}
 	if settings.AudioVoice != "Samantha" {
 		t.Fatalf("AudioVoice = %q, want %q", settings.AudioVoice, "Samantha")
+	}
+}
+
+func TestSaveNormalizesAudioVoiceAutoAlias(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := Save(path, Settings{
+		SessionSize:         10,
+		ReviewRatio:         0.4,
+		WriteModeDifficulty: WriteModeDifficultyBasic,
+		AudioEnabled:        true,
+		AudioAutoplay:       false,
+		AudioVoice:          " Auto ",
+		Language:            "ja",
+	}); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	settings, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if settings.AudioVoice != "" {
+		t.Fatalf("AudioVoice = %q, want empty auto alias", settings.AudioVoice)
 	}
 }
 

@@ -543,7 +543,7 @@ func normalizeAutoplaySetting(settings config.Settings, speaker audio.Speaker) c
 }
 
 func normalizeAudioVoiceSetting(value string, voiceCatalog func() ([]audio.Voice, bool)) string {
-	value = strings.TrimSpace(value)
+	value = config.NormalizeAudioVoice(value)
 	if value == "" {
 		return ""
 	}
@@ -555,7 +555,7 @@ func normalizeAudioVoiceSetting(value string, voiceCatalog func() ([]audio.Voice
 }
 
 func normalizeAudioVoiceInList(value string, voices []audio.Voice, loaded bool) string {
-	value = strings.TrimSpace(value)
+	value = config.NormalizeAudioVoice(value)
 	if value == "" {
 		return ""
 	}
@@ -598,6 +598,9 @@ func (m RootModel) cycleSettingsAudioVoice(step int) string {
 	choices := m.settingsAudioVoiceChoices()
 	if len(choices) == 0 {
 		return ""
+	}
+	if !m.settingsAudioVoicesLoaded {
+		return normalizeAudioVoiceInList(m.settingsAudioVoice, nil, false)
 	}
 
 	current := normalizeAudioVoiceInList(m.settingsAudioVoice, m.settingsAudioVoices, m.settingsAudioVoicesLoaded)
