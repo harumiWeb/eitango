@@ -211,7 +211,6 @@ func submitAnswerCmd(st *store.Store, svc *quiz.Service, runtime *session.Runtim
 
 		record, items, err := st.SaveAnswer(ctx, store.ReviewEvent{
 			SessionID:      runtime.Session.ID,
-			SessionMode:    runtime.Session.Mode,
 			ItemOrdinal:    item.Ordinal,
 			WordID:         item.WordID,
 			Kind:           item.Kind,

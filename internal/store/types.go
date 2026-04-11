@@ -87,7 +87,6 @@ type HomeSnapshot struct {
 
 type ReviewEvent struct {
 	SessionID      string
-	SessionMode    string
 	ItemOrdinal    int
 	WordID         int64
 	Kind           string

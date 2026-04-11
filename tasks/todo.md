@@ -59,11 +59,6 @@
 - [x] reviewed-only fallback の choice feedback から 4 段階評価を外し Enter-only にする
 - [x] reviewed-only fallback の write feedback でも rating 保存を行わない
 - [x] fallback practice の UI/README と回帰テストを追従させる
-- [x] reviewed-only fallback session を通常 review と別 mode で保持する
-- [x] reviewed-only fallback 回答で SRS progress を更新しない
-- [x] reviewed-only fallback の choice feedback から 4 段階評価を外し Enter-only にする
-- [x] reviewed-only fallback の write feedback でも rating 保存を行わない
-- [x] fallback practice の UI/README と回帰テストを追従させる
 
 ## 2026-04-02 issue #14: Write モード難易度緩和
 

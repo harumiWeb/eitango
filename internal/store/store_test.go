@@ -307,7 +307,6 @@ func TestSaveAnswerReviewInfiniteDoesNotUpdateProgressOrRating(t *testing.T) {
 
 	if _, _, err := st.SaveAnswer(ctx, ReviewEvent{
 		SessionID:      record.ID,
-		SessionMode:    ModeReviewInfinite,
 		ItemOrdinal:    1,
 		WordID:         target.ID,
 		Kind:           ItemKindReview,
