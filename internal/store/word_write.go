@@ -274,19 +274,11 @@ WHERE id = ?
 		counts.inserted++
 	}
 
-	retireStmt, err := tx.PrepareContext(ctx, `UPDATE words SET is_active = 0 WHERE id = ?`)
-	if err != nil {
-		return syncCoreWordCounts{}, fmt.Errorf("prepare core word retire: %w", err)
-	}
-	defer func() {
-		_ = retireStmt.Close()
-	}()
-
 	for _, existing := range existingRows {
 		if !existing.isActive {
 			continue
 		}
-		if _, err := retireStmt.ExecContext(ctx, existing.id); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE words SET is_active = 0 WHERE id = ?`, existing.id); err != nil {
 			return syncCoreWordCounts{}, fmt.Errorf("retire core word %d: %w", existing.id, err)
 		}
 		counts.retired++
