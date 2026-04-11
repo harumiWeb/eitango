@@ -50,3 +50,5 @@
 - core 語彙の `distractor_group` は語種よりも出題時の誤答品質で決める。人物語は `people-noun`、楽器・動植物・素材・日用品は原則 `daily-noun` に寄せ、`business` / `technology` / `learning` へ安易に広げない。
 - core 語彙を一括追加した後は、新規 `verb` 行の `meaning_ja` が名詞形のまま残っていないかを必ず点検する。write mode では代表訳がそのまま prompt になるので、`分類` / `中止` のような名詞形を承認すると出題品質をまとめて壊す。
 - 同じく新規追加帯では、人を指す `noun` が `people-noun` から外れていないか、食べ物・動物が `travel-noun` に紛れていないかをまとめて監査する。レビュー TSV の候補値がもっともらしく見えても、誤答候補の質はこの分類で大きく崩れる。
+- 施設・場所を指す `noun` は `dockyard` / `drugstore` / `tearoom` のように `place-noun` へ寄せ、`pleasurable` のような体験評価の形容詞は `quality-adjective` を基準にそろえる。
+- 並列レビューの `approved_slice_*.tsv` は merge 前に `status=approved` を spot check する。行の絞り込みだけで status を `candidate` のまま残すと `merge_parallel_reviews.py` が即失敗し、レビューや監査が完了していても apply に進めない。
