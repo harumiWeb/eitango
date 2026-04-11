@@ -1,9 +1,8 @@
-# 2026-04-11 語彙追加 16000 seed batch
+# 2026-04-11 語彙追加 17000 seed batch
 
-- [x] `meaning_candidates.jsonl` / `review_candidates.tsv` を現行 `freq_seed.csv` から再生成する
-- [x] `15001-16000` の `parallel_review_16000` slice を作成する
+- [x] `parallel_review_17000` を `16001-17000` の範囲で作成する
 - [x] サブエージェントを使って slice ごとの承認候補をレビューする
-- [x] `approved_review_candidates.tsv` / `approved_seed.csv` に 16000 batch をマージする
+- [x] `approved_review_candidates.tsv` / `approved_seed.csv` に 17000 batch をマージする
 - [x] `apply_review_batch.py` で `assets/words_core.jsonl` へ反映する
 - [x] `validate --embedded-core` と `doctor` で整合性を検証する
 
