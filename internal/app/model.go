@@ -291,6 +291,9 @@ func (m RootModel) sessionRequest(mode string, replaceActive bool) sessionReques
 	}
 }
 
+// openSettingsOverlay synchronously prepares the settings overlay for tests and
+// direct in-memory transitions. Interactive UI flows should use
+// startSettingsOverlayLoad so the expensive audio checks run asynchronously.
 func (m RootModel) openSettingsOverlay() RootModel {
 	m = m.prepareSettingsOverlay()
 	voices, loaded, audioVoice, audioAvailable := m.loadSettingsOverlayData()

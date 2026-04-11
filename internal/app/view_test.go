@@ -1063,7 +1063,7 @@ func TestRenderStatusLineShowsSpinnerWhileSettingsLoading(t *testing.T) {
 	model.status = i18n.T(i18n.StatusLoading)
 
 	got := ansi.Strip(model.renderStatusLine())
-	want := loadingSpinnerFrames[1] + " status: " + i18n.T(i18n.StatusLoading)
+	want := loadingSpinnerFrames[model.loadingFrame] + " status: " + i18n.T(i18n.StatusLoading)
 	if !strings.Contains(got, want) {
 		t.Fatalf("renderStatusLine() = %q, want spinner prefix %q", got, want)
 	}
