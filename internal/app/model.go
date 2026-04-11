@@ -34,6 +34,7 @@ const (
 	settingsRowQuestionCount = iota
 	settingsRowWriteDifficulty
 	settingsRowAudioEnabled
+	settingsRowAudioVoice
 	settingsRowAudioAutoplay
 	settingsRowLanguage
 	settingsRowTheme
@@ -111,6 +112,7 @@ type Options struct {
 	CurrentVersion string
 	UpdateService  updatecheck.Service
 	SpeakerFactory func(audio.Config) audio.Speaker
+	VoiceCatalog   func() ([]audio.Voice, bool)
 }
 
 type homeConfirmKind int
@@ -153,6 +155,7 @@ type RootModel struct {
 	updateService                updatecheck.Service
 	speaker                      audio.Speaker
 	speakerFactory               func(audio.Config) audio.Speaker
+	voiceCatalog                 func() ([]audio.Voice, bool)
 	updateLatestTag              string
 	selectedAnswerMode           string
 	screen                       Screen
@@ -178,7 +181,10 @@ type RootModel struct {
 	settingsEditing              bool
 	settingsWriteDifficulty      string
 	settingsAudioEnabled         bool
+	settingsAudioVoice           string
 	settingsAudioAutoplay        bool
+	settingsAudioVoices          []audio.Voice
+	settingsAudioVoicesLoaded    bool
 	settingsAudioAvailableCached bool
 	settingsLanguage             string
 	settingsThemeMode            string
@@ -207,6 +213,11 @@ func NewModel(store *store.Store, options Options) RootModel {
 	if speakerFactory == nil {
 		speakerFactory = audio.NewSpeaker
 	}
+	voiceCatalog := options.VoiceCatalog
+	if voiceCatalog == nil {
+		voiceCatalog = audio.InstalledVoices
+	}
+	settings.AudioVoice = normalizeAudioVoiceSetting(settings.AudioVoice, voiceCatalog)
 	speaker := speakerFactory(audioConfigFromSettings(settings))
 	settings = normalizeAutoplaySetting(settings, speaker)
 	settings.ThemeMode = config.NormalizeThemeMode(settings.ThemeMode)
@@ -227,6 +238,7 @@ func NewModel(store *store.Store, options Options) RootModel {
 		updateService:      options.UpdateService,
 		speaker:            speaker,
 		speakerFactory:     speakerFactory,
+		voiceCatalog:       voiceCatalog,
 		selectedAnswerMode: startupAnswerMode(options.Startup),
 		screen:             ScreenHome,
 		keymap:             keyState,
@@ -278,8 +290,10 @@ func (m RootModel) openSettingsOverlay() RootModel {
 	m.settingsEditing = false
 	m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(m.settings.WriteModeDifficulty)
 	m.settingsAudioEnabled = m.settings.AudioEnabled
+	m.settingsAudioVoices, m.settingsAudioVoicesLoaded = m.loadAudioVoices()
+	m.settingsAudioVoice = normalizeAudioVoiceInList(m.settings.AudioVoice, m.settingsAudioVoices, m.settingsAudioVoicesLoaded)
 	m.settingsAudioAutoplay = m.settings.AudioAutoplay
-	m.settingsAudioAvailableCached = m.probeSettingsAudioAvailable()
+	m.settingsAudioAvailableCached = m.probeSettingsAudioAvailableFor(m.settingsAudioVoice)
 	if !m.settingsAudioAvailable() {
 		m.settingsAudioAutoplay = false
 	}
@@ -360,6 +374,21 @@ func (m RootModel) settingsLanguageLabel() string {
 	return i18n.T(i18n.SettingsLanguageJA)
 }
 
+func (m RootModel) settingsAudioVoiceLabel() string {
+	if !m.settingsAudioVoicesLoaded {
+		return i18n.T(i18n.SettingsAudioVoiceUnavailable)
+	}
+	if m.settingsAudioVoice == "" {
+		return i18n.T(i18n.SettingsAudioVoiceAuto)
+	}
+	for _, voice := range m.settingsAudioVoices {
+		if voice.ID == m.settingsAudioVoice {
+			return voice.Label
+		}
+	}
+	return i18n.T(i18n.SettingsAudioVoiceAuto)
+}
+
 func (m RootModel) settingsThemeModeLabel() string {
 	switch m.settingsThemeMode {
 	case config.ThemeModeNoColor:
@@ -390,6 +419,7 @@ func (m RootModel) settingsDraft() (config.Settings, bool, bool) {
 	draft.SessionSize = count
 	draft.WriteModeDifficulty = config.NormalizeWriteModeDifficulty(m.settingsWriteDifficulty)
 	draft.AudioEnabled = m.settingsAudioEnabled
+	draft.AudioVoice = m.settingsAudioVoice
 	draft.AudioAutoplay = m.settingsAudioAutoplay && m.settingsAudioAvailable()
 	draft.Language = m.settingsLanguage
 	draft.ThemeMode = config.NormalizeThemeMode(m.settingsThemeMode)
@@ -413,6 +443,7 @@ func (m RootModel) applySettings(settings config.Settings) (RootModel, error) {
 	if err := i18n.Load(settings.Language); err != nil {
 		return m, err
 	}
+	settings.AudioVoice = normalizeAudioVoiceSetting(settings.AudioVoice, m.voiceCatalog)
 	speaker := m.speakerFactory(audioConfigFromSettings(settings))
 	settings = normalizeAutoplaySetting(settings, speaker)
 	settings.ThemeMode = config.NormalizeThemeMode(settings.ThemeMode)
@@ -432,8 +463,10 @@ func (m RootModel) applySettings(settings config.Settings) (RootModel, error) {
 	m.settingsInput = strconv.Itoa(settings.SessionSize)
 	m.settingsWriteDifficulty = config.NormalizeWriteModeDifficulty(settings.WriteModeDifficulty)
 	m.settingsAudioEnabled = settings.AudioEnabled
+	m.settingsAudioVoices, m.settingsAudioVoicesLoaded = m.loadAudioVoices()
+	m.settingsAudioVoice = normalizeAudioVoiceInList(settings.AudioVoice, m.settingsAudioVoices, m.settingsAudioVoicesLoaded)
 	m.settingsAudioAutoplay = settings.AudioAutoplay
-	m.settingsAudioAvailableCached = m.probeSettingsAudioAvailable()
+	m.settingsAudioAvailableCached = m.probeSettingsAudioAvailableFor(m.settingsAudioVoice)
 	m.settingsLanguage = settings.Language
 	m.settingsThemeMode = config.NormalizeThemeMode(settings.ThemeMode)
 	m.speaker = speaker
@@ -483,7 +516,10 @@ func startupAnswerMode(startup *StartupRequest) string {
 }
 
 func audioConfigFromSettings(settings config.Settings) audio.Config {
-	return audio.Config{Enabled: settings.AudioEnabled}
+	return audio.Config{
+		Enabled: settings.AudioEnabled,
+		Voice:   settings.AudioVoice,
+	}
 }
 
 func themeFromSettings(settings config.Settings) tui.Theme {
@@ -506,9 +542,93 @@ func normalizeAutoplaySetting(settings config.Settings, speaker audio.Speaker) c
 	return settings
 }
 
-func (m RootModel) probeSettingsAudioAvailable() bool {
+func normalizeAudioVoiceSetting(value string, voiceCatalog func() ([]audio.Voice, bool)) string {
+	value = config.NormalizeAudioVoice(value)
+	if value == "" {
+		return ""
+	}
+	if voiceCatalog == nil {
+		return value
+	}
+	voices, loaded := voiceCatalog()
+	return normalizeAudioVoiceInList(value, voices, loaded)
+}
+
+func normalizeAudioVoiceInList(value string, voices []audio.Voice, loaded bool) string {
+	value = config.NormalizeAudioVoice(value)
+	if value == "" {
+		return ""
+	}
+	if !loaded {
+		return value
+	}
+	for _, voice := range voices {
+		if voice.ID == value {
+			return voice.ID
+		}
+	}
+	return ""
+}
+
+func (m RootModel) loadAudioVoices() ([]audio.Voice, bool) {
+	if m.voiceCatalog == nil {
+		return nil, false
+	}
+	voices, loaded := m.voiceCatalog()
+	if len(voices) == 0 {
+		return nil, loaded
+	}
+	cloned := make([]audio.Voice, len(voices))
+	copy(cloned, voices)
+	return cloned, loaded
+}
+
+func (m RootModel) settingsAudioVoiceChoices() []string {
+	choices := []string{""}
+	if !m.settingsAudioVoicesLoaded {
+		return choices
+	}
+	for _, voice := range m.settingsAudioVoices {
+		choices = append(choices, voice.ID)
+	}
+	return choices
+}
+
+func (m RootModel) cycleSettingsAudioVoice(step int) string {
+	choices := m.settingsAudioVoiceChoices()
+	if len(choices) == 0 {
+		return ""
+	}
+	if !m.settingsAudioVoicesLoaded {
+		return normalizeAudioVoiceInList(m.settingsAudioVoice, nil, false)
+	}
+
+	current := normalizeAudioVoiceInList(m.settingsAudioVoice, m.settingsAudioVoices, m.settingsAudioVoicesLoaded)
+	index := 0
+	for i, choice := range choices {
+		if choice == current {
+			index = i
+			break
+		}
+	}
+
+	index = (index + step + len(choices)) % len(choices)
+	return choices[index]
+}
+
+func (m RootModel) updateSettingsAudioVoice(value string) RootModel {
+	m.settingsAudioVoice = normalizeAudioVoiceInList(value, m.settingsAudioVoices, m.settingsAudioVoicesLoaded)
+	m.settingsAudioAvailableCached = m.probeSettingsAudioAvailableFor(m.settingsAudioVoice)
+	if !m.settingsAudioAvailable() {
+		m.settingsAudioAutoplay = false
+	}
+	return m
+}
+
+func (m RootModel) probeSettingsAudioAvailableFor(voice string) bool {
 	settings := m.settings
 	settings.AudioEnabled = true
+	settings.AudioVoice = voice
 	cfg := audioConfigFromSettings(settings)
 	speaker := m.speakerFactory(cfg)
 	return speaker != nil && speaker.Enabled()

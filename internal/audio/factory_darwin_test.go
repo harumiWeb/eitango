@@ -8,6 +8,7 @@ func TestNewSpeakerOnDarwinUsesSayWhenAvailable(t *testing.T) {
 	previous := darwinLookPath
 	previousVoices := darwinListVoices
 	const path = "/usr/bin/say"
+	resetVoiceCatalogCache()
 	darwinLookPath = func(file string) (string, error) {
 		if file != "say" {
 			t.Fatalf("lookPath file = %q, want say", file)
@@ -23,6 +24,7 @@ func TestNewSpeakerOnDarwinUsesSayWhenAvailable(t *testing.T) {
 	t.Cleanup(func() {
 		darwinLookPath = previous
 		darwinListVoices = previousVoices
+		resetVoiceCatalogCache()
 	})
 
 	speaker := NewSpeaker(Config{Enabled: true})
@@ -43,6 +45,37 @@ func TestNewSpeakerOnDarwinUsesSayWhenAvailable(t *testing.T) {
 	}
 	if args[0] != "-v" || args[1] != "Samantha" || args[2] != "begin" {
 		t.Fatalf("args = %v, want [-v Samantha begin]", args)
+	}
+}
+
+func TestNewSpeakerOnDarwinUsesConfiguredVoice(t *testing.T) {
+	previous := darwinLookPath
+	previousVoices := darwinListVoices
+	const path = "/usr/bin/say"
+	resetVoiceCatalogCache()
+	darwinLookPath = func(string) (string, error) {
+		return path, nil
+	}
+	darwinListVoices = func(command string) ([]byte, error) {
+		if command != path {
+			t.Fatalf("listVoices command = %q, want %q", command, path)
+		}
+		return []byte("Kyoko  ja_JP  # こんにちは。\nSamantha  en_US  # Hello."), nil
+	}
+	t.Cleanup(func() {
+		darwinLookPath = previous
+		darwinListVoices = previousVoices
+		resetVoiceCatalogCache()
+	})
+
+	speaker := NewSpeaker(Config{Enabled: true, Voice: "Kyoko"})
+	command, ok := speaker.(commandSpeaker)
+	if !ok {
+		t.Fatalf("speaker type = %T, want commandSpeaker", speaker)
+	}
+	args := command.buildArgs("begin")
+	if len(args) != 3 || args[1] != "Kyoko" {
+		t.Fatalf("args = %v, want configured Kyoko voice", args)
 	}
 }
 

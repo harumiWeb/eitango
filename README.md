@@ -239,7 +239,13 @@ border = "#FFFFFF"
 ```toml
 audio_enabled = true
 audio_autoplay = false
+audio_voice = "Samantha"
 ```
+
+- `audio_voice` を空文字または未指定にすると、既定の英語 voice を自動選択します
+- ホーム設定 overlay の `Local voice` 行から、利用可能な local voice を切り替えられます
+- `audio_enabled = false` でも voice 候補の確認と保存はできます
+- 保存済み voice が見つからない場合は、自動選択へ fallback して音声再生を継続します
 
 ## キーバインド
 

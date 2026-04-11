@@ -44,6 +44,7 @@ type Settings struct {
 	WriteModeDifficulty string
 	AudioEnabled        bool
 	AudioAutoplay       bool
+	AudioVoice          string
 	Language            string
 	ThemeMode           string
 	ThemePalette        ThemePalette
@@ -65,6 +66,7 @@ type fileSettings struct {
 	WriteModeDifficulty *string          `toml:"write_mode_difficulty"`
 	AudioEnabled        *bool            `toml:"audio_enabled"`
 	AudioAutoplay       *bool            `toml:"audio_autoplay"`
+	AudioVoice          *string          `toml:"audio_voice"`
 	Language            *string          `toml:"language"`
 	ThemeMode           *string          `toml:"theme_mode"`
 	ThemePalette        fileThemePalette `toml:"theme_palette"`
@@ -98,6 +100,7 @@ func (s Settings) IsZero() bool {
 		s.WriteModeDifficulty == "" &&
 		!s.AudioEnabled &&
 		!s.AudioAutoplay &&
+		s.AudioVoice == "" &&
 		s.Language == "" &&
 		s.ThemeMode == "" &&
 		s.ThemePalette == (ThemePalette{}) &&
@@ -146,6 +149,9 @@ func Load(path string) (Settings, error) {
 	if raw.AudioAutoplay != nil {
 		settings.AudioAutoplay = *raw.AudioAutoplay
 	}
+	if raw.AudioVoice != nil {
+		settings.AudioVoice = NormalizeAudioVoice(*raw.AudioVoice)
+	}
 	if raw.Language != nil {
 		settings.Language = *raw.Language
 	}
@@ -187,6 +193,7 @@ func Save(path string, settings Settings) error {
 		}
 		settings.ThemeMode = themeMode
 	}
+	settings.AudioVoice = NormalizeAudioVoice(settings.AudioVoice)
 	settings.ThemePalette, err = normalizeThemePalette(settings.ThemePalette)
 	if err != nil {
 		return err
@@ -211,6 +218,7 @@ func Save(path string, settings Settings) error {
 		WriteModeDifficulty string            `toml:"write_mode_difficulty"`
 		AudioEnabled        bool              `toml:"audio_enabled"`
 		AudioAutoplay       bool              `toml:"audio_autoplay"`
+		AudioVoice          string            `toml:"audio_voice"`
 		Language            string            `toml:"language"`
 		ThemeMode           string            `toml:"theme_mode"`
 		ThemePalette        *saveThemePalette `toml:"theme_palette,omitempty"`
@@ -222,6 +230,7 @@ func Save(path string, settings Settings) error {
 		WriteModeDifficulty: settings.WriteModeDifficulty,
 		AudioEnabled:        settings.AudioEnabled,
 		AudioAutoplay:       settings.AudioAutoplay,
+		AudioVoice:          settings.AudioVoice,
 		Language:            settings.Language,
 		ThemeMode:           settings.ThemeMode,
 		ThemePalette:        newSaveThemePalette(settings.ThemePalette),
@@ -337,6 +346,14 @@ func NormalizeThemeMode(value string) string {
 	default:
 		return ThemeModeDefault
 	}
+}
+
+func NormalizeAudioVoice(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if strings.EqualFold(trimmed, "auto") {
+		return ""
+	}
+	return trimmed
 }
 
 func parseWriteModeDifficulty(value string) (string, error) {

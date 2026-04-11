@@ -850,6 +850,35 @@ func TestRenderHomeWithSettingsOverlayShowsAutoplayOffWhenUnavailable(t *testing
 	}
 }
 
+func TestRenderHomeWithSettingsOverlayShowsSelectedAudioVoice(t *testing.T) {
+	t.Parallel()
+
+	model := NewModel(nil, Options{
+		Settings: config.Settings{
+			SessionSize:         10,
+			ReviewRatio:         0.4,
+			WriteModeDifficulty: config.WriteModeDifficultyBasic,
+			AudioEnabled:        true,
+			AudioVoice:          "Samantha",
+			Language:            i18n.LangJA,
+		},
+		SpeakerFactory: newStubSpeakerFactory(true),
+		VoiceCatalog: newStubVoiceCatalog([]audio.Voice{
+			{ID: "Samantha", Label: "Samantha", Locale: "en-US"},
+		}, true),
+	})
+	model.loading = false
+	model = model.openSettingsOverlay()
+
+	got := model.renderHomeWithSettingsOverlay()
+	if !strings.Contains(got, i18n.T(i18n.SettingsAudioVoice)) {
+		t.Fatalf("renderHomeWithSettingsOverlay() missing audio voice row:\n%s", got)
+	}
+	if !strings.Contains(got, "Samantha") {
+		t.Fatalf("renderHomeWithSettingsOverlay() missing selected voice:\n%s", got)
+	}
+}
+
 func TestRenderHomeWithSettingsOverlayDoesNotProbeAudioOnRender(t *testing.T) {
 	t.Parallel()
 
@@ -1589,6 +1618,8 @@ func prepareCompactSettingsModel(model *RootModel) {
 	model.settingsInput = "10"
 	model.settingsWriteDifficulty = config.WriteModeDifficultyBasic
 	model.settingsAudioEnabled = true
+	model.settingsAudioVoice = ""
+	model.settingsAudioVoicesLoaded = true
 	model.settingsLanguage = i18n.LangJA
 	model.settingsThemeMode = config.ThemeModeDefault
 }
