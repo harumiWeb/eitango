@@ -33,6 +33,59 @@ jobs:
       - name: Build packages
         run: go build ./...
 
+      - name: Initialize Homebrew tap repository
+        env:
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          curl_status_args=(
+            -sS
+            --connect-timeout 10
+            --max-time 20
+            --retry 3
+            --retry-delay 2
+            --retry-all-errors
+            -o /dev/null
+            -w '%{http_code}'
+            -H 'Accept: application/vnd.github+json'
+            -H "Authorization: Bearer ${HOMEBREW_TAP_GITHUB_TOKEN}"
+          )
+
+          tap_repo_api_url="https://api.github.com/repos/harumiWeb/homebrew-eitango"
+          repo_status_code="$(curl "${curl_status_args[@]}" "${tap_repo_api_url}")"
+
+          if [ "${repo_status_code}" != "200" ]; then
+            echo "homebrew tap repository is missing or inaccessible: ${repo_status_code}" >&2
+            exit 1
+          fi
+
+          tap_branch_api_url="https://api.github.com/repos/harumiWeb/homebrew-eitango/git/ref/heads/main"
+          branch_status_code="$(curl "${curl_status_args[@]}" "${tap_branch_api_url}")"
+
+          if [ "${branch_status_code}" = "200" ]; then
+            exit 0
+          fi
+
+          if [ "${branch_status_code}" != "404" ] && [ "${branch_status_code}" != "409" ]; then
+            echo "unexpected tap branch status: ${branch_status_code}" >&2
+            exit 1
+          fi
+
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "${tmpdir}"' EXIT
+
+          git -C "${tmpdir}" init -b main
+          cat <<'EOF' > "${tmpdir}/README.md"
+          # homebrew-eitango
+
+          Homebrew tap for eitango release formulas.
+          EOF
+          git -C "${tmpdir}" add README.md
+          git -C "${tmpdir}" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Initialize tap repository'
+          git -C "${tmpdir}" remote add origin "https://x-access-token:${HOMEBREW_TAP_GITHUB_TOKEN}@github.com/harumiWeb/homebrew-eitango.git"
+          git -C "${tmpdir}" push origin main
+
       - name: Publish release artifacts
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -41,4 +94,5 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
           WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}

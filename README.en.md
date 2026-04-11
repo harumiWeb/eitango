@@ -79,7 +79,22 @@ winget upgrade HarumiWeb.Eitango
 
 If you do not want to use winget, you can still use the GitHub Releases zip described below.
 
-### 2. Use `curl | sh` on macOS / Linux
+### 2. Use Homebrew on macOS / Linux
+
+On macOS / Linux, you can also install `eitango` from the Homebrew tap. The formula points to the darwin / linux `tar.gz` archives published in GitHub Releases.
+
+```bash
+brew tap harumiWeb/eitango
+brew install eitango
+```
+
+To upgrade:
+
+```bash
+brew upgrade eitango
+```
+
+### 3. Use `curl | sh` on macOS / Linux
 
 `install.sh` calls the GitHub Releases API (`/releases/latest`) when `--version` is omitted to resolve the latest version, then downloads the matching GitHub Release archive and `checksums.txt`. It installs into `~/.eitango/` only after the SHA256 check passes, and it never edits shell rc files automatically.
 
@@ -126,13 +141,13 @@ curl -fsSL https://raw.githubusercontent.com/harumiWeb/eitango/main/install.sh |
 
 Required tools are `sh`, `curl`, `tar`, `mktemp`, and one of `sha256sum`, `shasum`, or `openssl`. Windows is out of scope for this installer, so use winget or the release zip there.
 
-### 3. Use GitHub Releases
+### 4. Use GitHub Releases
 
 Published archives include the executable plus `LICENSE`, `THIRD_PARTY_NOTICES.md`, and `third_party/licenses/`. Extract the artifact for your OS and run `eitango`.
 
 ※ You need to manually add it to your `PATH`.
 
-### 4. Install with Go
+### 5. Install with Go
 
 Go 1.26 or newer is required.
 
