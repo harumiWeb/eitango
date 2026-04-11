@@ -117,7 +117,7 @@ func defaultWindowsListVoices(command string) ([]byte, error) {
 	if _, ok := normalizeWindowsPowerShellCommand(command); !ok {
 		return nil, errors.New("unsupported powershell command")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	return windowsSystemPowerShellCommand(ctx, windowsListVoicesArgs()...).Output()
 }
