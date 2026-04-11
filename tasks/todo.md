@@ -1,3 +1,12 @@
+# 2026-04-11 語彙追加 30000 seed batch
+
+- [x] `parallel_review_30000` を `29001-30000` の範囲で作成する
+- [x] サブエージェントを使って slice ごとの承認候補をレビューする
+- [x] `approved_review_candidates.tsv` / `approved_seed.csv` に 30000 batch をマージする
+- [x] `apply_review_batch.py` で `assets/words_core.jsonl` へ反映する
+- [x] 新規追加帯の `verb` 代表訳と `distractor_group` ドリフトを監査して必要な補正を入れる
+- [x] `validate --embedded-core` と `doctor` で整合性を検証する
+
 # 5k 初回リリース TODO
 
 このファイルは、初回 OSS リリースに向けた active backlog だけを管理する。

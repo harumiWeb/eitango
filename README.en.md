@@ -21,7 +21,7 @@
 
 In addition to SRS-based review, it offers two modes: multiple-choice `choice` and input-based `write`. Audio playback is also supported.
 
-The embedded vocabulary currently contains about **5200** words, and external dictionary import from CSV / JSONL is also supported. The tool includes learning statistics, progress management, update notifications, and diagnostic tools.
+The embedded vocabulary currently contains about **8000** words, and external dictionary import from CSV / JSONL is also supported. The tool includes learning statistics, progress management, update notifications, and diagnostic tools.
 
 [日本語README](README.md) / [Contributing Guide](CONTRIBUTING.md) / [Security Policy](SECURITY.md)
 

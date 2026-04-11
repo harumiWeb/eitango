@@ -46,3 +46,11 @@
 - terminal 高さ制約の回帰テストは「view が収まる」だけで終わらせない。keymap editor のような可変リスト画面では `height + 1` で可視行がちょうど 1 行増えることまで固定し、underfill を見逃さない。
 - PowerShell の `ConvertTo-Json` は要素数 1 のとき単一 object を返すことがある。Windows voice catalog のように JSON 経由で列挙結果を読む実装では配列 shape を決め打ちせず、object / array の両方を受ける parser と回帰テストを用意する。
 - runtime probe の失敗を成功 cache と同一視しない。voice catalog のような外部依存の列挙結果は成功時だけ cache し、catalog 未取得時でも保存済み設定値を空文字へ正規化して消さない。
+- core 語彙の代表訳は subject/object の意味の向きを崩さない。`envious` と `enviable` のような対になる語では「うらやむ側」と「うらやまれる側」を取り違えず、俗義や限定義より中心義を優先する。
+- core 語彙の `distractor_group` は語種よりも出題時の誤答品質で決める。人物語は `people-noun`、楽器・動植物・素材・日用品は原則 `daily-noun` に寄せ、`business` / `technology` / `learning` へ安易に広げない。
+- core 語彙を一括追加した後は、新規 `verb` 行の `meaning_ja` が名詞形のまま残っていないかを必ず点検する。write mode では代表訳がそのまま prompt になるので、`分類` / `中止` のような名詞形を承認すると出題品質をまとめて壊す。
+- 同じく新規追加帯では、人を指す `noun` が `people-noun` から外れていないか、食べ物・動物が `travel-noun` に紛れていないかをまとめて監査する。レビュー TSV の候補値がもっともらしく見えても、誤答候補の質はこの分類で大きく崩れる。
+- 施設・場所を指す `noun` は `dockyard` / `drugstore` / `tearoom` のように `place-noun` へ寄せ、`pleasurable` のような体験評価の形容詞は `quality-adjective` を基準にそろえる。
+- 並列レビューの `approved_slice_*.tsv` は merge 前に `status=approved` を spot check する。行の絞り込みだけで status を `candidate` のまま残すと `merge_parallel_reviews.py` が即失敗し、レビューや監査が完了していても apply に進めない。
+- `merge_parallel_reviews.py` は slice dir 内の `approved_slice*.tsv` を広く拾うので、retry 用 TSV を同じディレクトリへ `approved_slice_XX_retry.tsv` のような名前で置かない。比較用の再レビューを作るなら別ディレクトリへ逃がすか、merge 前に必ず退避する。
+- core 語彙の多義語は `touchy` / `eject` / `decorator` のように扱いやすい派生義へ寄せず、learner dictionary の先頭義を優先する。人物の恒常的 traits は `obedient` / `meek` と同様に `quality-adjective` を基準にし、一時状態扱いへ寄せない。
