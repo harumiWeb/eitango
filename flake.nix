@@ -36,7 +36,7 @@
               "-w"
               "-X main.version=${self.shortRev or self.dirtyShortRev or "dev"}"
               "-X main.commit=${self.rev or "dirty"}"
-              "-X main.date=1970-01-01T00:00:00Z"
+              "-X main.date=${self.lastModifiedDate or "1970-01-01T00:00:00Z"}"
             ];
 
             meta = {
