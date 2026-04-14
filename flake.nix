@@ -42,6 +42,7 @@
             meta = {
               description = "English vocabulary learning CLI with spaced repetition";
               homepage = "https://github.com/harumiWeb/eitango";
+              license = pkgs.lib.licenses.asl20;
               mainProgram = "eitango";
             };
           };
