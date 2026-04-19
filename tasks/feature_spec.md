@@ -1,3 +1,40 @@
+# 2026-04-19 語彙追加 31000 seed batch
+
+## Goal
+
+- `30000seed` まで進んだ bundled core 語彙拡張を継続し、既存の Leipzig + Japanese WordNet ベースの review workflow に沿って次の batch を追加する。
+- `tmp/generated_vocab` の生成物と `assets/words_core.jsonl` を矛盾なく更新する。
+
+## Scope
+
+- `30001-31000` の parallel review slice 作成と承認結果の反映
+- `approved_review_candidates.tsv` / `approved_seed.csv` / `assets/words_core.jsonl` の更新
+- 新規追加帯の `verb` 代表訳と `distractor_group` の spot audit
+
+## Non-Goals
+
+- 既存 30000 rank 以下の承認済み語彙の再審査
+- 語彙生成アルゴリズムや score 閾値の仕様変更
+- DB schema やアプリ側ロジックの変更
+
+## Required Behavior
+
+- 既存の `scripts/vocab/*.py` workflow を使い、手作業で TSV を再構成しない。
+- `30001-31000` の候補だけを今回の review 対象とし、既承認語は重複反映しない。
+- `approved_slice_*.tsv` へ入れる行は `status=approved` を守り、`meaning_ja_candidate` と `distractor_group_candidate` を目視確認する。
+- `merge_parallel_reviews.py` と `apply_review_batch.py` を使って承認結果を bundled core へ反映する。
+- 反映後は新規追加帯に対して、`verb` の名詞形代表訳と人名詞 / 食べ物 / 動物 / adverb group の `distractor_group` ドリフトを監査する。
+- `go test ./...`、`go run ./cmd/eitango validate --embedded-core`、fresh data dir の `go run ./cmd/eitango stats` → `go run ./cmd/eitango doctor` で整合性を確認する。
+
+## Acceptance
+
+- `tmp/generated_vocab/parallel_review_31000/approved_slice_*.tsv` が揃う。
+- `approved_review_candidates.tsv` / `approved_seed.csv` に `30001-31000` の承認語が追加される。
+- `assets/words_core.jsonl` の行数が増え、追加語が bundled core に含まれる。
+- 新規 371 語の反映後も validate / doctor が問題なしを返す。
+
+---
+
 # 2026-04-11 語彙追加 30000 seed batch
 
 ## Goal
