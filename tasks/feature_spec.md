@@ -1,3 +1,43 @@
+# 2026-04-19 語彙追加 36000 seed batch
+
+## Goal
+
+- `35000seed` まで進んだ bundled core 語彙拡張を継続し、既存の Leipzig + Japanese WordNet ベースの review workflow に沿って次の batch を追加する。
+- `tmp/generated_vocab` の生成物と `assets/words_core.jsonl` を矛盾なく更新する。
+
+## Scope
+
+- `35001-36000` の parallel review slice 作成と承認結果の反映
+- `approved_review_candidates.tsv` / `approved_seed.csv` / `assets/words_core.jsonl` の更新
+- 新規追加帯の noun / verb / adjective / adverb の spot audit と post-apply sync
+- 壊れた merge artifact を retained slice と `approved_review_candidates_8k_preview.tsv` から再構築する復旧
+
+## Non-Goals
+
+- 既存 35000 rank 以下の承認済み語彙の再審査
+- 語彙生成アルゴリズムや score 閾値の仕様変更
+- DB schema やアプリ側ロジックの変更
+
+## Required Behavior
+
+- 既存の `scripts/vocab/*.py` workflow を使い、手作業で TSV を再構成しない。
+- `35001-36000` の候補だけを今回の review 対象とし、既承認語は重複反映しない。
+- `approved_slice_*.tsv` へ入れる行は `status=approved` を守り、`meaning_ja_candidate` と `distractor_group_candidate` を目視確認する。
+- `merge_parallel_reviews.py` と `apply_review_batch.py` を使って承認結果を bundled core へ反映する。
+- 反映後は新規追加帯に対して、代表義から外れた gloss、verb の述語形、人名詞 / place / daily / abstract noun 系の `distractor_group` ドリフト、quality / condition adjective と thinking / business / communication verb 系のずれを監査する。
+- post-apply の監査で既存 entry を補正するときは、`approved_review_candidates.tsv` と `approved_slice_*.tsv` だけでなく `assets/words_core.jsonl` も同期更新する。`apply_review_batch.py` は既存 lemma/pos を再適用しない。
+- 現行の merge artifact が壊れた場合は、`approved_review_candidates_8k_preview.tsv` を base に retained slice を積み直して `approved_review_candidates.tsv` / `approved_seed.csv` を復旧してから apply / audit / validate を続行する。
+- `go test ./...`、`go build ./...`、`go run ./cmd/eitango validate --embedded-core`、fresh data dir の `go run ./cmd/eitango stats` → `go run ./cmd/eitango doctor` で整合性を確認する。
+
+## Acceptance
+
+- `tmp/generated_vocab/parallel_review_36000/approved_slice_*.tsv` が揃い、freeze 用の `parallel_review_36000_final` が作られる。
+- `approved_review_candidates.tsv` / `approved_seed.csv` が `35001-36000` の承認語を含む 8945-row の状態に復旧される。
+- `assets/words_core.jsonl` に新規 612 語が追加され、embedded core が 10035 entries になる。
+- `tabulate` / `unanticipated` / `unexpired` / `waylay` / `bleary` / `buss` / `cartwheel` / `creosote` / `tartar` / `teleportation` / `travelogue` / `tweezer` / `alarum` / `foghorn` / `lovebird` などの post-apply 補正を反映した状態でも validate / doctor が問題なしを返す。
+
+---
+
 # 2026-04-19 語彙追加 35000 seed batch
 
 ## Goal
