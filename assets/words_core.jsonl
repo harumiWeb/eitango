@@ -9224,7 +9224,7 @@
 {"lemma":"fragmentary","pos":"adjective","meaning_ja":"断片的な","level":"core-3","frequency_rank":65185,"distractor_group":"quality-adjective"}
 {"lemma":"frame-up","pos":"noun","meaning_ja":"でっち上げ","level":"core-3","frequency_rank":65200,"distractor_group":"daily-noun"}
 {"lemma":"frill","pos":"noun","meaning_ja":"フリル","level":"core-3","frequency_rank":65215,"distractor_group":"daily-noun"}
-{"lemma":"gangly","pos":"adjective","meaning_ja":"ひょろ長い","level":"core-3","frequency_rank":65230,"distractor_group":"quality-adjective"}
+{"lemma":"gangly","pos":"adjective","meaning_ja":"ひょろ長く不格好な","level":"core-3","frequency_rank":65230,"distractor_group":"quality-adjective"}
 {"lemma":"gecko","pos":"noun","meaning_ja":"ヤモリ","level":"core-3","frequency_rank":65245,"distractor_group":"daily-noun"}
 {"lemma":"gentlemanly","pos":"adjective","meaning_ja":"紳士的な","level":"core-3","frequency_rank":65260,"distractor_group":"quality-adjective"}
 {"lemma":"gnaw","pos":"verb","meaning_ja":"かじる","level":"core-3","frequency_rank":65275,"distractor_group":"basic-verb-action"}
@@ -9274,7 +9274,7 @@
 {"lemma":"laconic","pos":"adjective","meaning_ja":"簡潔な","level":"core-3","frequency_rank":65935,"distractor_group":"quality-adjective"}
 {"lemma":"ladylike","pos":"adjective","meaning_ja":"しとやかな","level":"core-3","frequency_rank":65950,"distractor_group":"quality-adjective"}
 {"lemma":"languid","pos":"adjective","meaning_ja":"気だるい","level":"core-3","frequency_rank":65965,"distractor_group":"condition-adjective"}
-{"lemma":"lanky","pos":"adjective","meaning_ja":"ひょろ長い","level":"core-3","frequency_rank":65980,"distractor_group":"quality-adjective"}
+{"lemma":"lanky","pos":"adjective","meaning_ja":"痩せて背の高い","level":"core-3","frequency_rank":65980,"distractor_group":"quality-adjective"}
 {"lemma":"larder","pos":"noun","meaning_ja":"食料庫","level":"core-3","frequency_rank":65995,"distractor_group":"place-noun"}
 {"lemma":"laughingly","pos":"adverb","meaning_ja":"笑いながら","level":"core-3","frequency_rank":66010,"distractor_group":"manner-adverb"}
 {"lemma":"laughingstock","pos":"noun","meaning_ja":"笑いもの","level":"core-3","frequency_rank":66025,"distractor_group":"people-noun"}
@@ -9283,7 +9283,7 @@
 {"lemma":"legalise","pos":"verb","meaning_ja":"合法化する","level":"core-3","frequency_rank":66070,"distractor_group":"basic-verb-action"}
 {"lemma":"lemur","pos":"noun","meaning_ja":"キツネザル","level":"core-3","frequency_rank":66085,"distractor_group":"daily-noun"}
 {"lemma":"light-heartedly","pos":"adverb","meaning_ja":"気軽に","level":"core-3","frequency_rank":66100,"distractor_group":"manner-adverb"}
-{"lemma":"locket","pos":"noun","meaning_ja":"ロケット","level":"core-3","frequency_rank":66115,"distractor_group":"daily-noun"}
+{"lemma":"locket","pos":"noun","meaning_ja":"ロケットペンダント","level":"core-3","frequency_rank":66115,"distractor_group":"daily-noun"}
 {"lemma":"lowercase","pos":"noun","meaning_ja":"小文字","level":"core-3","frequency_rank":66130,"distractor_group":"daily-noun"}
 {"lemma":"maggot","pos":"noun","meaning_ja":"ウジ","level":"core-3","frequency_rank":66145,"distractor_group":"daily-noun"}
 {"lemma":"maglev","pos":"noun","meaning_ja":"リニアモーターカー","level":"core-3","frequency_rank":66160,"distractor_group":"travel-noun"}

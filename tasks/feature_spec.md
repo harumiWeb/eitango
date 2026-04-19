@@ -32,7 +32,7 @@
 - `tmp/generated_vocab/parallel_review_35000/approved_slice_*.tsv` が揃い、freeze 用の `parallel_review_35000_final` が作られる。
 - `approved_review_candidates.tsv` / `approved_seed.csv` に `34001-35000` の承認語が追加される。
 - `assets/words_core.jsonl` に新規 201 語が追加され、embedded core が 9423 entries になる。
-- `laughingstock` / `monotheism` / `monotone` / `overcharge` / `oversimplification` / `poverty-stricken` / `recollect` / `restatement` / `ruminate` の post-apply 補正を反映した状態でも validate / doctor が問題なしを返す。
+- `gangly` / `laughingstock` / `lanky` / `locket` / `monotheism` / `monotone` / `overcharge` / `oversimplification` / `poverty-stricken` / `recollect` / `restatement` / `ruminate` の post-apply 補正を反映した状態でも validate / doctor が問題なしを返す。
 
 ---
 
