@@ -1,3 +1,12 @@
+# 2026-04-19 語彙追加 33000 seed batch
+
+- [x] `parallel_review_33000` を `32001-33000` の範囲で作成する
+- [x] サブエージェントを使って slice ごとの承認候補をレビューし、`parallel_review_33000_final` に freeze する
+- [x] `approved_review_candidates.tsv` / `approved_seed.csv` に 33000 batch をマージする
+- [x] `apply_review_batch.py` で `assets/words_core.jsonl` へ反映する
+- [x] 新規追加帯の gloss と `distractor_group` ドリフトを監査し、`meanness` / `nonviolence` / `peacefulness` / `snobbery` / `vagueness` / `viciousness` / `wildness` / `dreamworld` / `gaiety` を `abstract-noun` へ補正する
+- [x] `go test ./...`、`go build ./...`、`validate --embedded-core`、fresh data dir の `stats` → `doctor` で整合性を検証する
+
 # 2026-04-19 語彙追加 32000 seed batch
 
 - [x] `parallel_review_32000` を `31001-32000` の範囲で作成する
