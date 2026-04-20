@@ -7,6 +7,8 @@
 
 ## [0.8.0] - 2026-04-20
 
+### Added
+
 - 語彙データを追加しました。コア語彙数は合計10165個です。
 
 ## [0.7.2] - 2026-04-11
@@ -204,7 +206,8 @@
 - 通知不要時に古い update tag が画面に残る問題を修正しました。
 - `dev` など非 semver の build でも update availability を正しく判定するようにしました。
 
-[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/harumiWeb/eitango/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/harumiWeb/eitango/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/harumiWeb/eitango/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/harumiWeb/eitango/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/harumiWeb/eitango/compare/v0.6.1...v0.7.0
