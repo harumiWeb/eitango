@@ -1,3 +1,12 @@
+# 2026-04-20 語彙追加 37000 seed batch
+
+- [x] `parallel_review_37000` を `36001-37000` の範囲で作成する
+- [x] サブエージェントを使って slice ごとの承認候補をレビューし、`parallel_review_37000_final` に freeze する
+- [x] `approved_review_candidates.tsv` / `approved_seed.csv` に 37000 batch をマージする
+- [x] `apply_review_batch.py` で `assets/words_core.jsonl` へ反映する
+- [x] 新規追加帯の gloss と `distractor_group` を spot audit し、追加修正が不要なことを確認する
+- [x] `go test ./...`、`go build ./...`、`validate --embedded-core`、fresh data dir の `stats` → `doctor` で整合性を検証する
+
 # 2026-04-19 語彙追加 36000 seed batch
 
 - [x] `parallel_review_36000` を `35001-36000` の範囲で作成する
